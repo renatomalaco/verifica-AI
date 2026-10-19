@@ -1,0 +1,27 @@
+{
+  "name": "Verifica AI - Proteção contra Golpes",
+  "short_name": "Verifica AI",
+  "description": "Cole a mensagem, o link ou o print e descubra se é golpe",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ECF0F0",
+  "theme_color": "#1F5464",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}
