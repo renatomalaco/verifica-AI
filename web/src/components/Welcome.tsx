@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { m } from '../paraglide/messages.js'
 import { usePreferences } from '../prefs/context'
 import { markOnboarded, preferencesFromSituations } from '../prefs/preferences'
 import { Header } from './Header'
@@ -11,7 +12,7 @@ interface WelcomeProps {
   onSkip: () => void
 }
 
-// First visit: "Quem vai usar?". Answering already counts as visited,
+// First visit: "who will use it?". Answering already counts as visited,
 // so the tutorial doesn't come back if the person closes the site midway.
 export function Welcome({ onContinue, onSkip }: WelcomeProps) {
   const [configuring, setConfiguring] = useState(false)
@@ -34,17 +35,17 @@ export function Welcome({ onContinue, onSkip }: WelcomeProps) {
       <div className="hero">
         <Lupa size="lg" mode="float" />
         <div className="stack">
-          <FocusedHeading>Recebeu algo estranho? Confira antes de responder.</FocusedHeading>
-          <p className="text-muted">O Verifica investiga mensagens, links e prints e diz se é golpe e o que fazer.</p>
+          <FocusedHeading>{m.onboarding_welcome_title()}</FocusedHeading>
+          <p className="text-muted">{m.onboarding_welcome_lead()}</p>
         </div>
       </div>
       <div className="stack stack-actions">
-        <p className="question">Quem vai usar o Verifica neste aparelho?</p>
+        <p className="question">{m.onboarding_who_question()}</p>
         <button type="button" className="btn btn-primary" onClick={chooseMe}>
-          Eu mesmo
+          {m.onboarding_who_self()}
         </button>
         <button type="button" className="btn btn-outline" onClick={chooseSomeoneElse}>
-          Vou configurar para alguém
+          {m.onboarding_who_someone_else()}
         </button>
       </div>
     </div>
@@ -67,14 +68,14 @@ function SituationCatalog({ onApplied, onSkip }: { onApplied: () => void; onSkip
     <div className="onboarding">
       <Header trailing={<SkipButton onClick={onSkip} />} />
       <div className="stack">
-        <FocusedHeading>Conte um pouco sobre quem vai usar</FocusedHeading>
-        <p className="text-muted">Escolha o que combina com a situação. O Verifica se ajusta e explica o porquê de cada ajuste.</p>
+        <FocusedHeading>{m.onboarding_catalog_title()}</FocusedHeading>
+        <p className="text-muted">{m.onboarding_catalog_lead()}</p>
       </div>
       <SituationPicker selected={picked} onToggle={toggle} />
       <div className="stack stack-actions">
         <ShareConfigButton prefs={draft} />
         <button type="button" className="btn btn-primary" onClick={apply}>
-          Aplicar neste aparelho
+          {m.onboarding_catalog_apply()}
         </button>
       </div>
     </div>
@@ -84,7 +85,7 @@ function SituationCatalog({ onApplied, onSkip }: { onApplied: () => void; onSkip
 export function SkipButton({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" className="btn btn-quiet" onClick={onClick}>
-      Pular
+      {m.onboarding_skip()}
     </button>
   )
 }

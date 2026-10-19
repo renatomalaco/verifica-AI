@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { m } from '../paraglide/messages.js'
 
 export function FamilyAlertButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
@@ -15,7 +16,7 @@ export function FamilyAlertButton({ text }: { text: string }) {
 
   return (
     <button type="button" className="btn btn-quiet align-start reveal-2" onClick={copy}>
-      {copied ? 'Copiado. Agora é só colar no WhatsApp.' : 'Avisar a família'}
+      {copied ? m.verdict_family_alert_copied() : m.verdict_family_alert()}
     </button>
   )
 }

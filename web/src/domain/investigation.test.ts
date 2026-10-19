@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { m } from '../paraglide/messages.js'
 import { buildEvidence, friendlyErrorMessage, toScanRequest, upsertStage } from './investigation'
 
 describe('buildEvidence', () => {
@@ -46,12 +47,12 @@ describe('upsertStage', () => {
 
 describe('friendlyErrorMessage', () => {
   it('talks about the internet when the connection failed', () => {
-    expect(friendlyErrorMessage(new Error('Failed to fetch'), true)).toMatch(/internet caiu/)
-    expect(friendlyErrorMessage(new Error('qualquer coisa'), false)).toMatch(/internet caiu/)
+    expect(friendlyErrorMessage(new Error('Failed to fetch'), true)).toBe(m.home_error_offline())
+    expect(friendlyErrorMessage(new Error('qualquer coisa'), false)).toBe(m.home_error_offline())
   })
 
   it('never exposes technical details for other failures', () => {
     const message = friendlyErrorMessage(new Error('Erro (500): Traceback ...'), true)
-    expect(message).toBe('Houve um problema na investigação. Tente de novo em instantes.')
+    expect(message).toBe(m.home_error_generic())
   })
 })

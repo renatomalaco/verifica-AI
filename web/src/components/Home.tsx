@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { m } from '../paraglide/messages.js'
 import { buildEvidence } from '../domain/investigation'
 import { useInvestigation } from '../hooks/useInvestigation'
 import { usePreferences } from '../prefs/context'
@@ -84,8 +85,8 @@ export function Home({ onLearn, onPrivacy }: HomeProps) {
           <BookIcon size={20} />
         </span>
         <span>
-          <span className="choice__title">Aprenda a se proteger</span>
-          <span className="choice__desc">Lições rápidas sobre os golpes mais comuns</span>
+          <span className="choice__title">{m.home_learn_title()}</span>
+          <span className="choice__desc">{m.home_learn_desc()}</span>
         </span>
       </button>
     </>

@@ -7,7 +7,7 @@ export type Explanation =
   | { status: 'ready'; lines: string[]; remaining?: number }
   | { status: 'error'; kind: ExplainError['kind']; retryAt: string | null }
 
-// "Me explica": opening fetches the explanation; closing cancels the pending request.
+// Explain button: opening fetches the explanation; closing cancels the pending request.
 export function useExplanation(scanId: string) {
   const [explanation, setExplanation] = useState<Explanation>({ status: 'closed' })
   const abortRef = useRef<AbortController | null>(null)

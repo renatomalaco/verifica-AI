@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { isSpeechSupported, speakVerdict, stopSpeaking } from '../utils/speech'
 
 interface SpeechOptions {
-  // "Ler o resultado sozinho" preference: starts speaking as soon as the screen opens.
+  // Auto-speak preference: starts speaking as soon as the screen opens.
   startOnMount?: boolean
 }
 

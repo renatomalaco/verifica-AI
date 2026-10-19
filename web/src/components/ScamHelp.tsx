@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ChevronIcon } from './Icons'
+import { m } from '../paraglide/messages.js'
 
 export function ScamHelp() {
   const [open, setOpen] = useState(false)
@@ -13,21 +14,21 @@ export function ScamHelp() {
         aria-controls="ja-cai"
         onClick={() => setOpen((o) => !o)}
       >
-        <span>Já caí nesse golpe. E agora?</span>
+        <span>{m.verdict_scam_help_toggle()}</span>
         <ChevronIcon size={20} className="chevron" />
       </button>
       {open && (
         <div className="sheet" id="ja-cai">
           <p>
-            <strong>Ligue para o seu banco</strong> agora e conte o que aconteceu.
+            <strong>{m.verdict_scam_help_bank_strong()}</strong> {m.verdict_scam_help_bank_rest()}
           </p>
           <p>
-            <strong>Peça a devolução do Pix</strong> pelo aplicativo do banco. Quanto antes, melhor.
+            <strong>{m.verdict_scam_help_pix_strong()}</strong> {m.verdict_scam_help_pix_rest()}
           </p>
           <p>
-            <strong>Registre um boletim de ocorrência.</strong> Dá para fazer pela internet.
+            <strong>{m.verdict_scam_help_report_strong()}</strong> {m.verdict_scam_help_report_rest()}
           </p>
-          <p className="text-muted text-small">Não é culpa sua. Esse golpe engana muita gente.</p>
+          <p className="text-muted text-small">{m.verdict_scam_help_not_your_fault()}</p>
         </div>
       )}
     </div>

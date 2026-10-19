@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { m } from '../paraglide/messages.js'
 import { usePreferences } from '../prefs/context'
 import { DEFAULT_PREFERENCES } from '../prefs/preferences'
 import { BackIcon } from './Icons'
@@ -8,7 +9,7 @@ interface PrivacyProps {
 }
 
 // Everything here must match what the backend actually does:
-// migrations/0001 (what is stored), domain/quota.py and settings (limits and retention).
+// migrations/0001 and 0003 (what is stored), domain/quota.py and settings (limits and retention).
 export function Privacy({ onBack }: PrivacyProps) {
   const headingRef = useRef<HTMLHeadingElement>(null)
   const [cleared, setCleared] = useState(false)
@@ -34,82 +35,65 @@ export function Privacy({ onBack }: PrivacyProps) {
     <article className="app-main" aria-labelledby="privacidade-titulo">
       <button type="button" className="btn btn-quiet align-start" onClick={onBack}>
         <BackIcon size={22} />
-        Voltar
+        {m.common_back()}
       </button>
 
       <div className="stack">
         <h1 className="title-l" id="privacidade-titulo" ref={headingRef} tabIndex={-1}>
-          Como o Verifica cuida dos seus dados
+          {m.privacy_title()}
         </h1>
-        <p className="text-muted">
-          O Verifica é um projeto de pesquisa (TCC). Para medir se a ferramenta funciona bem, alguns dados das análises são
-          registrados, sempre de forma anônima: nada fica ligado a você.
-        </p>
+        <p className="text-muted">{m.privacy_intro()}</p>
       </div>
 
-      <PrivacySection title="O que não é guardado">
+      <PrivacySection title={m.privacy_not_stored_title()}>
         <ul className="bullet-list bullet-list--ok">
-          <li>O texto, o link ou o print que você colou.</li>
-          <li>Seu nome, telefone, CPF ou qualquer cadastro. O Verifica não pede conta.</li>
-          <li>Seu endereço de internet (IP) junto com as análises.</li>
+          <li>{m.privacy_not_stored_content()}</li>
+          <li>{m.privacy_not_stored_identity()}</li>
+          <li>{m.privacy_not_stored_ip()}</li>
         </ul>
       </PrivacySection>
 
-      <PrivacySection title="O que fica registrado, e por quê">
-        <p>De cada análise, fica só:</p>
+      <PrivacySection title={m.privacy_stored_title()}>
+        <p>{m.privacy_stored_intro()}</p>
         <ul className="bullet-list bullet-list--ok">
-          <li>o tipo (mensagem, link ou foto) e o resultado (golpe, cuidado, seguro ou sem certeza);</li>
-          <li>quanto tempo cada etapa da investigação levou, e a data e hora;</li>
+          <li>{m.privacy_stored_type()}</li>
+          <li>{m.privacy_stored_message_code()}</li>
+          <li>{m.privacy_stored_timing()}</li>
           <li>
-            uma <strong>impressão digital</strong> do conteúdo: um código calculado a partir dele, que não guarda o texto. Ela
-            serve para reconhecer quando o mesmo golpe aparece de novo.
+            {m.privacy_stored_fingerprint_lead()} <strong>{m.privacy_stored_fingerprint_term()}</strong>{' '}
+            {m.privacy_stored_fingerprint_text()}
           </li>
         </ul>
         <p>
-          <strong>Para que serve:</strong> esses registros anônimos alimentam as métricas do modo pesquisa do TCC, como o tempo
-          de resposta e a proporção de cada tipo de resultado. Assim dá para comprovar se a ferramenta é rápida e confiável,
-          sem identificar quem usou.
+          <strong>{m.privacy_purpose_label()}</strong> {m.privacy_purpose_text()}
         </p>
       </PrivacySection>
 
-      <PrivacySection title="Durante a investigação">
+      <PrivacySection title={m.privacy_during_title()}>
         <ul className="bullet-list bullet-list--ok">
-          <li>
-            Antes de o texto ir para o serviço de inteligência artificial, dados como CPF, cartão, telefone, e-mail e senhas são
-            escondidos.
-          </li>
-          <li>Os links são abertos num navegador isolado, no servidor do Verifica, e nunca no seu aparelho.</li>
+          <li>{m.privacy_during_masking()}</li>
+          <li>{m.privacy_during_isolated_browser()}</li>
         </ul>
       </PrivacySection>
 
-      <PrivacySection title="O limite do “Me explica”">
-        <p>
-          Para contar quantas explicações já foram pedidas, o navegador guarda um código aleatório, que não diz quem você é. Os
-          contadores se apagam sozinhos: o do dia em até 2 dias, o do mês em até 32 dias. O endereço de internet é usado só para
-          evitar abuso e fica guardado por no máximo 1 hora.
-        </p>
+      <PrivacySection title={m.privacy_quota_title()}>
+        <p>{m.privacy_quota_text()}</p>
       </PrivacySection>
 
-      <PrivacySection title="Neste aparelho">
-        <p>
-          Os ajustes de leitura, o tutorial já visto e o progresso das lições ficam salvos só no seu navegador e não são enviados
-          para ninguém.
-        </p>
+      <PrivacySection title={m.privacy_device_title()}>
+        <p>{m.privacy_device_text()}</p>
         {cleared ? (
           <p className="note" role="status">
-            Pronto. Os dados deste aparelho foram apagados.
+            {m.privacy_device_cleared()}
           </p>
         ) : (
           <button type="button" className="btn btn-outline" onClick={clearDevice}>
-            Apagar dados deste aparelho
+            {m.privacy_device_clear()}
           </button>
         )}
       </PrivacySection>
 
-      <p className="text-muted text-small">
-        O Verifica segue os princípios da Lei Geral de Proteção de Dados (Lei 13.709/2018): usar só o necessário, com
-        finalidade clara, e de forma anônima.
-      </p>
+      <p className="text-muted text-small">{m.privacy_lgpd()}</p>
     </article>
   )
 }

@@ -9,6 +9,7 @@ import { Tutorial } from './components/Tutorial'
 import { Welcome } from './components/Welcome'
 import { CONFIG_HASH_PREFIX, hasOnboarded, markOnboarded } from './prefs/preferences'
 import { PreferencesProvider } from './prefs/PreferencesProvider'
+import { m } from './paraglide/messages.js'
 
 type View = 'welcome' | 'tutorial' | 'home' | 'settings' | 'learn' | 'privacy' | 'research'
 
@@ -83,10 +84,10 @@ function Shell() {
         </main>
         <footer className="footer-links">
           <button type="button" className="link-button" onClick={() => go('privacy')}>
-            Privacidade
+            {m.common_privacy()}
           </button>
           <button type="button" className="link-button" onClick={() => openLearn()}>
-            Aprenda a se proteger
+            {m.common_learn_protect()}
           </button>
         </footer>
       </div>
@@ -106,9 +107,9 @@ function PageWithHeader({ children }: { children: ReactNode }) {
 function ConfigAppliedBanner({ onClose }: { onClose: () => void }) {
   return (
     <div className="banner" role="status">
-      Ajustes aplicados neste aparelho.
+      {m.common_config_applied()}
       <button type="button" className="btn btn-quiet" onClick={onClose}>
-        Ok
+        {m.common_ok()}
       </button>
     </div>
   )

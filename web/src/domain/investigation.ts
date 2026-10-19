@@ -1,4 +1,5 @@
 // Investigation rules: what is sent, how stages progress and what to say when something fails.
+import { m } from '../paraglide/messages.js'
 import type { InputTab, ScanRequest, StageEvent, StageStatus } from '../types'
 
 export interface EvidenceData {
@@ -34,7 +35,7 @@ export function upsertStage(stages: StageEntry[], event: StageEvent): StageEntry
 // Never pass the error text through: it may carry technical server details.
 export function friendlyErrorMessage(error: Error, online: boolean): string {
   if (!online || /Failed to fetch|NetworkError|Load failed/i.test(error.message)) {
-    return 'Parece que a internet caiu. Confira a conexão e tente de novo.'
+    return m.home_error_offline()
   }
-  return 'Houve um problema na investigação. Tente de novo em instantes.'
+  return m.home_error_generic()
 }

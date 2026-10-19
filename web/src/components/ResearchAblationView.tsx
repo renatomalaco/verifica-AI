@@ -1,13 +1,14 @@
 import React, { useState } from 'react'
 import { ArrowLeft, Copy, Check, FlaskConical, Code2, BookOpen } from 'lucide-react'
+import { m } from '../paraglide/messages.js'
 
 interface Props {
   onBack: () => void
 }
 
 interface AblationRow {
-  mode: string
-  name: string
+  name: () => string
+  highlight?: boolean
   acc: string
   prec: string
   rec: string
@@ -20,8 +21,7 @@ interface AblationRow {
 
 const DEFAULT_ROWS: AblationRow[] = [
   {
-    mode: 'Modo 1',
-    name: 'Modo 1 (Heurístico / Feeds + Sinais de Domínio)',
+    name: m.research_mode_heuristic,
     acc: '52.4%',
     prec: '1.000',
     rec: '0.286',
@@ -32,8 +32,7 @@ const DEFAULT_ROWS: AblationRow[] = [
     cost: '$0.000',
   },
   {
-    mode: 'Modo 1b',
-    name: 'Modo 1b (NLP Clássico / TF-IDF + LogReg)',
+    name: m.research_mode_classic_nlp,
     acc: '81.0%',
     prec: '0.846',
     rec: '0.786',
@@ -44,8 +43,7 @@ const DEFAULT_ROWS: AblationRow[] = [
     cost: '$0.001',
   },
   {
-    mode: 'Modo 2',
-    name: 'Modo 2 (VLM Puro Multimodal)',
+    name: m.research_mode_vlm,
     acc: '90.5%',
     prec: '0.929',
     rec: '0.929',
@@ -56,8 +54,8 @@ const DEFAULT_ROWS: AblationRow[] = [
     cost: '$1.500',
   },
   {
-    mode: 'Modo 3',
-    name: 'Modo 3 (Cascata Verifica AI com Early Return)',
+    name: m.research_mode_cascade,
+    highlight: true,
     acc: '95.2%',
     prec: '0.933',
     rec: '1.000',
@@ -69,6 +67,7 @@ const DEFAULT_ROWS: AblationRow[] = [
   },
 ]
 
+// Verbatim LaTeX for the thesis document, which is written in Portuguese.
 const LATEX_SNIPPET = `\\begin{table}[htbp]
 \\centering
 \\caption{Resultados do Estudo de Ablação e Comparativo de Eficácia da Plataforma Verifica AI}
@@ -106,51 +105,50 @@ export const ResearchAblationView: React.FC<Props> = ({ onBack }) => {
           onClick={onBack}
           className="btn-primary"
           style={{ width: 'auto', minWidth: '180px', height: '44px', padding: '0 1rem' }}
-          aria-label="Voltar ao Scanner"
+          aria-label={m.research_back()}
         >
           <ArrowLeft size={18} aria-hidden="true" />
-          <span>Voltar ao Scanner</span>
+          <span>{m.research_back()}</span>
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#60a5fa' }}>
           <FlaskConical size={24} aria-hidden="true" />
-          <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>Área Científica e Benchmarking</span>
+          <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{m.research_area()}</span>
         </div>
       </div>
 
       <header>
         <h1 style={{ fontSize: '1.8rem', color: 'var(--color-text-primary)' }}>
-          Estudo de Ablação e Eficácia — TCC
+          {m.research_title()}
         </h1>
         <p style={{ fontSize: '1.1rem', color: 'var(--color-text-secondary)', marginTop: '0.5rem' }}>
-          Avaliação empírica do pipeline multimodal em cascata contra baselines heurísticos e modelos puros,
-          respondendo diretamente às questões centrais da defesa de monografia.
+          {m.research_intro()}
         </p>
       </header>
 
       {/* Results table */}
       <section aria-labelledby="tabela-ablation-titulo" style={{ overflowX: 'auto' }}>
         <h2 id="tabela-ablation-titulo" style={{ fontSize: '1.3rem', color: 'var(--color-text-primary)', marginBottom: '0.75rem' }}>
-          Tabela Comparativa de Modos de Inspeção
+          {m.research_table_title()}
         </h2>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '650px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid rgba(255, 255, 255, 0.15)', color: 'var(--color-text-muted)' }}>
-              <th style={{ padding: '0.75rem 0.5rem' }}>Modo</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>Acurácia</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>Precisão</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>Recall</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>F1-Score</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>F2-Score</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>ECE</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>P95 (ms)</th>
-              <th style={{ padding: '0.75rem 0.5rem' }}>Custo/1k</th>
+              <th style={{ padding: '0.75rem 0.5rem' }}>{m.research_col_mode()}</th>
+              <th style={{ padding: '0.75rem 0.5rem' }}>{m.research_col_accuracy()}</th>
+              <th style={{ padding: '0.75rem 0.5rem' }}>{m.research_col_precision()}</th>
+              <th style={{ padding: '0.75rem 0.5rem' }}>{m.research_col_recall()}</th>
+              <th style={{ padding: '0.75rem 0.5rem' }}>{m.research_col_f1()}</th>
+              <th style={{ padding: '0.75rem 0.5rem' }}>{m.research_col_f2()}</th>
+              <th style={{ padding: '0.75rem 0.5rem' }}>{m.research_col_ece()}</th>
+              <th style={{ padding: '0.75rem 0.5rem' }}>{m.research_col_p95()}</th>
+              <th style={{ padding: '0.75rem 0.5rem' }}>{m.research_col_cost()}</th>
             </tr>
           </thead>
           <tbody>
             {DEFAULT_ROWS.map((row, idx) => {
-              const isHighlight = row.mode === 'Modo 3'
+              const isHighlight = row.highlight === true
               return (
                 <tr
                   key={idx}
@@ -160,7 +158,7 @@ export const ResearchAblationView: React.FC<Props> = ({ onBack }) => {
                     fontWeight: isHighlight ? 600 : 400,
                   }}
                 >
-                  <td style={{ padding: '0.75rem 0.5rem' }}>{row.name}</td>
+                  <td style={{ padding: '0.75rem 0.5rem' }}>{row.name()}</td>
                   <td style={{ padding: '0.75rem 0.5rem' }}>{row.acc}</td>
                   <td style={{ padding: '0.75rem 0.5rem' }}>{row.prec}</td>
                   <td style={{ padding: '0.75rem 0.5rem' }}>{row.rec}</td>
@@ -181,17 +179,17 @@ export const ResearchAblationView: React.FC<Props> = ({ onBack }) => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ fontSize: '1.25rem', color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Code2 size={20} color="#60a5fa" aria-hidden="true" />
-            <span>Tabela em Formato LaTeX (Booktabs)</span>
+            <span>{m.research_latex_title()}</span>
           </h2>
           <button
             type="button"
             onClick={handleCopyLatex}
             className="btn-primary"
             style={{ width: 'auto', minWidth: '190px', height: '40px', padding: '0 0.75rem', fontSize: '0.95rem' }}
-            aria-label="Copiar Código LaTeX"
+            aria-label={m.research_copy_latex()}
           >
             {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
-            <span>{copied ? 'Copiado para Área de Transferência!' : 'Copiar Código LaTeX'}</span>
+            <span>{copied ? m.research_copied() : m.research_copy_latex()}</span>
           </button>
         </div>
 
@@ -215,17 +213,17 @@ export const ResearchAblationView: React.FC<Props> = ({ onBack }) => {
       <section style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
         <h3 style={{ fontSize: '1.15rem', color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <BookOpen size={18} color="#38bdf8" aria-hidden="true" />
-          <span>Conclusões do Estudo para a Banca</span>
+          <span>{m.research_conclusions_title()}</span>
         </h3>
         <ul style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', color: 'var(--color-text-secondary)', fontSize: '1.05rem' }}>
           <li>
-            <strong>Superioridade da Cascata (F1 = 0.966 vs 0.444):</strong> O Modo 1 heurístico (SiteConfiável) apresenta ponto cego estrutural em textos e imagens sem link.
+            <strong>{m.research_conclusion_cascade_label()}</strong> {m.research_conclusion_cascade_text()}
           </li>
           <li>
-            <strong>Redução Drástica de Custos ($0.15 vs $1.50):</strong> O short-circuit nos estágios preliminares economiza 90% dos custos com VLM mantendo revocação de 100%.
+            <strong>{m.research_conclusion_cost_label()}</strong> {m.research_conclusion_cost_text()}
           </li>
           <li>
-            <strong>Calibração de Probabilidades (ECE = 0.038):</strong> Baixíssimo erro de calibração, assegurando confiabilidade estatística para proteção de idosos.
+            <strong>{m.research_conclusion_calibration_label()}</strong> {m.research_conclusion_calibration_text()}
           </li>
         </ul>
       </section>

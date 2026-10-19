@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { GOLDEN_RULES, LESSONS, loadLessonProgress, saveLessonProgress } from '../content/lessons'
+import { goldenRules, lessons, loadLessonProgress, saveLessonProgress } from '../content/lessons'
+import { m } from '../paraglide/messages.js'
 import { BackIcon, CheckIcon } from './Icons'
 import { LessonView } from './LessonView'
 import { NumberedSteps } from './NumberedSteps'
@@ -9,8 +10,7 @@ interface LearnProps {
   initialLessonId?: string | null
 }
 
-// "Aprenda a se proteger": a short course, one lesson per common scam,
-// each ending with an "Isso é golpe?" exercise.
+// A short course, one lesson per common scam, each ending with a "is this a scam?" exercise.
 export function Learn({ onBack, initialLessonId = null }: LearnProps) {
   const [lessonId, setLessonId] = useState<string | null>(initialLessonId)
   const [done, setDone] = useState<string[]>(loadLessonProgress)
@@ -23,18 +23,19 @@ export function Learn({ onBack, initialLessonId = null }: LearnProps) {
       return next
     })
 
-  const index = LESSONS.findIndex((l) => l.id === lessonId)
+  const all = lessons()
+  const index = all.findIndex((l) => l.id === lessonId)
   if (index >= 0) {
-    const next = LESSONS[index + 1]
+    const next = all[index + 1]
     return (
       <LessonView
-        key={LESSONS[index].id}
-        lesson={LESSONS[index]}
+        key={all[index].id}
+        lesson={all[index]}
         position={index + 1}
         onBack={() => setLessonId(null)}
-        onAnswered={() => markDone(LESSONS[index].id)}
+        onAnswered={() => markDone(all[index].id)}
         onNext={next ? () => setLessonId(next.id) : () => setLessonId(null)}
-        nextLabel={next ? 'Próxima lição' : 'Ver todas as lições'}
+        nextLabel={next ? m.learn_next_lesson() : m.learn_all_lessons_link()}
       />
     )
   }
@@ -44,6 +45,7 @@ export function Learn({ onBack, initialLessonId = null }: LearnProps) {
 
 function LessonList({ done, onOpen, onBack }: { done: string[]; onOpen: (id: string) => void; onBack: () => void }) {
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const all = lessons()
   useEffect(() => {
     headingRef.current?.focus()
   }, [])
@@ -52,34 +54,34 @@ function LessonList({ done, onOpen, onBack }: { done: string[]; onOpen: (id: str
     <section className="app-main" aria-labelledby="aprender-titulo">
       <button type="button" className="btn btn-quiet align-start" onClick={onBack}>
         <BackIcon size={22} />
-        Voltar
+        {m.common_back()}
       </button>
 
       <div className="stack">
         <h1 className="title-l" id="aprender-titulo" ref={headingRef} tabIndex={-1}>
-          Aprenda a se proteger
+          {m.learn_title()}
         </h1>
         <p className="text-muted">
-          Lições rápidas sobre os golpes mais comuns. Cada uma termina com um exercício para treinar o olhar.
+          {m.learn_intro()}
         </p>
         <p className="text-small text-strong" aria-live="polite">
-          {done.length} de {LESSONS.length} lições concluídas
+          {m.learn_progress({ done: done.length, total: all.length })}
         </p>
         <div className="progress" aria-hidden="true">
-          <span style={{ width: `${(done.length / LESSONS.length) * 100}%` }} />
+          <span style={{ width: `${(done.length / all.length) * 100}%` }} />
         </div>
       </div>
 
       <section className="rules" aria-labelledby="regras-titulo">
         <h2 className="title-m" id="regras-titulo">
-          As 5 regras de ouro
+          {m.learn_golden_rules_title()}
         </h2>
-        <NumberedSteps steps={GOLDEN_RULES} />
+        <NumberedSteps steps={goldenRules()} />
       </section>
 
-      <h2 className="title-m">Lições</h2>
+      <h2 className="title-m">{m.learn_lessons_title()}</h2>
       <ol className="lesson-list">
-        {LESSONS.map((lesson, i) => {
+        {all.map((lesson, i) => {
           const isDone = done.includes(lesson.id)
           return (
             <li key={lesson.id}>
@@ -91,7 +93,7 @@ function LessonList({ done, onOpen, onBack }: { done: string[]; onOpen: (id: str
                   <span className="choice__title">{lesson.title}</span>
                   <span className="choice__desc">{lesson.summary}</span>
                 </span>
-                <span className="sr-only">{isDone ? 'Concluída' : 'Não concluída'}</span>
+                <span className="sr-only">{isDone ? m.learn_lesson_done() : m.learn_lesson_not_done()}</span>
               </button>
             </li>
           )

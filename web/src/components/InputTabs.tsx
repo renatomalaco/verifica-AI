@@ -1,4 +1,5 @@
 import { useRef, type KeyboardEvent } from 'react'
+import { m } from '../paraglide/messages.js'
 import type { InputTab } from '../types'
 import { ClipboardIcon } from './Icons'
 import { ImagePicker } from './ImagePicker'
@@ -15,10 +16,10 @@ interface InputTabsProps {
   onPrivacy?: () => void
 }
 
-const TABS: { id: InputTab; label: string }[] = [
-  { id: 'text', label: 'Mensagem' },
-  { id: 'url', label: 'Link' },
-  { id: 'image', label: 'Foto' },
+const TABS: { id: InputTab; label: () => string }[] = [
+  { id: 'text', label: m.home_tab_text },
+  { id: 'url', label: m.home_tab_url },
+  { id: 'image', label: m.home_tab_image },
 ]
 
 export function InputTabs({ tab, onTabChange, content, onContentChange, imageB64, onImageChange, onScan, onPrivacy }: InputTabsProps) {
@@ -49,11 +50,11 @@ export function InputTabs({ tab, onTabChange, content, onContentChange, imageB64
       <div className="title-row">
         <Lupa size="sm" mode="float" />
         <h1 className="title-l" id="entrada-titulo">
-          O que chegou para você?
+          {m.home_title()}
         </h1>
       </div>
 
-      <div className="segmented" role="tablist" aria-label="Tipo de conteúdo">
+      <div className="segmented" role="tablist" aria-label={m.home_tabs_label()}>
         {TABS.map((t, i) => (
           <button
             key={t.id}
@@ -69,7 +70,7 @@ export function InputTabs({ tab, onTabChange, content, onContentChange, imageB64
             onClick={() => onTabChange(t.id)}
             onKeyDown={(e) => handleTabKey(e, i)}
           >
-            {t.label}
+            {t.label()}
           </button>
         ))}
       </div>
@@ -78,12 +79,12 @@ export function InputTabs({ tab, onTabChange, content, onContentChange, imageB64
         {tab === 'text' && (
           <>
             <label htmlFor="campo-mensagem" className="field-label">
-              Cole a mensagem que você recebeu
+              {m.home_text_label()}
             </label>
             <textarea
               id="campo-mensagem"
               className="field"
-              placeholder="Ex.: Oi mãe, troquei de número…"
+              placeholder={m.home_text_placeholder()}
               value={content}
               onChange={(e) => onContentChange(e.target.value)}
             />
@@ -94,7 +95,7 @@ export function InputTabs({ tab, onTabChange, content, onContentChange, imageB64
         {tab === 'url' && (
           <>
             <label htmlFor="campo-link" className="field-label">
-              Cole o endereço do site
+              {m.home_url_label()}
             </label>
             <input
               id="campo-link"
@@ -102,7 +103,7 @@ export function InputTabs({ tab, onTabChange, content, onContentChange, imageB64
               type="url"
               inputMode="url"
               autoComplete="off"
-              placeholder="Ex.: www.site-do-banco.com"
+              placeholder={m.home_url_placeholder()}
               value={content}
               onChange={(e) => onContentChange(e.target.value)}
             />
@@ -114,13 +115,13 @@ export function InputTabs({ tab, onTabChange, content, onContentChange, imageB64
       </div>
 
       <button type="button" className="btn btn-primary" onClick={onScan} disabled={!canSubmit}>
-        Conferir agora
+        {m.home_check_now()}
       </button>
       <p className="text-muted text-small text-center">
-        O Verifica não guarda o que você cola. Só registra dados anônimos para a pesquisa.{' '}
+        {m.home_privacy_note()}{' '}
         {onPrivacy && (
           <button type="button" className="link-button" onClick={onPrivacy}>
-            Saiba como
+            {m.home_privacy_link()}
           </button>
         )}
       </p>
@@ -132,7 +133,7 @@ function PasteButton({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" className="btn btn-ghost align-start" onClick={onClick}>
       <ClipboardIcon size={20} />
-      Colar
+      {m.home_paste()}
     </button>
   )
 }
