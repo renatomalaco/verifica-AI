@@ -19,11 +19,25 @@ export interface ScanDetails {
   latency_breakdown?: Record<string, number>
 }
 
+// Message codes from packages/contracts (VerdictMessage). The backend decides,
+// the front end words them through the message dictionary.
+export const VERDICT_MESSAGES = [
+  'scam_affective_coercion',
+  'scam_financial_threat',
+  'scam_urgency',
+  'scam_brand_spoofing',
+  'scam_generic',
+  'caution',
+  'safe',
+  'inconclusive',
+] as const
+
+export type VerdictMessage = (typeof VERDICT_MESSAGES)[number]
+
 export interface ScanResponse {
   id: string
   threat_level: ThreatLevel
-  verdict_plain: string
-  action_advice: string
+  verdict_message: VerdictMessage
   details: ScanDetails
 }
 

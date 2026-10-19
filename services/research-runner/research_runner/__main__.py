@@ -11,32 +11,32 @@ from research_runner.domain.report_generator import (
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Verifica AI Research Runner — Executável de Ablação, Métricas Acadêmicas e Gate de F1."
+        description="Verifica AI Research Runner: ablation, academic metrics and the F1 gate."
     )
     parser.add_argument(
         "--mode",
         type=str,
         default="all",
         choices=["heuristic", "classical_nlp", "pure_vlm", "cascade", "all"],
-        help="Modo de ablação a ser executado ('all' para comparação completa).",
+        help="Ablation mode to run ('all' for the full comparison).",
     )
     parser.add_argument(
         "--threshold-f1",
         type=float,
         default=None,
-        help="Limiar mínimo de F1-Score para aprovação no Gate de CI/CD (ex: 0.92).",
+        help="Minimum F1 score to pass the CI/CD gate (e.g. 0.92).",
     )
     parser.add_argument(
         "--output-md",
         type=str,
         default=None,
-        help="Caminho para exportação do relatório completo em Markdown.",
+        help="Path to export the full Markdown report.",
     )
     parser.add_argument(
         "--output-tex",
         type=str,
         default=None,
-        help="Caminho para exportação da tabela em LaTeX (booktabs).",
+        help="Path to export the LaTeX (booktabs) table.",
     )
     parser.add_argument(
         "--dataset",

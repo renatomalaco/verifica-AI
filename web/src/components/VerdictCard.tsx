@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { lessonForCategory } from '../content/lessons'
 import type { EvidenceData } from '../domain/investigation'
-import { adviceSteps, familyAlertText, offersScamHelp, spokenVerdictText, todoTitle, verdictTitle } from '../domain/verdict'
+import { familyAlertText, offersScamHelp, spokenVerdictText, todoTitle, verdictSteps, verdictSummary, verdictTitle } from '../domain/verdict'
 import { useExplanation } from '../hooks/useExplanation'
 import { useSpeech } from '../hooks/useSpeech'
 import { usePreferences } from '../prefs/context'
@@ -13,6 +13,7 @@ import { BackIcon, SpeakerIcon, StopIcon } from './Icons'
 import { NumberedSteps } from './NumberedSteps'
 import { ScamHelp } from './ScamHelp'
 import { TechDetails } from './TechDetails'
+import { m } from '../paraglide/messages.js'
 
 interface VerdictCardProps {
   response: ScanResponse
@@ -24,7 +25,7 @@ interface VerdictCardProps {
 
 export function VerdictCard({ response, evidence, onReset, onLearn, onPrivacy }: VerdictCardProps) {
   const { prefs } = usePreferences()
-  const { threat_level: level, verdict_plain, details } = response
+  const { threat_level: level, verdict_message, details } = response
   const speech = useSpeech(spokenVerdictText(response), { startOnMount: prefs.autoSpeak })
   const { explanation, toggle: toggleExplanation } = useExplanation(response.id)
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -39,7 +40,7 @@ export function VerdictCard({ response, evidence, onReset, onLearn, onPrivacy }:
     <section className="app-main" aria-labelledby="veredito-titulo">
       <button type="button" className="btn btn-quiet align-start" onClick={onReset}>
         <BackIcon size={22} />
-        Conferir outra
+        {m.verdict_check_another()}
       </button>
 
       <Evidence evidence={evidence} mode="found" level={level} />
@@ -48,9 +49,9 @@ export function VerdictCard({ response, evidence, onReset, onLearn, onPrivacy }:
         <h1 className="title-xl verdict-title" data-level={level} id="veredito-titulo" ref={headingRef} tabIndex={-1}>
           {verdictTitle(level)}
         </h1>
-        <p>{verdict_plain}</p>
+        <p>{verdictSummary(verdict_message)}</p>
         {details.links_not_inspected && (
-          <p className="text-muted text-small">O link desta mensagem não pôde ser aberto, então não dá para dizer que ele é seguro.</p>
+          <p className="text-muted text-small">{m.verdict_link_not_inspected()}</p>
         )}
       </div>
 
@@ -58,17 +59,17 @@ export function VerdictCard({ response, evidence, onReset, onLearn, onPrivacy }:
         <h2 className="title-m" id="todo-titulo">
           {todoTitle(level)}
         </h2>
-        <NumberedSteps steps={adviceSteps(response.action_advice)} />
+        <NumberedSteps steps={verdictSteps(verdict_message)} />
       </section>
 
       <div className={prefs.simpleMode ? 'reveal-1' : 'btn-row reveal-1'}>
         <button type="button" className="btn btn-outline" aria-pressed={speech.speaking} onClick={speech.toggle}>
           {speech.speaking ? <StopIcon size={22} /> : <SpeakerIcon size={22} />}
-          {speech.speaking ? 'Parar' : 'Ouvir'}
+          {speech.speaking ? m.verdict_stop() : m.verdict_listen()}
         </button>
         {!prefs.simpleMode && (
           <button type="button" className="btn btn-solid" aria-expanded={explanation.status !== 'closed'} onClick={toggleExplanation}>
-            {explanation.status === 'closed' ? 'Me explica' : 'Fechar'}
+            {explanation.status === 'closed' ? m.verdict_explain() : m.verdict_close()}
           </button>
         )}
       </div>
@@ -79,7 +80,7 @@ export function VerdictCard({ response, evidence, onReset, onLearn, onPrivacy }:
 
       {scamRisk && onLearn && (
         <button type="button" className="btn btn-quiet align-start reveal-2" onClick={() => onLearn(lessonForCategory(details.category))}>
-          Aprenda a reconhecer esse tipo de golpe
+          {m.verdict_learn_scam()}
         </button>
       )}
 

@@ -40,7 +40,7 @@ async def test_scan_text_returns_json_verdict():
             assert resp.status_code == 200
             data = resp.json()
             assert data["threat_level"] == "GOLPE"
-            assert "falso parente" in data["verdict_plain"].lower()
+            assert data["verdict_message"] == "scam_affective_coercion"
             assert data["details"]["channel"] == "texto"
     finally:
         app.dependency_overrides.clear()
@@ -165,6 +165,6 @@ async def test_scan_url_with_visual_rag_brand_spoofing():
             assert data["details"]["deciding_stage"] == "visual_rag_brand_spoofing"
             assert data["details"]["category"] == "brand_spoofing"
             assert data["details"]["scores"]["brand_spoofing"] == 1.0
-            assert "imitação de marca" in data["verdict_plain"].lower()
+            assert data["verdict_message"] == "scam_brand_spoofing"
     finally:
         app.dependency_overrides.clear()

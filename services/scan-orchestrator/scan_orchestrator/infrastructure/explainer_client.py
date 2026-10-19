@@ -12,7 +12,7 @@ class ExplainerClientProtocol(Protocol):
 
 class FakeExplainerClient:
     def __init__(self, result: ExplainResult | None = None) -> None:
-        self._result = result or ExplainResult(lines=["Explicação de teste."])
+        self._result = result or ExplainResult(lines=["Test explanation."])
         self.requests: list[ExplainRequest] = []
 
     async def explain(self, request: ExplainRequest) -> ExplainResult:
@@ -22,7 +22,7 @@ class FakeExplainerClient:
 
 class FailingExplainerClient:
     async def explain(self, request: ExplainRequest) -> ExplainResult:
-        raise RuntimeError("ai-gateway indisponível")
+        raise RuntimeError("ai-gateway unavailable")
 
 
 class HttpExplainerClient:
@@ -42,4 +42,4 @@ class HttpExplainerClient:
                 response.raise_for_status()
                 return ExplainResult.model_validate(response.json())
         except (httpx.HTTPError, ValueError) as exc:
-            raise RuntimeError(f"Falha ao pedir explicação ao ai-gateway: {exc}") from exc
+            raise RuntimeError(f"Failed to request an explanation from the ai-gateway: {exc}") from exc

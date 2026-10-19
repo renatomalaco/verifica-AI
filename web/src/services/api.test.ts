@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { scanDirect, scanStream } from './api'
+import { explainScan, scanDirect, scanStream } from './api'
 import type { ScanResponse, StageEvent } from '../types'
 
 describe('API Service', () => {
@@ -11,8 +11,7 @@ describe('API Service', () => {
     const mockResponse: ScanResponse = {
       id: '123e4567-e89b-12d3-a456-426614174000',
       threat_level: 'GOLPE',
-      verdict_plain: 'Mensagem falsa simulando banco.',
-      action_advice: 'Não clique no link.',
+      verdict_message: 'scam_financial_threat',
       details: {
         channel: 'texto',
         deciding_stage: 'triage',
@@ -28,7 +27,7 @@ describe('API Service', () => {
 
     const result = await scanDirect({ content: 'Urgente: atualize sua conta bb' })
     expect(result.threat_level).toBe('GOLPE')
-    expect(result.verdict_plain).toContain('Mensagem falsa')
+    expect(result.verdict_message).toBe('scam_financial_threat')
     expect(global.fetch).toHaveBeenCalledWith(
       '/api/v1/scans',
       expect.objectContaining({
@@ -45,7 +44,7 @@ describe('API Service', () => {
       text: async () => 'Internal Server Error',
     })
 
-    await expect(scanDirect({ content: 'teste' })).rejects.toThrow('Falha na verificação')
+    await expect(scanDirect({ content: 'teste' })).rejects.toThrow('Scan failed')
   })
 
   it('scanStream processes SSE stage events and verdict event', async () => {
@@ -55,7 +54,7 @@ describe('API Service', () => {
       'event: stage\n',
       'data: {"stage":"triage","status":"done"}\n\n',
       'event: verdict\n',
-      'data: {"id":"123","threat_level":"SEGURO","verdict_plain":"Tudo certo","action_advice":"Pode prosseguir","details":{"channel":"texto","deciding_stage":"triage","scores":{}}}\n\n',
+      'data: {"id":"123","threat_level":"SEGURO","verdict_message":"safe","details":{"channel":"texto","deciding_stage":"triage","scores":{}}}\n\n',
     ].join('')
 
     const encoder = new TextEncoder()
@@ -91,5 +90,20 @@ describe('API Service', () => {
     expect(stages[1]).toEqual({ stage: 'triage', status: 'done' })
     expect(verdict).not.toBeNull()
     expect((verdict as any)?.threat_level).toBe('SEGURO')
+  })
+
+  it('explainScan asks for the explanation in the current locale', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ lines: ['a'], remaining_today: 2 }),
+    })
+
+    await explainScan('scan-1')
+
+    const [url, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(url).toBe('/api/v1/scans/scan-1/explain')
+    expect(init.headers).toEqual({ 'Content-Type': 'application/json' })
+    expect(JSON.parse(init.body)).toEqual({ locale: 'pt-BR' })
   })
 })

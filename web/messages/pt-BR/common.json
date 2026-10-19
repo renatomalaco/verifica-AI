@@ -1,0 +1,14 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "app_name": "Verifica",
+  "common_error_title": "A investigação não terminou.",
+  "common_error_meanwhile": "Enquanto isso, não clique em links nem mande dinheiro.",
+  "common_back": "Voltar",
+  "common_retry": "Tentar de novo",
+  "common_learn_protect": "Aprenda a se proteger",
+  "common_how_to_use": "Como usar",
+  "common_reading_settings": "Ajustes de leitura",
+  "common_privacy": "Privacidade",
+  "common_config_applied": "Ajustes aplicados neste aparelho.",
+  "common_ok": "Ok"
+}

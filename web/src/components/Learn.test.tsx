@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { Learn } from './Learn'
-import { LESSONS, lessonForCategory, lessonSpeechText, loadLessonProgress } from '../content/lessons'
+import { lessons, lessonForCategory, lessonSpeechText, loadLessonProgress } from '../content/lessons'
+import { m } from '../paraglide/messages.js'
 
 describe('Learn', () => {
   beforeEach(() => {
@@ -10,39 +11,40 @@ describe('Learn', () => {
 
   it('lists the golden rules and every lesson with progress', () => {
     render(<Learn onBack={() => {}} />)
-    expect(screen.getByRole('heading', { level: 1, name: 'Aprenda a se proteger' })).toHaveFocus()
-    expect(screen.getByRole('heading', { name: 'As 5 regras de ouro' })).toBeInTheDocument()
-    expect(screen.getByText(`0 de ${LESSONS.length} lições concluídas`)).toBeInTheDocument()
-    for (const lesson of LESSONS) {
+    expect(screen.getByRole('heading', { level: 1, name: m.learn_title() })).toHaveFocus()
+    expect(screen.getByRole('heading', { name: m.learn_golden_rules_title() })).toBeInTheDocument()
+    expect(screen.getByText(m.learn_progress({ done: 0, total: lessons().length }))).toBeInTheDocument()
+    for (const lesson of lessons()) {
       expect(screen.getByRole('button', { name: new RegExp(lesson.title) })).toBeInTheDocument()
     }
   })
 
   it('opens a lesson, gives feedback on the exercise and saves progress', () => {
     render(<Learn onBack={() => {}} />)
-    fireEvent.click(screen.getByRole('button', { name: /Golpe do falso parente/ }))
+    const [first, second] = lessons()
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(first.title) }))
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Golpe do falso parente' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Sinais de alerta' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: first.title })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: m.learn_signs_title() })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'É golpe' }))
-    expect(screen.getByRole('status')).toHaveTextContent('Isso mesmo! É golpe.')
+    fireEvent.click(screen.getByRole('button', { name: m.learn_quiz_scam() }))
+    expect(screen.getByRole('status')).toHaveTextContent(`${m.learn_feedback_correct()} ${m.learn_feedback_scam()}`)
     expect(loadLessonProgress()).toEqual(['falso-parente'])
 
-    fireEvent.click(screen.getByRole('button', { name: 'Próxima lição' }))
-    expect(screen.getByRole('heading', { level: 1, name: 'Falsa central do banco' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: m.learn_next_lesson() }))
+    expect(screen.getByRole('heading', { level: 1, name: second.title })).toBeInTheDocument()
   })
 
   it('explains gently when the answer is wrong', () => {
     render(<Learn onBack={() => {}} initialLessonId="mensagens-normais" />)
-    fireEvent.click(screen.getByRole('button', { name: 'É golpe' }))
-    expect(screen.getByRole('status')).toHaveTextContent('Quase. Provavelmente não é golpe.')
+    fireEvent.click(screen.getByRole('button', { name: m.learn_quiz_scam() }))
+    expect(screen.getByRole('status')).toHaveTextContent(`${m.learn_feedback_wrong()} ${m.learn_feedback_not_scam()}`)
   })
 
   it('goes back from the lesson list', () => {
     const onBack = vi.fn()
     render(<Learn onBack={onBack} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Voltar' }))
+    fireEvent.click(screen.getByRole('button', { name: m.common_back() }))
     expect(onBack).toHaveBeenCalledTimes(1)
   })
 })
@@ -58,9 +60,10 @@ describe('lessonForCategory', () => {
 
 describe('lessonSpeechText', () => {
   it('reads the lesson in order: title, how it works, signs and what to do', () => {
-    const text = lessonSpeechText(LESSONS[0])
-    expect(text.startsWith('Golpe do falso parente')).toBe(true)
-    expect(text.indexOf('Sinais de alerta:')).toBeLessThan(text.indexOf('O que fazer:'))
-    expect(text).toContain(LESSONS[0].doThis[0])
+    const [lesson] = lessons()
+    const text = lessonSpeechText(lesson)
+    expect(text.startsWith(lesson.title)).toBe(true)
+    expect(text.indexOf(m.learn_speech_signs())).toBeLessThan(text.indexOf(m.learn_speech_do_this()))
+    expect(text).toContain(lesson.doThis[0])
   })
 })

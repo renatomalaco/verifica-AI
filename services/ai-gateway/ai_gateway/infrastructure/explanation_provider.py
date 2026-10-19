@@ -4,7 +4,7 @@ import httpx
 from pydantic import ValidationError
 
 from contracts import ExplainRequest, ExplainResult, ThreatLevel
-from ai_gateway.domain.explanation import EXPLAIN_SYSTEM_PROMPT, build_explain_prompt
+from ai_gateway.domain.explanation import build_explain_prompt, explain_system_prompt
 
 _OPENING = {
     ThreatLevel.SCAM: "Isto tem cara de golpe. Veja por quê.",
@@ -24,7 +24,8 @@ _BY_CATEGORY = {
 
 
 class FakeExplanationProvider:
-    """Deterministic rule-based explanation, for tests and local use without an LLM."""
+    """Deterministic rule-based explanation, for tests and local use without an LLM.
+    It stands in for LLM output, so its lines are in pt-BR, the only supported locale."""
 
     async def explain(self, request: ExplainRequest) -> ExplainResult:
         lines = [_OPENING[request.threat_level]]
@@ -41,7 +42,6 @@ class FakeExplanationProvider:
         if request.links_not_inspected:
             lines.append("Nem todos os links puderam ser abertos com segurança, então fique com o pé atrás.")
 
-        lines.append(request.action_advice)
         return ExplainResult(lines=lines)
 
 
@@ -63,7 +63,7 @@ class GeminiExplanationProvider:
 
     async def explain(self, request: ExplainRequest) -> ExplainResult:
         payload = {
-            "systemInstruction": {"parts": [{"text": EXPLAIN_SYSTEM_PROMPT}]},
+            "systemInstruction": {"parts": [{"text": explain_system_prompt(request.locale)}]},
             "contents": [{"role": "user", "parts": [{"text": build_explain_prompt(request)}]}],
             "generationConfig": {
                 "temperature": 0.3,
@@ -84,12 +84,12 @@ class GeminiExplanationProvider:
                 response.raise_for_status()
                 data = response.json()
         except httpx.TimeoutException as exc:
-            raise RuntimeError(f"Timeout na consulta ao Gemini ({self._timeout_seconds}s)") from exc
+            raise RuntimeError(f"Gemini request timed out ({self._timeout_seconds}s)") from exc
         except httpx.HTTPError as exc:
-            raise RuntimeError(f"Erro HTTP na consulta ao Gemini: {exc}") from exc
+            raise RuntimeError(f"Gemini HTTP error: {exc}") from exc
 
         try:
             text = data["candidates"][0]["content"]["parts"][0]["text"]
             return ExplainResult.model_validate(json.loads(text))
         except (KeyError, IndexError, TypeError, json.JSONDecodeError, ValidationError) as exc:
-            raise RuntimeError("Resposta do Gemini fora do formato esperado") from exc
+            raise RuntimeError("Gemini answer is not in the expected format") from exc

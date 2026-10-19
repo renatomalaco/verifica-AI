@@ -1,5 +1,6 @@
 import { useRef, useState, type DragEvent } from 'react'
-import { ACCEPTED_IMAGE_TYPES, imageProblem } from '../domain/image'
+import { m } from '../paraglide/messages.js'
+import { ACCEPTED_IMAGE_TYPES, imageProblem, MAX_IMAGE_MB } from '../domain/image'
 import { ImageIcon } from './Icons'
 
 interface ImagePickerProps {
@@ -31,7 +32,7 @@ export function ImagePicker({ imageB64, onImageChange }: ImagePickerProps) {
   return (
     <>
       <span className="field-label" id="rotulo-foto">
-        Envie a foto ou o print da tela
+        {m.home_image_label()}
       </span>
       <input
         ref={fileInputRef}
@@ -44,9 +45,9 @@ export function ImagePicker({ imageB64, onImageChange }: ImagePickerProps) {
       />
       {imageB64 ? (
         <>
-          <img src={imageB64} alt="A foto ou print que você escolheu" className="image-preview" />
+          <img src={imageB64} alt={m.home_image_preview_alt()} className="image-preview" />
           <button type="button" className="btn btn-ghost align-start" onClick={() => onImageChange(null)}>
-            Trocar foto
+            {m.home_image_change()}
           </button>
         </>
       ) : (
@@ -63,10 +64,10 @@ export function ImagePicker({ imageB64, onImageChange }: ImagePickerProps) {
           onDrop={drop}
         >
           <ImageIcon size={34} className="accent-icon" />
-          <span className="text-strong">Escolher foto ou print</span>
+          <span className="text-strong">{m.home_image_choose()}</span>
           {/* On desktop the file can also be dragged in; the hint only shows with a mouse. */}
-          <span className="text-muted text-small only-pointer">ou arraste a imagem para cá</span>
-          <span className="text-muted text-small">PNG, JPEG ou WebP, até 5 MB</span>
+          <span className="text-muted text-small only-pointer">{m.home_image_drag_hint()}</span>
+          <span className="text-muted text-small">{m.home_image_formats({ maxMb: MAX_IMAGE_MB })}</span>
         </button>
       )}
       {error && (

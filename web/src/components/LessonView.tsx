@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { LESSONS, lessonSpeechText, type Lesson } from '../content/lessons'
+import { lessons, lessonSpeechText, type Lesson } from '../content/lessons'
+import { m } from '../paraglide/messages.js'
 import { useSpeech } from '../hooks/useSpeech'
 import { BackIcon, SpeakerIcon } from './Icons'
 import { Lupa } from './Lupa'
@@ -38,12 +39,12 @@ export function LessonView({ lesson, position, onBack, onAnswered, onNext, nextL
     <article className="app-main" aria-labelledby="licao-titulo">
       <button type="button" className="btn btn-quiet align-start" onClick={onBack}>
         <BackIcon size={22} />
-        Todas as lições
+        {m.learn_all_lessons()}
       </button>
 
       <div className="stack">
         <p className="text-muted text-small text-strong">
-          Lição {position} de {LESSONS.length}
+          {m.learn_lesson_position({ position, total: lessons().length })}
         </p>
         <h1 className="title-l" id="licao-titulo" ref={headingRef} tabIndex={-1}>
           {lesson.title}
@@ -53,12 +54,12 @@ export function LessonView({ lesson, position, onBack, onAnswered, onNext, nextL
 
       <button type="button" className="btn btn-outline align-start" aria-pressed={speech.speaking} onClick={speech.toggle}>
         <SpeakerIcon size={22} />
-        {speech.speaking ? 'Parar' : 'Ouvir a lição'}
+        {speech.speaking ? m.learn_stop() : m.learn_listen()}
       </button>
 
       <section className="card stack stack-roomy" aria-labelledby="sinais-titulo">
         <h2 className="title-m" id="sinais-titulo">
-          Sinais de alerta
+          {m.learn_signs_title()}
         </h2>
         <ul className="bullet-list">
           {lesson.signs.map((s, i) => (
@@ -69,22 +70,22 @@ export function LessonView({ lesson, position, onBack, onAnswered, onNext, nextL
 
       <section className="todo todo--static" data-level="info" aria-labelledby="fazer-titulo">
         <h2 className="title-m" id="fazer-titulo">
-          O que fazer
+          {m.learn_do_this_title()}
         </h2>
         <NumberedSteps steps={lesson.doThis} />
       </section>
 
       <section className="stack stack-roomy" aria-labelledby="treino-titulo">
         <h2 className="title-m" id="treino-titulo">
-          Treine: isso é golpe?
+          {m.learn_quiz_title()}
         </h2>
         <blockquote className="quiz-message">{lesson.quiz.message}</blockquote>
-        <div className="btn-row" role="group" aria-label="Sua resposta">
+        <div className="btn-row" role="group" aria-label={m.learn_quiz_answer_label()}>
           <button type="button" className="btn btn-outline" aria-pressed={answer === true} onClick={() => choose(true)}>
-            É golpe
+            {m.learn_quiz_scam()}
           </button>
           <button type="button" className="btn btn-outline" aria-pressed={answer === false} onClick={() => choose(false)}>
-            Não parece golpe
+            {m.learn_quiz_not_scam()}
           </button>
         </div>
 
@@ -93,7 +94,8 @@ export function LessonView({ lesson, position, onBack, onAnswered, onNext, nextL
             <div className="title-row">
               <Lupa size="sm" level={level} />
               <strong className="feedback-title">
-                {correct ? 'Isso mesmo!' : 'Quase.'} {lesson.quiz.isScam ? 'É golpe.' : 'Provavelmente não é golpe.'}
+                {correct ? m.learn_feedback_correct() : m.learn_feedback_wrong()}{' '}
+                {lesson.quiz.isScam ? m.learn_feedback_scam() : m.learn_feedback_not_scam()}
               </strong>
             </div>
             <p>{lesson.quiz.explanation}</p>

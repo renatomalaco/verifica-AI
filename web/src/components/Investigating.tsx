@@ -1,13 +1,15 @@
 import { useEffect, useRef } from 'react'
+import { m } from '../paraglide/messages.js'
 import type { EvidenceData, StageEntry } from '../domain/investigation'
 import { stageLabel } from '../domain/stages'
 import { Evidence } from './Evidence'
 import { CheckIcon } from './Icons'
+import type { InputTab } from '../types'
 
-const TITLES = {
-  text: 'Investigando a mensagem…',
-  url: 'Investigando o link…',
-  image: 'Investigando o print…',
+const TITLES: Record<InputTab, () => string> = {
+  text: m.home_investigating_text,
+  url: m.home_investigating_url,
+  image: m.home_investigating_image,
 }
 
 interface InvestigatingProps {
@@ -29,16 +31,16 @@ export function Investigating({ evidence, stages, onCancel }: InvestigatingProps
 
       <div className="stack">
         <h1 className="title-l" id="investigando-titulo" ref={headingRef} tabIndex={-1}>
-          {TITLES[evidence.tab]}
+          {TITLES[evidence.tab]()}
         </h1>
-        <p className="text-muted">Procurando pistas de golpe. Leva alguns segundos.</p>
+        <p className="text-muted">{m.home_investigating_hint()}</p>
       </div>
 
       {stages.length > 0 && <StageList stages={stages} />}
 
       <div className="spacer" />
       <button type="button" className="btn btn-outline" onClick={onCancel}>
-        Cancelar
+        {m.home_cancel()}
       </button>
     </section>
   )
@@ -46,7 +48,7 @@ export function Investigating({ evidence, stages, onCancel }: InvestigatingProps
 
 function StageList({ stages }: { stages: StageEntry[] }) {
   return (
-    <ol className="stages" aria-label="Etapas da investigação">
+    <ol className="stages" aria-label={m.home_stages_label()}>
       {stages.map((s) => (
         <li key={s.stage} className="stage" data-status={s.status}>
           <span className="stage__marker">
@@ -54,7 +56,7 @@ function StageList({ stages }: { stages: StageEntry[] }) {
           </span>
           <span>
             {stageLabel(s.stage)}
-            <span className="sr-only">{s.status === 'done' ? ' (concluído)' : ' (em andamento)'}</span>
+            <span className="sr-only"> {s.status === 'done' ? m.home_stage_status_done() : m.home_stage_status_started()}</span>
           </span>
         </li>
       ))}

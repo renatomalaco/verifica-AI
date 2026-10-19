@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react'
+import { m } from '../paraglide/messages.js'
 import { usePreferences } from '../prefs/context'
 import { DEFAULT_PREFERENCES, type Motion, type Preferences, type TextSize } from '../prefs/preferences'
 import { Header } from './Header'
@@ -11,25 +12,26 @@ interface SettingsProps {
 }
 
 type BoolKey = 'highContrast' | 'largeTargets' | 'screenReader' | 'simpleMode' | 'autoSpeak'
+type Text = () => string
 
-const TOGGLES: { key: BoolKey; title: string; why: string }[] = [
-  { key: 'largeTargets', title: 'Botões maiores', why: 'Ajuda quem tem tremor ou Parkinson.' },
-  { key: 'highContrast', title: 'Mais contraste', why: 'Ajuda quem tem catarata ou enxerga pouco.' },
-  { key: 'screenReader', title: 'Leitor de tela', why: 'Anuncia cada etapa e o resultado no leitor de tela.' },
-  { key: 'simpleMode', title: 'Modo simples', why: 'Esconde detalhes e mostra só o que fazer.' },
-  { key: 'autoSpeak', title: 'Ler o resultado sozinho', why: 'Ajuda quem tem dificuldade para ler.' },
+const TOGGLES: { key: BoolKey; title: Text; why: Text }[] = [
+  { key: 'largeTargets', title: m.settings_toggle_large_targets_title, why: m.settings_toggle_large_targets_why },
+  { key: 'highContrast', title: m.settings_toggle_high_contrast_title, why: m.settings_toggle_high_contrast_why },
+  { key: 'screenReader', title: m.settings_toggle_screen_reader_title, why: m.settings_toggle_screen_reader_why },
+  { key: 'simpleMode', title: m.settings_toggle_simple_mode_title, why: m.settings_toggle_simple_mode_why },
+  { key: 'autoSpeak', title: m.settings_toggle_auto_speak_title, why: m.settings_toggle_auto_speak_why },
 ]
 
-const TEXT_SIZES: { value: TextSize; label: string }[] = [
-  { value: 'normal', label: 'Normal' },
-  { value: 'large', label: 'Grande' },
-  { value: 'xlarge', label: 'Maior' },
+const TEXT_SIZES: { value: TextSize; label: Text }[] = [
+  { value: 'normal', label: m.settings_text_size_normal },
+  { value: 'large', label: m.settings_text_size_large },
+  { value: 'xlarge', label: m.settings_text_size_xlarge },
 ]
 
-const MOTIONS: { value: Motion; label: string }[] = [
-  { value: 'full', label: 'Normal' },
-  { value: 'reduced', label: 'Pouco' },
-  { value: 'system', label: 'Do aparelho' },
+const MOTIONS: { value: Motion; label: Text }[] = [
+  { value: 'full', label: m.settings_motion_full },
+  { value: 'reduced', label: m.settings_motion_reduced },
+  { value: 'system', label: m.settings_motion_system },
 ]
 
 export function Settings({ onClose, onReplayTutorial }: SettingsProps) {
@@ -45,17 +47,17 @@ export function Settings({ onClose, onReplayTutorial }: SettingsProps) {
       <Header />
       <button type="button" className="btn btn-quiet align-start" onClick={onClose}>
         <BackIcon size={22} />
-        Voltar
+        {m.common_back()}
       </button>
       <div className="stack">
         <h1 className="title-l" ref={headingRef} tabIndex={-1}>
-          Ajustes de leitura
+          {m.settings_title()}
         </h1>
-        <p className="text-muted">Tudo aqui é opcional. Escolha o que deixa o Verifica mais fácil para quem vai usar.</p>
+        <p className="text-muted">{m.settings_lead()}</p>
       </div>
 
       <OptionGroup
-        label="Tamanho da letra"
+        label={m.settings_text_size_label()}
         options={TEXT_SIZES}
         value={prefs.textSize}
         onChange={(textSize) => update({ textSize })}
@@ -72,8 +74,8 @@ export function Settings({ onClose, onReplayTutorial }: SettingsProps) {
             onClick={() => update({ [t.key]: !prefs[t.key] } as Partial<Preferences>)}
           >
             <span>
-              <span className="choice__title">{t.title}</span>
-              <span className="choice__desc">{t.why}</span>
+              <span className="choice__title">{t.title()}</span>
+              <span className="choice__desc">{t.why()}</span>
             </span>
             <span className="check">
               <CheckIcon size={16} />
@@ -82,15 +84,15 @@ export function Settings({ onClose, onReplayTutorial }: SettingsProps) {
         ))}
       </div>
 
-      <OptionGroup label="Animações" options={MOTIONS} value={prefs.motion} onChange={(motion) => update({ motion })} />
+      <OptionGroup label={m.settings_motion_label()} options={MOTIONS} value={prefs.motion} onChange={(motion) => update({ motion })} />
 
       <div className="stack stack-actions">
         <ShareConfigButton prefs={prefs} />
         <button type="button" className="btn btn-outline" onClick={onReplayTutorial}>
-          Rever como usar
+          {m.settings_replay_tutorial()}
         </button>
         <button type="button" className="btn btn-quiet" onClick={() => replace({ ...DEFAULT_PREFERENCES })}>
-          Voltar ao padrão
+          {m.settings_reset()}
         </button>
       </div>
     </div>
@@ -99,7 +101,7 @@ export function Settings({ onClose, onReplayTutorial }: SettingsProps) {
 
 interface OptionGroupProps<T extends string> {
   label: string
-  options: { value: T; label: string }[]
+  options: { value: T; label: Text }[]
   value: T
   onChange: (value: T) => void
 }
@@ -114,7 +116,7 @@ function OptionGroup<T extends string>({ label, options, value, onChange }: Opti
       <div className="option-row" role="radiogroup" aria-labelledby={id}>
         {options.map((o) => (
           <button key={o.value} type="button" role="radio" aria-checked={o.value === value} onClick={() => onChange(o.value)}>
-            {o.label}
+            {o.label()}
           </button>
         ))}
       </div>

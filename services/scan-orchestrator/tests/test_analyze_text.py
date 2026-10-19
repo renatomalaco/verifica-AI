@@ -1,5 +1,5 @@
 import pytest
-from contracts import ThreatLevel, Channel, Persuasion, StageEvent, ScanResponse, TriageResult
+from contracts import ThreatLevel, Channel, Persuasion, StageEvent, ScanResponse, TriageResult, VerdictMessage
 from scan_orchestrator.domain.scan_input import ScanInput
 from scan_orchestrator.domain.decision import ThresholdPolicy
 from scan_orchestrator.infrastructure.scan_repository import InMemoryScanRepository
@@ -70,7 +70,7 @@ async def test_analyze_text_contingency_when_triage_fails():
     response = events[-1]
     assert isinstance(response, ScanResponse)
     assert response.threat_level == ThreatLevel.INCONCLUSIVE
-    assert "não foi possível concluir" in response.verdict_plain.lower()
+    assert response.verdict_message is VerdictMessage.INCONCLUSIVE
 
 
 @pytest.mark.asyncio
@@ -192,8 +192,7 @@ async def test_analyze_image_phash_cache_hit():
     cached_response = ScanResponse(
         id=uuid4(),
         threat_level=ThreatLevel.SCAM,
-        verdict_plain="Print já conhecido de golpe financeiro",
-        action_advice="Não pague nem compartilhe",
+        verdict_message=VerdictMessage.SCAM_FINANCIAL_THREAT,
         details=ScanDetails(
             channel=Channel.IMAGE,
             deciding_stage="phash_cache",

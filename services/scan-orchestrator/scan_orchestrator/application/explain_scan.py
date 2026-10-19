@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from contracts import ExplainRequest, ExplainResponse, ScanResponse
+from contracts import DEFAULT_LOCALE, ExplainRequest, ExplainResponse, Locale, ScanResponse
 from scan_orchestrator.domain.quota import ExplainQuota, QuotaExceededError
 from scan_orchestrator.infrastructure.explainer_client import ExplainerClientProtocol
 from scan_orchestrator.infrastructure.scan_repository import ScanRepository
@@ -31,7 +31,9 @@ class ExplainScanUseCase:
         self._explainer = explainer
         self._quota = quota
 
-    async def execute(self, scan_id: UUID, device_id: str, ip: str) -> ExplainResponse:
+    async def execute(
+        self, scan_id: UUID, device_id: str, ip: str, locale: Locale = DEFAULT_LOCALE
+    ) -> ExplainResponse:
         scan = await self._repository.get(scan_id)
         if scan is None:
             raise ScanNotFoundError(str(scan_id))
@@ -41,26 +43,26 @@ class ExplainScanUseCase:
         except QuotaExceededError:
             raise
         except Exception as exc:
-            raise ExplanationUnavailableError("Contador de cota indisponível") from exc
+            raise ExplanationUnavailableError("Quota counter unavailable") from exc
 
         try:
-            result = await self._explainer.explain(to_explain_request(scan))
+            result = await self._explainer.explain(to_explain_request(scan, locale))
         except Exception as exc:
             await self._quota.refund(grant)
-            raise ExplanationUnavailableError("Explicação indisponível") from exc
+            raise ExplanationUnavailableError("Explanation unavailable") from exc
 
         return ExplainResponse(lines=result.lines, remaining_today=grant.remaining_today)
 
 
-def to_explain_request(scan: ScanResponse) -> ExplainRequest:
+def to_explain_request(scan: ScanResponse, locale: Locale = DEFAULT_LOCALE) -> ExplainRequest:
     details = scan.details
     return ExplainRequest(
         threat_level=scan.threat_level,
         channel=details.channel,
         deciding_stage=details.deciding_stage,
         category=details.category,
-        verdict_plain=scan.verdict_plain,
-        action_advice=scan.action_advice,
+        verdict_message=scan.verdict_message,
+        locale=locale,
         scores=details.scores,
         domain_signals=details.domain_signals or {},
         links_not_inspected=details.links_not_inspected,

@@ -16,7 +16,7 @@ def create_sample_image(color="blue", size=(100, 100), fmt="PNG") -> str:
 
 
 def test_validate_and_load_image_rejects_corrupted_data():
-    with pytest.raises(ValueError, match="Dados de imagem inválidos ou corrompidos"):
+    with pytest.raises(ValueError, match="Invalid or corrupted image data"):
         validate_and_load_image("invalid_base64_content!#%")
 
 

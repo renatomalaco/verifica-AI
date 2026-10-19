@@ -2,6 +2,7 @@
 // (decision recorded in PRODUCT.md › Accessibility & Inclusion).
 // Stored only on this device and carried in the setup link,
 // which holds only these options and never personal data.
+import { m } from '../paraglide/messages.js'
 
 export type TextSize = 'normal' | 'large' | 'xlarge'
 export type Motion = 'full' | 'reduced' | 'system'
@@ -28,19 +29,49 @@ export const DEFAULT_PREFERENCES: Preferences = {
 
 export interface Situation {
   id: string
-  title: string
-  description: string
+  title: () => string
+  description: () => string
   apply: Partial<Preferences>
 }
 
 // Catalog explained by the user's situation, not by the setting's technical name.
 export const SITUATIONS: Situation[] = [
-  { id: 'tremor', title: 'Tremor ou Parkinson', description: 'Botões maiores e mais espaçados', apply: { largeTargets: true } },
-  { id: 'visao', title: 'Catarata ou baixa visão', description: 'Letra maior e mais contraste', apply: { textSize: 'large', highContrast: true } },
-  { id: 'leitor', title: 'Usa leitor de tela', description: 'Tudo lido em voz alta pelo leitor de tela', apply: { screenReader: true } },
-  { id: 'memoria', title: 'Memória ou atenção', description: 'Modo simples, sem informações extras', apply: { simpleMode: true } },
-  { id: 'movimento', title: 'Tontura com movimento', description: 'Animações reduzidas', apply: { motion: 'reduced' } },
-  { id: 'leitura', title: 'Dificuldade para ler', description: 'Lê o resultado em voz alta sozinho', apply: { autoSpeak: true } },
+  {
+    id: 'tremor',
+    title: m.settings_situation_tremor_title,
+    description: m.settings_situation_tremor_description,
+    apply: { largeTargets: true },
+  },
+  {
+    id: 'visao',
+    title: m.settings_situation_vision_title,
+    description: m.settings_situation_vision_description,
+    apply: { textSize: 'large', highContrast: true },
+  },
+  {
+    id: 'leitor',
+    title: m.settings_situation_screen_reader_title,
+    description: m.settings_situation_screen_reader_description,
+    apply: { screenReader: true },
+  },
+  {
+    id: 'memoria',
+    title: m.settings_situation_memory_title,
+    description: m.settings_situation_memory_description,
+    apply: { simpleMode: true },
+  },
+  {
+    id: 'movimento',
+    title: m.settings_situation_motion_title,
+    description: m.settings_situation_motion_description,
+    apply: { motion: 'reduced' },
+  },
+  {
+    id: 'leitura',
+    title: m.settings_situation_reading_title,
+    description: m.settings_situation_reading_description,
+    apply: { autoSpeak: true },
+  },
 ]
 
 const STORAGE_KEY = 'vf.preferences'

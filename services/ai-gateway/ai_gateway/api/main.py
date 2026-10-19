@@ -85,4 +85,4 @@ async def explain(
     try:
         return await provider.explain(request)
     except RuntimeError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Explicação indisponível no momento.") from exc
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Explanation unavailable right now.") from exc

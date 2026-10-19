@@ -17,7 +17,7 @@ from contracts import (
 )
 from scan_orchestrator.domain.risk_score import RiskScore
 from scan_orchestrator.domain.decision import ThresholdPolicy, decide
-from scan_orchestrator.domain.verdict_catalog import get_verdict_texts
+from scan_orchestrator.domain.verdict_catalog import verdict_message_for
 
 
 StageListener = Callable[[StageName, StageStatus], None]
@@ -234,13 +234,10 @@ class Cascade:
             RiskScore(ctx.scores.get("is_phishing", 0.0)), has_links=False, policy=self._policy
         )
         persuasion = Persuasion(ctx.category) if ctx.category in Persuasion else None
-        verdict_plain, action_advice = get_verdict_texts(threat, persuasion, category=ctx.category)
-
         return ScanResponse(
             id=uuid4(),
             threat_level=threat,
-            verdict_plain=verdict_plain,
-            action_advice=action_advice,
+            verdict_message=verdict_message_for(threat, persuasion, category=ctx.category),
             details=ScanDetails(
                 channel=Channel.URL,
                 deciding_stage=ctx.deciding_stage,

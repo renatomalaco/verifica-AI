@@ -17,10 +17,10 @@ async def resolve_safe_ip(hostname: str) -> str:
             lambda: socket.getaddrinfo(hostname, None, proto=socket.IPPROTO_TCP),
         )
     except socket.gaierror as exc:
-        raise RuntimeError(f"Falha de resolução DNS para o domínio '{hostname}': {exc}") from exc
+        raise RuntimeError(f"DNS resolution failed for '{hostname}': {exc}") from exc
 
     if not addr_info:
-        raise RuntimeError(f"Nenhum endereço IP retornado para o domínio '{hostname}'.")
+        raise RuntimeError(f"No IP address returned for '{hostname}'.")
 
     resolved_ips: list[str] = []
     for item in addr_info:

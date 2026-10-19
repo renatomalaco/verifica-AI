@@ -41,7 +41,7 @@ class QuotaGrant:
 
 class QuotaExceededError(Exception):
     def __init__(self, retry_at: datetime) -> None:
-        super().__init__(f"Cota esgotada até {retry_at.isoformat()}")
+        super().__init__(f"Quota exhausted until {retry_at.isoformat()}")
         self.retry_at = retry_at
 
 

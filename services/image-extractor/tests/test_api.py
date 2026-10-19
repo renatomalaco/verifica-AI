@@ -52,4 +52,4 @@ async def test_extract_endpoint_success(client):
 async def test_extract_endpoint_invalid_image(client):
     response = await client.post("/extract", json={"image_b64": "invalid_junk"})
     assert response.status_code == 400
-    assert "inválidos" in response.json()["detail"].lower()
+    assert "invalid" in response.json()["detail"].lower()

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { m } from '../paraglide/messages.js'
 import { speakVerdict, stopSpeaking } from '../utils/speech'
 import { Header } from './Header'
 import { SpeakerIcon } from './Icons'
@@ -6,12 +7,10 @@ import { Lupa } from './Lupa'
 import { FocusedHeading, SkipButton } from './Welcome'
 
 const STEPS = [
-  { title: 'Cole a mensagem que chegou', text: 'Copie a mensagem, o link ou tire um print. Depois cole no espaço indicado.' },
-  { title: 'Aperte Conferir agora', text: 'O Verifica investiga com calma, por você. Leva só alguns segundos.' },
-  { title: 'Veja o que fazer', text: 'O Verifica diz se é golpe e o que fazer agora. Se quiser, o resultado é lido em voz alta.' },
+  { title: m.onboarding_tutorial_step_1_title, text: m.onboarding_tutorial_step_1_text },
+  { title: m.onboarding_tutorial_step_2_title, text: m.onboarding_tutorial_step_2_text },
+  { title: m.onboarding_tutorial_step_3_title, text: m.onboarding_tutorial_step_3_text },
 ]
-
-const SAMPLE = 'Oi mãe, troquei de número. Me manda um Pix urgente?'
 
 export function Tutorial({ onFinish }: { onFinish: () => void }) {
   const [index, setIndex] = useState(0)
@@ -27,14 +26,14 @@ export function Tutorial({ onFinish }: { onFinish: () => void }) {
         <StepArt index={index} />
         <div className="stack">
           <p className="text-muted text-small text-strong">
-            Passo {index + 1} de {STEPS.length}
+            {m.onboarding_tutorial_progress({ current: index + 1, total: STEPS.length })}
           </p>
-          <FocusedHeading>{step.title}</FocusedHeading>
-          <p className="text-muted">{step.text}</p>
+          <FocusedHeading>{step.title()}</FocusedHeading>
+          <p className="text-muted">{step.text()}</p>
         </div>
         <div className="step-dots" aria-hidden="true">
-          {STEPS.map((s, i) => (
-            <span key={s.title} data-active={i === index} />
+          {STEPS.map((_, i) => (
+            <span key={i} data-active={i === index} />
           ))}
         </div>
       </div>
@@ -42,13 +41,13 @@ export function Tutorial({ onFinish }: { onFinish: () => void }) {
         <button
           type="button"
           className="btn btn-outline btn-icon btn-square"
-          aria-label="Ouvir este passo"
-          onClick={() => speakVerdict(`${step.title}. ${step.text}`)}
+          aria-label={m.onboarding_tutorial_listen()}
+          onClick={() => speakVerdict(`${step.title()}. ${step.text()}`)}
         >
           <SpeakerIcon />
         </button>
         <button type="button" className="btn btn-primary grow" onClick={isLast ? onFinish : () => setIndex(index + 1)}>
-          {isLast ? 'Começar' : 'Próximo'}
+          {isLast ? m.onboarding_tutorial_start() : m.onboarding_tutorial_next()}
         </button>
       </div>
     </div>
@@ -59,16 +58,16 @@ function StepArt({ index }: { index: number }) {
   if (index === 0) {
     return (
       <div className="step-art" aria-hidden="true">
-        <span className="step-art__label">O que chegou para você?</span>
-        <span className="step-art__field step-art__focus">{SAMPLE}</span>
+        <span className="step-art__label">{m.onboarding_tutorial_art_field_label()}</span>
+        <span className="step-art__field step-art__focus">{m.onboarding_tutorial_sample()}</span>
       </div>
     )
   }
   if (index === 1) {
     return (
       <div className="step-art" aria-hidden="true">
-        <span className="step-art__field step-art__field--filled">{SAMPLE}</span>
-        <span className="step-art__button step-art__focus">Conferir agora</span>
+        <span className="step-art__field step-art__field--filled">{m.onboarding_tutorial_sample()}</span>
+        <span className="step-art__button step-art__focus">{m.onboarding_tutorial_art_button()}</span>
       </div>
     )
   }
@@ -76,10 +75,10 @@ function StepArt({ index }: { index: number }) {
     <div className="step-art" aria-hidden="true">
       <div className="step-art__verdict">
         <Lupa size="sm" level="GOLPE" />
-        <strong>Isto é um golpe.</strong>
+        <strong>{m.onboarding_tutorial_art_verdict()}</strong>
       </div>
       <span className="step-art__advice step-art__focus">
-        <strong>Faça agora:</strong> não mande Pix. Ligue para o seu filho no número de sempre.
+        <strong>{m.onboarding_tutorial_art_advice_title()}</strong> {m.onboarding_tutorial_art_advice()}
       </span>
     </div>
   )

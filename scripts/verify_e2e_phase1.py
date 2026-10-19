@@ -37,11 +37,10 @@ async def verify_phase_1():
         data_scam = res_scam.json()
         print("[OK] Resposta JSON de Golpe recebida:")
         print(f"  - Threat Level: {data_scam['threat_level']}")
-        print(f"  - Veredito: {data_scam['verdict_plain']}")
-        print(f"  - Conselho: {data_scam['action_advice']}")
+        print(f"  - Verdict message: {data_scam['verdict_message']}")
         print(f"  - Latencia de triagem: {data_scam['details']['latency_breakdown']['triage']} ms")
         assert data_scam["threat_level"] == "GOLPE"
-        assert "falso parente" in data_scam["verdict_plain"].lower()
+        assert data_scam["verdict_message"] == "scam_affective_coercion"
 
         # 3. SSE streaming test: safe message
         payload_safe = {

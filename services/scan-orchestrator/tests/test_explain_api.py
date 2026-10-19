@@ -7,7 +7,7 @@ import pytest
 import respx
 from httpx import ASGITransport, AsyncClient
 
-from contracts import Channel, ExplainResult, ScanDetails, ScanResponse, ThreatLevel
+from contracts import Channel, ExplainResult, Locale, ScanDetails, ScanResponse, ThreatLevel, VerdictMessage
 from scan_orchestrator.api.dependencies import (
     get_explainer_client,
     get_quota_store,
@@ -29,8 +29,7 @@ def persisted_scan() -> ScanResponse:
     return ScanResponse(
         id=uuid4(),
         threat_level=ThreatLevel.SCAM,
-        verdict_plain="Esta página imita um banco.",
-        action_advice="Feche a página.",
+        verdict_message=VerdictMessage.SCAM_BRAND_SPOOFING,
         details=ScanDetails(
             channel=Channel.URL,
             deciding_stage="visual_rag_brand_spoofing",
@@ -79,6 +78,25 @@ async def test_explain_returns_lines_and_remaining_and_sets_device_cookie(env):
     assert explainer.requests[0].domain_signals == {"spoofed_brand": "Banco do Brasil"}
 
 
+async def test_explain_forwards_the_requested_locale_to_the_gateway(env):
+    client, scan, explainer, _ = env
+
+    resp = await client.post(f"/api/v1/scans/{scan.id}/explain", json={"locale": "pt-BR"})
+
+    assert resp.status_code == 200
+    assert explainer.requests[0].locale is Locale.PT_BR
+    assert explainer.requests[0].verdict_message is VerdictMessage.SCAM_BRAND_SPOOFING
+
+
+async def test_unsupported_locale_falls_back_instead_of_failing(env):
+    client, scan, explainer, _ = env
+
+    resp = await client.post(f"/api/v1/scans/{scan.id}/explain", json={"locale": "xx-YY"})
+
+    assert resp.status_code == 200
+    assert explainer.requests[0].locale is Locale.PT_BR
+
+
 async def test_same_device_counts_down_and_gets_429_with_retry_at(env):
     client, scan, _, _ = env
 
@@ -105,8 +123,7 @@ async def test_quota_never_blocks_the_verdict(env):
 
     resp = await client.post("/api/v1/scans", json={"content": "Bom dia, tudo bem com você?"})
     assert resp.status_code == 200
-    assert resp.json()["verdict_plain"]
-    assert resp.json()["action_advice"]
+    assert resp.json()["verdict_message"]
 
 
 async def test_tampered_cookie_is_replaced_by_a_new_device(env):

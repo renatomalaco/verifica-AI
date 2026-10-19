@@ -6,12 +6,12 @@ import respx
 from httpx import ASGITransport, AsyncClient
 
 from ai_gateway.api.main import app, get_explanation_provider
-from ai_gateway.domain.explanation import build_explain_prompt
+from ai_gateway.domain.explanation import build_explain_prompt, explain_system_prompt
 from ai_gateway.infrastructure.explanation_provider import (
     FakeExplanationProvider,
     GeminiExplanationProvider,
 )
-from contracts import Channel, ExplainRequest, ExplainResult, ThreatLevel
+from contracts import Channel, ExplainRequest, ExplainResult, Locale, ThreatLevel, VerdictMessage
 
 
 def scam_request(**overrides) -> ExplainRequest:
@@ -20,8 +20,7 @@ def scam_request(**overrides) -> ExplainRequest:
         channel=Channel.URL,
         deciding_stage="visual_rag_brand_spoofing",
         category="brand_spoofing",
-        verdict_plain="Esta página imita um banco.",
-        action_advice="Feche a página.",
+        verdict_message=VerdictMessage.SCAM_BRAND_SPOOFING,
         scores={"is_phishing": 1.0},
         domain_signals={"spoofed_brand": "Banco do Brasil", "official_domains": "bb.com.br"},
     )
@@ -38,6 +37,18 @@ def test_prompt_wraps_verdict_data_in_untrusted_envelope_and_masks_pii():
     assert "<untrusted_inspection_data>" in prompt
     assert "joao@exemplo.com" not in prompt
     assert "GOLPE" in prompt
+
+
+def test_system_prompt_demands_the_requested_language_and_third_person():
+    prompt = explain_system_prompt(Locale.PT_BR)
+    assert "Brazilian Portuguese" in prompt
+    assert "first person" in prompt
+    assert "<untrusted_inspection_data>" in prompt
+
+
+def test_prompt_carries_the_message_code_shown_to_the_person():
+    prompt = build_explain_prompt(scam_request())
+    assert "scam_brand_spoofing" in prompt
 
 
 def test_prompt_escapes_attempts_to_close_the_envelope():
@@ -84,6 +95,7 @@ async def test_gemini_provider_parses_json_schema_answer():
     body = json.loads(sent.content)
     assert body["generationConfig"]["responseMimeType"] == "application/json"
     assert "<untrusted_inspection_data>" in body["contents"][0]["parts"][0]["text"]
+    assert "Brazilian Portuguese" in body["systemInstruction"]["parts"][0]["text"]
 
 
 async def test_gemini_provider_raises_on_http_error():

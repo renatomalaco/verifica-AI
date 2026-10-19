@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { InputTabs } from './InputTabs'
 import { MAX_IMAGE_BYTES } from '../domain/image'
+import { m } from '../paraglide/messages.js'
 import type { InputTab } from '../types'
 
 function setup(overrides: Partial<Parameters<typeof InputTabs>[0]> = {}) {
@@ -22,12 +23,12 @@ function setup(overrides: Partial<Parameters<typeof InputTabs>[0]> = {}) {
 describe('InputTabs', () => {
   it('keeps the main action disabled until something is pasted', () => {
     setup()
-    expect(screen.getByRole('button', { name: 'Conferir agora' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: m.home_check_now() })).toBeDisabled()
   })
 
   it('enables the main action and triggers the scan', () => {
     const props = setup({ content: 'Oi mãe' })
-    const btn = screen.getByRole('button', { name: 'Conferir agora' })
+    const btn = screen.getByRole('button', { name: m.home_check_now() })
     expect(btn).toBeEnabled()
     fireEvent.click(btn)
     expect(props.onScan).toHaveBeenCalledTimes(1)
@@ -35,31 +36,31 @@ describe('InputTabs', () => {
 
   it('switches tabs by click and by arrow keys', () => {
     const props = setup()
-    fireEvent.click(screen.getByRole('tab', { name: 'Link' }))
+    fireEvent.click(screen.getByRole('tab', { name: m.home_tab_url() }))
     expect(props.onTabChange).toHaveBeenCalledWith('url')
-    fireEvent.keyDown(screen.getByRole('tab', { name: 'Mensagem' }), { key: 'ArrowLeft' })
+    fireEvent.keyDown(screen.getByRole('tab', { name: m.home_tab_text() }), { key: 'ArrowLeft' })
     expect(props.onTabChange).toHaveBeenCalledWith('image')
   })
 
   it('labels the field for the selected tab', () => {
     setup({ tab: 'url' })
-    expect(screen.getByLabelText('Cole o endereço do site')).toHaveAttribute('type', 'url')
+    expect(screen.getByLabelText(m.home_url_label())).toHaveAttribute('type', 'url')
   })
 
   it('rejects images that are too large with a friendly message', () => {
     const props = setup({ tab: 'image' })
-    const input = screen.getByLabelText('Envie a foto ou o print da tela') as HTMLInputElement
+    const input = screen.getByLabelText(m.home_image_label()) as HTMLInputElement
     const big = new File(['x'], 'print.png', { type: 'image/png' })
     Object.defineProperty(big, 'size', { value: MAX_IMAGE_BYTES + 1 })
     fireEvent.change(input, { target: { files: [big] } })
-    expect(screen.getByRole('alert')).toHaveTextContent(/grande demais/)
+    expect(screen.getByRole('alert')).toHaveTextContent(m.home_image_error_size())
     expect(props.onImageChange).not.toHaveBeenCalled()
   })
 
   it('rejects files that are not images', () => {
     setup({ tab: 'image' })
-    const input = screen.getByLabelText('Envie a foto ou o print da tela') as HTMLInputElement
+    const input = screen.getByLabelText(m.home_image_label()) as HTMLInputElement
     fireEvent.change(input, { target: { files: [new File(['x'], 'a.pdf', { type: 'application/pdf' })] } })
-    expect(screen.getByRole('alert')).toHaveTextContent(/PNG, JPEG ou WebP/)
+    expect(screen.getByRole('alert')).toHaveTextContent(m.home_image_error_type())
   })
 })

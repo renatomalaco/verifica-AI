@@ -1,3 +1,4 @@
+import { getLocale } from '../paraglide/runtime.js'
 import type { ExplainResponse, ScanRequest, ScanResponse, StageEvent } from '../types'
 
 const API_BASE = ''
@@ -24,6 +25,9 @@ export async function explainScan(scanId: string, signal?: AbortSignal): Promise
     response = await fetch(`${API_BASE}/api/v1/scans/${encodeURIComponent(scanId)}/explain`, {
       method: 'POST',
       credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      // The explanation is written by the LLM, so it has to know the person's language.
+      body: JSON.stringify({ locale: getLocale() }),
       signal,
     })
   } catch (err) {
@@ -59,7 +63,7 @@ export async function scanDirect(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Erro desconhecido')
-    throw new Error(`Falha na verificação (${response.status}): ${errorText}`)
+    throw new Error(`Scan failed (${response.status}): ${errorText}`)
   }
 
   return response.json()
@@ -84,8 +88,8 @@ export async function scanStream(
     })
 
     if (!response.ok) {
-      const err = await response.text().catch(() => 'Falha na resposta do servidor')
-      throw new Error(`Erro na conexão com o scanner (${response.status}): ${err}`)
+      const err = await response.text().catch(() => 'Server response failed')
+      throw new Error(`Scanner connection error (${response.status}): ${err}`)
     }
 
     if (!response.body) {
