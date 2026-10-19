@@ -114,8 +114,7 @@ async def verify_phase_4():
         print(f"  - Threat Level: {scan_data['threat_level']}")
         print(f"  - Deciding Stage: {scan_data['details']['deciding_stage']}")
         print(f"  - Categoria: {scan_data['details']['category']}")
-        print(f"  - Veredito: {scan_data['verdict_plain']}")
-        print(f"  - Conselho: {scan_data['action_advice']}")
+        print(f"  - Verdict message: {scan_data['verdict_message']}")
 
     # 4. SSE streaming of the cascade with Visual RAG
     async with httpx.AsyncClient(timeout=15.0) as client:

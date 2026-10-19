@@ -15,16 +15,16 @@ def validate_and_load_image(b64_str: str) -> Image.Image:
     try:
         raw_bytes = base64.b64decode(b64_str, validate=True)
     except Exception as exc:
-        raise ValueError("Dados de imagem inválidos ou corrompidos: falha na decodificação base64.") from exc
+        raise ValueError("Invalid or corrupted image data: base64 decoding failed.") from exc
 
     if len(raw_bytes) > MAX_ALLOWED_BYTES:
-        raise ValueError(f"Imagem excede o limite máximo permitido de {MAX_ALLOWED_BYTES // (1024*1024)}MB.")
+        raise ValueError(f"Image exceeds the {MAX_ALLOWED_BYTES // (1024*1024)}MB limit.")
 
     try:
         img = Image.open(io.BytesIO(raw_bytes))
         img.load()  # Force a full decode to make sure the file is not corrupted
     except Exception as exc:
-        raise ValueError("Dados de imagem inválidos ou corrompidos: formato não reconhecido.") from exc
+        raise ValueError("Invalid or corrupted image data: unrecognized format.") from exc
 
     # Convert palettes or transparency to RGB
     if img.mode not in ("RGB", "L"):

@@ -18,7 +18,7 @@ from contracts import (
 from scan_orchestrator.domain.scan_input import ScanInput
 from scan_orchestrator.domain.risk_score import RiskScore
 from scan_orchestrator.domain.decision import ThresholdPolicy, decide
-from scan_orchestrator.domain.verdict_catalog import get_verdict_texts
+from scan_orchestrator.domain.verdict_catalog import verdict_message_for
 from scan_orchestrator.domain.cascade import (
     Cascade,
     RedisCacheClientProtocol,
@@ -269,12 +269,10 @@ class AnalyzeTextUseCase:
 
 
 def _verdict(threat: ThreatLevel, persuasion: Persuasion | None, details: ScanDetails) -> ScanResponse:
-    verdict_plain, action_advice = get_verdict_texts(threat, persuasion)
     return ScanResponse(
         id=uuid4(),
         threat_level=threat,
-        verdict_plain=verdict_plain,
-        action_advice=action_advice,
+        verdict_message=verdict_message_for(threat, persuasion),
         details=details,
     )
 

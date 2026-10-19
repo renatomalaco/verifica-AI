@@ -82,11 +82,11 @@ class HttpJevClient:
             "questions": {
                 "is_phishing": {
                     "type": "noul",
-                    "prompt": "Este conteúdo tenta aplicar golpe, fraude bancária ou engenharia social?",
+                    "prompt": "Does this content attempt a scam, banking fraud or social engineering?",
                 },
                 "requires_visual_inspection": {
                     "type": "noul",
-                    "prompt": "A decisão conclusiva de risco depende da aparência visual, logotipo ou layout?",
+                    "prompt": "Does a conclusive risk decision depend on visual appearance, logo or layout?",
                 },
                 "persuasion": {
                     "type": "choice",

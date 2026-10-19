@@ -9,10 +9,15 @@ from contracts import (
     ExplainRequest,
     ExplainResponse,
     ExplainResult,
+    ExplainScanRequest,
+    Locale,
     QuotaExceeded,
+    ScanResponse,
     StageEvent,
     StageName,
     ThreatLevel,
+    VerdictMessage,
+    resolve_locale,
 )
 
 
@@ -44,13 +49,13 @@ def test_explain_request_carries_only_the_persisted_verdict():
         channel=Channel.URL,
         deciding_stage="stage_0_blacklist_feed",
         category="blacklist_feed",
-        verdict_plain="É golpe.",
-        action_advice="Não clique.",
+        verdict_message=VerdictMessage.SCAM_GENERIC,
     )
     # There is no field for the raw content sent by the person (LGPD).
     assert "content" not in ExplainRequest.model_fields
     assert req.scores == {}
     assert req.domain_signals == {}
+    assert req.locale is Locale.PT_BR
 
 
 def test_explain_result_requires_at_least_one_line():
@@ -65,3 +70,35 @@ def test_explain_response_and_quota_exceeded_shapes():
     retry = datetime(2026, 10, 17, 3, 0, tzinfo=timezone.utc)
     body = json.loads(QuotaExceeded(retry_at=retry).model_dump_json())
     assert body == {"retry_at": "2026-10-17T03:00:00Z"}
+
+
+def test_verdict_message_values_match_frontend_dictionary():
+    # Keys of web/src/domain/verdictMessages.ts; the backend decides, the front end words it.
+    assert [m.value for m in VerdictMessage] == [
+        "scam_affective_coercion",
+        "scam_financial_threat",
+        "scam_urgency",
+        "scam_brand_spoofing",
+        "scam_generic",
+        "caution",
+        "safe",
+        "inconclusive",
+    ]
+
+
+def test_scan_response_carries_a_message_code_instead_of_text():
+    assert "verdict_message" in ScanResponse.model_fields
+    assert "verdict_plain" not in ScanResponse.model_fields
+    assert "action_advice" not in ScanResponse.model_fields
+
+
+def test_resolve_locale_falls_back_to_brazilian_portuguese():
+    assert resolve_locale("pt-BR") is Locale.PT_BR
+    assert resolve_locale("pt-br") is Locale.PT_BR
+    assert resolve_locale("xx-YY") is Locale.PT_BR
+    assert resolve_locale(None) is Locale.PT_BR
+
+
+def test_explain_scan_request_defaults_to_brazilian_portuguese():
+    assert ExplainScanRequest().locale is Locale.PT_BR
+    assert ExplainScanRequest(locale="zz").locale is Locale.PT_BR

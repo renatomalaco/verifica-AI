@@ -5,7 +5,7 @@ from image_extractor.domain.ocr_reader import DefaultOcrEngine, DefaultQrReader
 
 app = FastAPI(
     title="Verifica AI - Image Extractor",
-    description="Serviço de extração e análise de evidências visuais: OCR, QR Code, pHash e SHA-256",
+    description="Visual evidence extraction and analysis: OCR, QR code, pHash and SHA-256",
     version="0.1.0",
 )
 

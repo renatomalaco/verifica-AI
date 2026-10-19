@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sse_starlette.sse import EventSourceResponse
 
-from contracts import ExplainResponse, QuotaExceeded, ScanRequest, ScanResponse, StageEvent
+from contracts import ExplainResponse, ExplainScanRequest, Locale, QuotaExceeded, ScanRequest, ScanResponse, StageEvent
 from contracts.telemetry import LatencyTracker, TraceContextMiddleware
 from scan_orchestrator.api.dependencies import (
     get_analyze_text_use_case,
@@ -75,7 +75,7 @@ async def scan(
     if response is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Falha ao processar o fluxo da análise.",
+            detail="Failed to process the scan stream.",
         )
 
     return response
@@ -100,11 +100,13 @@ async def scan_stream(
 
 # --- "Me explica" with per-device quota (R5b) ---
 
-async def _explain_response(use_case: ExplainScanUseCase, scan_id: UUID, device_id: str, ip: str) -> JSONResponse:
+async def _explain_response(
+    use_case: ExplainScanUseCase, scan_id: UUID, device_id: str, ip: str, locale: Locale
+) -> JSONResponse:
     try:
-        result = await use_case.execute(scan_id, device_id=device_id, ip=ip)
+        result = await use_case.execute(scan_id, device_id=device_id, ip=ip, locale=locale)
     except ScanNotFoundError:
-        return JSONResponse({"detail": "Análise não encontrada."}, status_code=status.HTTP_404_NOT_FOUND)
+        return JSONResponse({"detail": "Scan not found."}, status_code=status.HTTP_404_NOT_FOUND)
     except QuotaExceededError as exc:
         return JSONResponse(
             QuotaExceeded(retry_at=exc.retry_at).model_dump(mode="json"),
@@ -112,7 +114,7 @@ async def _explain_response(use_case: ExplainScanUseCase, scan_id: UUID, device_
         )
     except ExplanationUnavailableError:
         return JSONResponse(
-            {"detail": "Explicação indisponível no momento."},
+            {"detail": "Explanation unavailable right now."},
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
     return JSONResponse(result.model_dump(mode="json"))
@@ -133,11 +135,12 @@ def _set_device_cookie(response: JSONResponse, token: str, secure: bool) -> None
 @app.post(
     "/api/v1/scans/{scan_id}/explain",
     response_model=ExplainResponse,
-    responses={404: {"description": "Análise não encontrada"}, 429: {"model": QuotaExceeded}},
+    responses={404: {"description": "Scan not found"}, 429: {"model": QuotaExceeded}},
 )
 async def explain_scan(
     scan_id: UUID,
     request: Request,
+    body: ExplainScanRequest | None = None,
     settings: Settings = Depends(get_settings),
     secret: bytes = Depends(get_device_secret),
     use_case: ExplainScanUseCase = Depends(get_explain_use_case),
@@ -148,7 +151,8 @@ async def explain_scan(
         device_id, new_token = issue_device_token(secret)
 
     ip = request.client.host if request.client else "unknown"
-    response = await _explain_response(use_case, scan_id, device_id, ip)
+    locale = (body or ExplainScanRequest()).locale
+    response = await _explain_response(use_case, scan_id, device_id, ip, locale)
 
     if new_token is not None:
         _set_device_cookie(response, new_token, secure=settings.DEVICE_COOKIE_SECURE)

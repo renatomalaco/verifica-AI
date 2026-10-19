@@ -1,23 +1,26 @@
-from contracts import ThreatLevel, Persuasion
-from scan_orchestrator.domain.verdict_catalog import get_verdict_texts
+from contracts import Persuasion, ThreatLevel, VerdictMessage
+from scan_orchestrator.domain.verdict_catalog import verdict_message_for
 
 
-def test_verdict_catalog_returns_warm_ptbr_texts():
-    v_plain, advice = get_verdict_texts(ThreatLevel.SCAM, Persuasion.AFFECTIVE_COERCION)
-    assert "falso parente" in v_plain.lower()
-    assert "pix" in advice.lower()
-
-    v_plain, advice = get_verdict_texts(ThreatLevel.SAFE, Persuasion.NONE)
-    assert "não encontramos sinais de golpe" in v_plain.lower()
-    assert "senhas" in advice.lower()
-
-    v_plain, advice = get_verdict_texts(ThreatLevel.INCONCLUSIVE, None)
-    assert "não foi possível concluir" in v_plain.lower()
-    assert "precaução" in advice.lower()
+def test_scam_message_follows_the_persuasion_technique():
+    assert verdict_message_for(ThreatLevel.SCAM, Persuasion.AFFECTIVE_COERCION) is VerdictMessage.SCAM_AFFECTIVE_COERCION
+    assert verdict_message_for(ThreatLevel.SCAM, Persuasion.FINANCIAL_THREAT) is VerdictMessage.SCAM_FINANCIAL_THREAT
+    assert verdict_message_for(ThreatLevel.SCAM, Persuasion.URGENCY) is VerdictMessage.SCAM_URGENCY
+    assert verdict_message_for(ThreatLevel.SCAM, Persuasion.NONE) is VerdictMessage.SCAM_GENERIC
+    assert verdict_message_for(ThreatLevel.SCAM, None) is VerdictMessage.SCAM_GENERIC
 
 
-def test_verdict_catalog_has_fallback_for_every_threat_level():
+def test_brand_spoofing_wins_over_persuasion():
+    message = verdict_message_for(ThreatLevel.SCAM, Persuasion.URGENCY, category="brand_spoofing")
+    assert message is VerdictMessage.SCAM_BRAND_SPOOFING
+
+
+def test_persuasion_does_not_turn_a_non_scam_into_a_scam_message():
+    assert verdict_message_for(ThreatLevel.SAFE, Persuasion.URGENCY) is VerdictMessage.SAFE
+    assert verdict_message_for(ThreatLevel.CAUTION, Persuasion.AFFECTIVE_COERCION) is VerdictMessage.CAUTION
+    assert verdict_message_for(ThreatLevel.INCONCLUSIVE, None) is VerdictMessage.INCONCLUSIVE
+
+
+def test_every_threat_level_has_a_message():
     for threat in ThreatLevel:
-        v_plain, advice = get_verdict_texts(threat, None)
-        assert len(v_plain) > 10
-        assert len(advice) > 10
+        assert isinstance(verdict_message_for(threat, None), VerdictMessage)

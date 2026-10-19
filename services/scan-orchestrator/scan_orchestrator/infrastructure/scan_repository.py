@@ -1,8 +1,8 @@
 from typing import Protocol
 from uuid import UUID
 from datetime import datetime, timezone
-from contracts import Channel, ScanDetails, ScanResponse, ThreatLevel
-from sqlalchemy import select, Column, String, DateTime, Numeric, Text, JSON, Table, MetaData
+from contracts import Channel, ScanDetails, ScanResponse, ThreatLevel, VerdictMessage
+from sqlalchemy import select, Column, String, DateTime, Numeric, JSON, Table, MetaData
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 metadata = MetaData()
@@ -15,8 +15,7 @@ analises_phishing_table = Table(
     Column("input_hash", String(64), nullable=False, index=True),
     Column("threat_level", String(30), nullable=False),
     Column("confidence_score", Numeric(4, 3), nullable=False),
-    Column("verdict_plain", Text, nullable=False),
-    Column("action_advice", Text, nullable=False),
+    Column("verdict_message", String(40), nullable=False),
     Column("latency_breakdown", JSON, nullable=False),
     Column("created_at", DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)),
 )
@@ -61,8 +60,7 @@ class SqlScanRepository:
             input_hash=input_hash,
             threat_level=response.threat_level.value,
             confidence_score=round(float(confidence), 3),
-            verdict_plain=response.verdict_plain,
-            action_advice=response.action_advice,
+            verdict_message=response.verdict_message.value,
             latency_breakdown=response.details.latency_breakdown,
             created_at=datetime.now(timezone.utc),
         )
@@ -81,8 +79,7 @@ class SqlScanRepository:
         return ScanResponse(
             id=row["id"],
             threat_level=ThreatLevel(row["threat_level"]),
-            verdict_plain=row["verdict_plain"],
-            action_advice=row["action_advice"],
+            verdict_message=VerdictMessage(row["verdict_message"]),
             details=ScanDetails(
                 channel=Channel(row["scan_type"]),
                 deciding_stage="persisted",

@@ -13,7 +13,7 @@ class FakeBrowserDriver:
     def __init__(self, default_result: InspectResult | None = None) -> None:
         self._results: dict[str, InspectResult] = {}
         self._default_result = default_result or InspectResult(
-            dom_text="Conteúdo de teste da página",
+            dom_text="Test page content",
             final_url="https://fake-page.com",
             has_password_field=False,
             is_blocked=False,

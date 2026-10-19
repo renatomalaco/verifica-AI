@@ -23,7 +23,7 @@ class ScanInput:
         has_content = bool(self.content and self.content.strip())
         has_image = bool(self.image_b64 and self.image_b64.strip())
         if not has_content and not has_image:
-            raise ValueError("Invariante violada: O conteúdo para inspeção não pode ser vazio.")
+            raise ValueError("Invariant violated: content to inspect must not be empty.")
 
     @property
     def is_image(self) -> bool:

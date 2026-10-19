@@ -121,8 +121,7 @@ async def verify_phase_5():
             assert len(verdict_events) == 1, "Veredito final ausente no SSE stream"
             verdict = verdict_events[0]
             print(f"[OK] 6. Streaming SSE consumido com sucesso. Veredito final: {verdict['threat_level']}")
-            print(f"     Explicacao: {verdict['verdict_plain']}")
-            print(f"     Orientacao: {verdict['action_advice']}")
+            print(f"     Verdict message: {verdict['verdict_message']}")
 
     print("=" * 70)
     print("FASE 5 VALIDADA COM SUCESSO INTEGRAL (100% OK)!")

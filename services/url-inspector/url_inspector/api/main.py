@@ -7,7 +7,7 @@ from url_inspector.infrastructure.playwright_driver import PlaywrightBrowserDriv
 
 app = FastAPI(
     title="Verifica AI - URL Inspector",
-    description="Serviço de inspeção headless de páginas remotas com isolamento e proteção SSRF",
+    description="Headless inspection of remote pages with isolation and SSRF protection",
     version="0.1.0",
 )
 
@@ -32,14 +32,14 @@ async def inspect_url(
     if parsed.scheme not in ("http", "https"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Apenas os protocolos HTTP e HTTPS são suportados.",
+            detail="Only HTTP and HTTPS are supported.",
         )
 
     hostname = parsed.hostname
     if not hostname:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="URL inválida ou sem hostname.",
+            detail="Invalid URL or missing hostname.",
         )
 
     try:

@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Literal
 from uuid import UUID
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from contracts.url_utils import normalize_url, extract_domain
 
 
@@ -26,6 +26,36 @@ class Persuasion(StrEnum):
     NONE = "nenhuma"
 
 
+class VerdictMessage(StrEnum):
+    """Code of the summary and advice shown with a verdict. The backend decides and the
+    front end words it (web/src/domain/verdictMessages.ts), so no user-facing text
+    lives in the services."""
+
+    SCAM_AFFECTIVE_COERCION = "scam_affective_coercion"
+    SCAM_FINANCIAL_THREAT = "scam_financial_threat"
+    SCAM_URGENCY = "scam_urgency"
+    SCAM_BRAND_SPOOFING = "scam_brand_spoofing"
+    SCAM_GENERIC = "scam_generic"
+    CAUTION = "caution"
+    SAFE = "safe"
+    INCONCLUSIVE = "inconclusive"
+
+
+class Locale(StrEnum):
+    PT_BR = "pt-BR"
+
+
+DEFAULT_LOCALE = Locale.PT_BR
+
+
+def resolve_locale(raw: str | None) -> Locale:
+    """Unknown or missing locales fall back to the product's default language."""
+    for locale in Locale:
+        if raw and raw.lower() == locale.value.lower():
+            return locale
+    return DEFAULT_LOCALE
+
+
 class ScanRequest(BaseModel):
     content: str = Field(default="", max_length=10_000)
     image_b64: str | None = Field(default=None)
@@ -33,7 +63,7 @@ class ScanRequest(BaseModel):
     @model_validator(mode="after")
     def check_non_empty_input(self) -> "ScanRequest":
         if not self.content.strip() and not (self.image_b64 and self.image_b64.strip()):
-            raise ValueError("O conteúdo da requisição não pode ser vazio. Envie texto, URL ou imagem.")
+            raise ValueError("Request content must not be empty: send text, a URL or an image.")
         return self
 
 
@@ -60,8 +90,7 @@ class ScanDetails(BaseModel):
 class ScanResponse(BaseModel):
     id: UUID
     threat_level: ThreatLevel
-    verdict_plain: str
-    action_advice: str
+    verdict_message: VerdictMessage
     details: ScanDetails
 
 
@@ -132,11 +161,22 @@ class ExplainRequest(BaseModel):
     channel: Channel
     deciding_stage: str
     category: str | None = None
-    verdict_plain: str
-    action_advice: str
+    verdict_message: VerdictMessage
+    locale: Locale = DEFAULT_LOCALE
     scores: dict[str, float] = Field(default_factory=dict)
     domain_signals: dict[str, str] = Field(default_factory=dict)
     links_not_inspected: bool = False
+
+
+class ExplainScanRequest(BaseModel):
+    """Body of POST /api/v1/scans/{id}/explain: the language the explanation must be written in."""
+
+    locale: Locale = DEFAULT_LOCALE
+
+    @field_validator("locale", mode="before")
+    @classmethod
+    def fallback_to_default(cls, value: object) -> Locale:
+        return resolve_locale(value if isinstance(value, str) else None)
 
 
 class ExplainResult(BaseModel):

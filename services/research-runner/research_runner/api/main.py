@@ -13,7 +13,7 @@ from research_runner.domain.report_generator import (
 
 app = FastAPI(
     title="Verifica AI — Research Runner API",
-    description="API interna para execução de benchmarks de ablação, cálculo de métricas para TCC e observabilidade.",
+    description="Internal API to run ablation benchmarks and compute the TCC metrics.",
     version="0.1.0",
 )
 
@@ -58,7 +58,7 @@ async def get_pesquisa_summary() -> Dict[str, Any]:
 
 @app.post("/pesquisa/run")
 async def run_pesquisa(
-    mode: str = Query("cascade", description="Modo de ablação ('heuristic', 'classical_nlp', 'pure_vlm', 'cascade', 'all')")
+    mode: str = Query("cascade", description="Ablation mode ('heuristic', 'classical_nlp', 'pure_vlm', 'cascade', 'all')")
 ) -> Dict[str, Any]:
     if mode == "all":
         evaluations = service.run_all_modes()

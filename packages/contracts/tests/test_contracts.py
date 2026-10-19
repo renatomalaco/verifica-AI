@@ -9,6 +9,7 @@ from contracts import (
     ScanRequest,
     ScanDetails,
     ScanResponse,
+    VerdictMessage,
     StageEvent,
     TriageRequest,
     TriageResult,
@@ -90,8 +91,7 @@ def test_scan_response_serialization():
     resp = ScanResponse(
         id=uuid4(),
         threat_level=ThreatLevel.SCAM,
-        verdict_plain="Esta mensagem aparenta ser uma tentativa de golpe do falso parente.",
-        action_advice="Não envie dinheiro e ligue para o familiar no número que você já possui.",
+        verdict_message=VerdictMessage.SCAM_AFFECTIVE_COERCION,
         details=details,
     )
     assert resp.threat_level == ThreatLevel.SCAM

@@ -79,7 +79,7 @@ async def verify_phase_3():
         print(f"  - Threat Level: {data['threat_level']}")
         print(f"  - Channel: {data['details']['channel']}")
         print(f"  - Deciding Stage: {data['details']['deciding_stage']}")
-        print(f"  - Veredito: {data['verdict_plain']}")
+        print(f"  - Verdict message: {data['verdict_message']}")
 
     # 4. SSE streaming for the image channel
     async with httpx.AsyncClient(timeout=15.0) as client:
