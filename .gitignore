@@ -1,0 +1,39 @@
+# Python / uv
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Environment / Secrets
+.env
+.env.local
+*.pem
+*.key
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Node / Frontend (Fase 5)
+node_modules/
+.npm/
+.next/
+out/
+
+# Database / Storage local
+/data/
+*.sqlite3
+
+# Logs / Telemetry
+*.log
