@@ -1,0 +1,147 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: verifica-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - public
+    depends_on:
+      - scan-orchestrator
+      - web
+
+  web:
+    build:
+      context: ..
+      dockerfile: web/Dockerfile
+    container_name: verifica-web
+    restart: unless-stopped
+    networks:
+      - public
+
+  scan-orchestrator:
+    build:
+      context: ..
+      dockerfile: services/scan-orchestrator/Dockerfile
+    container_name: verifica-orchestrator
+    restart: unless-stopped
+    environment:
+      - AI_GATEWAY_URL=http://ai-gateway:8001
+      - URL_INSPECTOR_URL=http://url-inspector:8002
+      - IMAGE_EXTRACTOR_URL=http://image-extractor:8003
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql+asyncpg://verifica:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/verifica_db
+    networks:
+      - public
+      - internal
+      - isolated-inspector
+    depends_on:
+      - postgres
+      - redis
+      - ai-gateway
+
+  ai-gateway:
+    build:
+      context: ..
+      dockerfile: services/ai-gateway/Dockerfile
+    container_name: verifica-ai-gateway
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://verifica:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/verifica_db
+    networks:
+      - internal
+    depends_on:
+      - postgres
+
+  url-inspector:
+    build:
+      context: ..
+      dockerfile: services/url-inspector/Dockerfile
+    container_name: verifica-url-inspector
+    restart: unless-stopped
+    networks:
+      - isolated-inspector
+
+  image-extractor:
+    build:
+      context: ..
+      dockerfile: services/image-extractor/Dockerfile
+    container_name: verifica-image-extractor
+    restart: unless-stopped
+    networks:
+      - internal
+
+  threat-intel-sync:
+    build:
+      context: ..
+      dockerfile: services/threat-intel-sync/Dockerfile
+    container_name: verifica-threat-intel-sync
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    networks:
+      - internal
+    depends_on:
+      - redis
+
+  research-runner:
+    build:
+      context: ..
+      dockerfile: services/research-runner/Dockerfile
+    container_name: verifica-research-runner
+    restart: unless-stopped
+    networks:
+      - public
+      - internal
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: verifica-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: verifica_db
+      POSTGRES_USER: verifica
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verifica -d verifica_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: verifica-redis-prod
+    restart: unless-stopped
+    volumes:
+      - redisdata_prod:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  public:
+    driver: bridge
+  internal:
+    internal: true
+  isolated-inspector:
+    internal: true
+
+volumes:
+  pgdata_prod:
+  redisdata_prod:
+  caddy_data:
+  caddy_config:

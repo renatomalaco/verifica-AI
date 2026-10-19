@@ -1,0 +1,40 @@
+{
+    email admin@verifica.ai
+    admin off
+}
+
+verifica.ai, localhost {
+    encode gzip zstd
+
+    # Security headers recommended by OWASP and WCAG
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    }
+
+    # Public metrics route (for the internal Prometheus scraper)
+    handle /metrics {
+        reverse_proxy scan-orchestrator:8000
+    }
+
+    # Public API and Scan Orchestrator endpoints
+    handle /api/* {
+        reverse_proxy scan-orchestrator:8000 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+        }
+    }
+
+    # Internal research API and ablation benchmarks
+    handle /pesquisa/run* {
+        reverse_proxy research-runner:8004
+    }
+
+    # Accessible frontend (SPA)
+    handle {
+        reverse_proxy web:80
+    }
+}
