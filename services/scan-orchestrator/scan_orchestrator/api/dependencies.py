@@ -4,6 +4,7 @@ import secrets
 from functools import lru_cache
 
 from fastapi import Depends
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from scan_orchestrator.application.analyze_text import AnalyzeTextUseCase
 from scan_orchestrator.application.explain_scan import ExplainScanUseCase
@@ -30,7 +31,11 @@ from scan_orchestrator.infrastructure.inspector_client import HttpInspectorClien
 from scan_orchestrator.infrastructure.quota_store import RedisQuotaStore
 from scan_orchestrator.infrastructure.redis_client import RedisCacheClient
 from scan_orchestrator.infrastructure.reputation_client import DomainSignalsClient
-from scan_orchestrator.infrastructure.scan_repository import InMemoryScanRepository, ScanRepository
+from scan_orchestrator.infrastructure.scan_repository import (
+    InMemoryScanRepository,
+    ScanRepository,
+    SqlScanRepository,
+)
 from scan_orchestrator.infrastructure.triage_client import HttpTriageClient
 from scan_orchestrator.settings import Settings
 
@@ -58,8 +63,17 @@ def get_triage_client(settings: Settings = Depends(get_settings)) -> TriageClien
     return HttpTriageClient(base_url=settings.AI_GATEWAY_URL)
 
 
-def get_scan_repository() -> ScanRepository:
-    return _in_memory_repo
+@lru_cache
+def _sql_repository(database_url: str) -> SqlScanRepository:
+    # One engine (and connection pool) per process, not per request.
+    engine = create_async_engine(database_url, pool_pre_ping=True)
+    return SqlScanRepository(async_sessionmaker(engine, expire_on_commit=False))
+
+
+def get_scan_repository(settings: Settings = Depends(get_settings)) -> ScanRepository:
+    if not settings.DATABASE_URL:
+        return _in_memory_repo
+    return _sql_repository(settings.DATABASE_URL)
 
 
 def get_redis_client(settings: Settings = Depends(get_settings)) -> RedisCacheClientProtocol:
