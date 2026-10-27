@@ -42,9 +42,29 @@ services:
       - internal
       - isolated-inspector
     depends_on:
-      - postgres
-      - redis
-      - ai-gateway
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+      ai-gateway:
+        condition: service_started
+
+  # Applies pending migrations and exits; the orchestrator only starts after it succeeds.
+  migrate:
+    build:
+      context: ..
+      dockerfile: services/scan-orchestrator/Dockerfile
+    container_name: verifica-migrate
+    restart: "no"
+    working_dir: /app/services/scan-orchestrator
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://verifica:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/verifica_db
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   ai-gateway:
     build:
