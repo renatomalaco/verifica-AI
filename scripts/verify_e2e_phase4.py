@@ -7,6 +7,7 @@ import httpx
 import uvicorn
 from PIL import Image
 from ai_gateway.api.main import app as gateway_app, get_visual_embedder
+from ai_gateway.domain.brand_matcher import one_hot
 from ai_gateway.domain.visual_embedder import FakeVisualEmbedder
 from url_inspector.api.main import app as inspector_app, get_browser_driver
 from url_inspector.domain.browser_driver import FakeBrowserDriver
@@ -24,7 +25,7 @@ def create_test_image_b64() -> str:
 
 def run_gateway():
     # Inject a vector matching the protected brand "Banco do Brasil" into the default catalog
-    bb_vector = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    bb_vector = one_hot(0, 768)  # Banco do Brasil in the default catalog
     gateway_app.dependency_overrides[get_visual_embedder] = lambda: FakeVisualEmbedder(default_embedding=bb_vector)
     uvicorn.run(gateway_app, host="127.0.0.1", port=8001, log_level="warning")
 

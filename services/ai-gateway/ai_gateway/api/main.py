@@ -13,21 +13,22 @@ from ai_gateway.infrastructure.explanation_provider import FakeExplanationProvid
 
 app = FastAPI(title="ai-gateway", version="0.1.0")
 
-_global_brand_catalog = DefaultBrandCatalog()
-_global_embedder = FakeVisualEmbedder()
-
-
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
 
 
-def get_visual_embedder() -> VisualEmbedderProtocol:
-    return _global_embedder
+def get_visual_embedder(settings: Settings = Depends(get_settings)) -> VisualEmbedderProtocol:
+    return FakeVisualEmbedder(dimension=settings.EMBEDDING_DIM)
 
 
-def get_brand_matcher() -> BrandMatcher:
-    return BrandMatcher(catalog=_global_brand_catalog, threshold=0.85)
+def get_brand_matcher(settings: Settings = Depends(get_settings)) -> BrandMatcher:
+    return BrandMatcher(catalog=_brand_catalog(settings.EMBEDDING_DIM), threshold=0.85)
+
+
+@lru_cache
+def _brand_catalog(dimension: int) -> DefaultBrandCatalog:
+    return DefaultBrandCatalog(dimension=dimension)
 
 
 def get_jev_client(settings: Settings = Depends(get_settings)) -> JevClient:

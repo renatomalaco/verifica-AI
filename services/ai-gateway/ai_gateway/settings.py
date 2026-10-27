@@ -11,5 +11,7 @@ class Settings(BaseSettings):
     GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com"
     GEMINI_MODEL: str = "gemini-2.5-flash"
     GEMINI_TIMEOUT_SECONDS: float = 8.0
+    # Single source of truth for logo embeddings: embedder, catalog and pgvector column (R4) must agree.
+    EMBEDDING_DIM: int = 768
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

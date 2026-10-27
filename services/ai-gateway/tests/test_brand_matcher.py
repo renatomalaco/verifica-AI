@@ -79,3 +79,31 @@ def test_brand_matcher_below_threshold_returns_no_brand(brand_catalog):
     assert result.matched_brand is None
     assert result.is_spoofing is False
     assert result.similarity < 0.85
+
+
+# --- Embedding dimension contract (B3) ---
+
+async def test_runtime_embedder_and_default_catalog_share_the_configured_dimension():
+    from ai_gateway.api.main import get_brand_matcher, get_visual_embedder
+    from ai_gateway.settings import Settings
+
+    dim = Settings().EMBEDDING_DIM
+    vector = await get_visual_embedder(Settings()).embed_image("aGVsbG8=")
+    brands = get_brand_matcher(Settings())._catalog.get_all_brands()
+
+    assert dim == 768
+    assert len(vector) == dim
+    assert all(len(brand.embedding) == dim for brand in brands)
+
+
+async def test_fake_embedder_builds_a_unit_vector_of_the_requested_size():
+    vector = await FakeVisualEmbedder(dimension=768).embed_image("aGVsbG8=")
+    assert len(vector) == 768
+    assert sum(v * v for v in vector) == pytest.approx(1.0, abs=1e-3)
+
+
+def test_matcher_rejects_an_embedding_with_another_dimension(brand_catalog):
+    # A silent 0.0 similarity hid this mismatch before; it must fail loudly.
+    matcher = BrandMatcher(catalog=brand_catalog, threshold=0.85)
+    with pytest.raises(ValueError, match="dimension"):
+        matcher.match(query_embedding=[1.0, 0.0], current_domain="x.com")

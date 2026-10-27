@@ -24,43 +24,27 @@ class FakeBrandCatalog:
         return list(self._brands)
 
 
-_DEFAULT_BRANDS = [
-    ProtectedBrand(
-        name="Banco do Brasil",
-        official_domains=["bb.com.br", "bancodobrasil.com.br"],
-        embedding=[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    ),
-    ProtectedBrand(
-        name="Nubank",
-        official_domains=["nubank.com.br"],
-        embedding=[0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    ),
-    ProtectedBrand(
-        name="Caixa Econômica Federal",
-        official_domains=["caixa.gov.br"],
-        embedding=[0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    ),
-    ProtectedBrand(
-        name="Itaú Unibanco",
-        official_domains=["itau.com.br"],
-        embedding=[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
-    ),
-    ProtectedBrand(
-        name="Mercado Livre",
-        official_domains=["mercadolivre.com.br"],
-        embedding=[0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
-    ),
-    ProtectedBrand(
-        name="Receita Federal / Gov.br",
-        official_domains=["gov.br", "receita.fazenda.gov.br"],
-        embedding=[0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
-    ),
+def one_hot(index: int, dimension: int) -> list[float]:
+    return [1.0 if i == index else 0.0 for i in range(dimension)]
+
+
+# Placeholder catalog until the pgvector seed with real logo embeddings exists (R4).
+_DEFAULT_BRANDS: list[tuple[str, list[str]]] = [
+    ("Banco do Brasil", ["bb.com.br", "bancodobrasil.com.br"]),
+    ("Nubank", ["nubank.com.br"]),
+    ("Caixa Econômica Federal", ["caixa.gov.br"]),
+    ("Itaú Unibanco", ["itau.com.br"]),
+    ("Mercado Livre", ["mercadolivre.com.br"]),
+    ("Receita Federal / Gov.br", ["gov.br", "receita.fazenda.gov.br"]),
 ]
 
 
 class DefaultBrandCatalog(BrandCatalogProtocol):
-    def __init__(self, brands: list[ProtectedBrand] | None = None) -> None:
-        self._brands = brands or list(_DEFAULT_BRANDS)
+    def __init__(self, dimension: int = 768) -> None:
+        self._brands = [
+            ProtectedBrand(name=name, official_domains=domains, embedding=one_hot(i, dimension))
+            for i, (name, domains) in enumerate(_DEFAULT_BRANDS)
+        ]
 
     def get_all_brands(self) -> list[ProtectedBrand]:
         return list(self._brands)
@@ -80,6 +64,12 @@ def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
     return dot / (norm_a * norm_b)
 
 
+def _check_dimension(query: list[float], brands: list[ProtectedBrand]) -> None:
+    expected = {len(b.embedding) for b in brands}
+    if expected and expected != {len(query)}:
+        raise ValueError(f"Embedding dimension {len(query)} does not match the catalog dimension {sorted(expected)}")
+
+
 class BrandMatcher:
     """Compares a page/logo visual embedding against protected brands to detect spoofing."""
 
@@ -89,6 +79,7 @@ class BrandMatcher:
 
     def match(self, query_embedding: list[float], current_domain: str | None = None) -> BrandMatchResult:
         brands = self._catalog.get_all_brands()
+        _check_dimension(query_embedding, brands)
         best_brand: ProtectedBrand | None = None
         best_similarity = 0.0
 
