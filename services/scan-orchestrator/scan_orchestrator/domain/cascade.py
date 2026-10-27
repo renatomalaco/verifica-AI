@@ -231,7 +231,7 @@ class Cascade:
             ctx.report(stage.name, "done")
 
         threat = ctx.short_circuit_threat or decide(
-            RiskScore(ctx.scores.get("is_phishing", 0.0)), has_links=False, policy=self._policy
+            RiskScore(ctx.scores.get("is_phishing", 0.0)), has_unverified_links=False, policy=self._policy
         )
         persuasion = Persuasion(ctx.category) if ctx.category in Persuasion else None
         return ScanResponse(
