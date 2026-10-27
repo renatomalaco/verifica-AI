@@ -60,10 +60,7 @@ async def verify_phase_1():
             assert event_count >= 2
             print("[OK] Streaming SSE consumido com sucesso!")
 
-        # 4. Phase 1 ethics lock test: bare URL
-        res_url = await client.post("/api/v1/scans", json={"content": "https://itau-seguro.com.br"})
-        assert res_url.status_code == 422
-        print("[OK] Trava etica de canal nao suportado (URL pura na Fase 1) validada com HTTP 422.")
+        # A bare URL now goes to the URL cascade (plan decision 2), covered by verify_e2e_phase2.py.
 
     print("\n=======================================================")
     print("TODAS AS VALIDACOES DA FASE 1 PASSARAM COM 100% DE SUCESSO!")
