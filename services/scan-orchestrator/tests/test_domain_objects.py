@@ -44,3 +44,23 @@ def test_risk_score_invariants():
 
     with pytest.raises(ValueError):
         RiskScore(value=1.01)
+
+
+def test_zero_width_characters_do_not_hide_a_link():
+    scan = ScanInput(content="Acesse itau\u200b.com.br para regularizar")
+    assert scan.has_links
+    assert scan.extract_urls() == ["itau.com.br"]
+
+
+def test_bare_domain_with_any_public_suffix_is_a_link():
+    assert ScanInput(content="Resgate em caixa-premios.club hoje").has_links
+
+
+def test_email_address_is_not_a_link():
+    scan = ScanInput(content="Mande o comprovante para joao@exemplo.com")
+    assert not scan.has_links
+    assert scan.extract_urls() == []
+
+
+def test_word_joined_by_a_dot_is_not_a_link():
+    assert not ScanInput(content="Até logo.Obrigado pela atenção").has_links

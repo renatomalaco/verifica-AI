@@ -227,3 +227,68 @@ async def test_analyze_image_phash_cache_hit():
     assert isinstance(response, ScanResponse)
     assert response.threat_level == ThreatLevel.SCAM
     assert response.details.deciding_stage == "phash_cache"
+
+
+# --- Ethics rule: only links nobody could verify cap the verdict at CUIDADO ---
+
+def _url_verdict(threat: ThreatLevel) -> ScanResponse:
+    from uuid import uuid4
+    from contracts import ScanDetails
+
+    return ScanResponse(
+        id=uuid4(),
+        threat_level=threat,
+        verdict_message=VerdictMessage.SAFE,
+        details=ScanDetails(channel=Channel.URL, deciding_stage="stage_2_inspection"),
+    )
+
+
+class ScriptedCascade:
+    """Returns one scripted outcome per URL, in order; an exception means the inspection crashed."""
+
+    def __init__(self, outcomes: list):
+        self._outcomes = list(outcomes)
+
+    async def run(self, ctx):
+        outcome = self._outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+
+async def _verdict_for(text: str, cascade: ScriptedCascade) -> ScanResponse:
+    use_case = AnalyzeTextUseCase(
+        triage_client=FakeTriageClient(result=TriageResult(is_phishing=0.02, persuasion=Persuasion.NONE)),
+        repository=InMemoryScanRepository(),
+        policy=ThresholdPolicy(scam=0.90, safe=0.10),
+        cascade=cascade,
+    )
+    events = [item async for item in use_case.execute(ScanInput(content=text))]
+    return events[-1]
+
+
+async def test_text_with_inspected_safe_link_can_be_safe():
+    response = await _verdict_for(
+        "Seu pedido saiu para entrega: https://loja.example/pedido",
+        ScriptedCascade([_url_verdict(ThreatLevel.SAFE)]),
+    )
+    assert response.threat_level is ThreatLevel.SAFE
+    assert response.details.links_not_inspected is False
+
+
+async def test_text_with_inconclusive_link_stays_at_caution():
+    response = await _verdict_for(
+        "Confira aqui: https://loja.example/pedido",
+        ScriptedCascade([_url_verdict(ThreatLevel.INCONCLUSIVE)]),
+    )
+    assert response.threat_level is ThreatLevel.CAUTION
+    assert response.details.links_not_inspected is True
+
+
+async def test_a_link_whose_inspection_crashed_counts_as_unverified():
+    response = await _verdict_for(
+        "Dois links: https://a.example/x e https://b.example/y",
+        ScriptedCascade([_url_verdict(ThreatLevel.SAFE), RuntimeError("inspector down")]),
+    )
+    assert response.threat_level is ThreatLevel.CAUTION
+    assert response.details.links_not_inspected is True

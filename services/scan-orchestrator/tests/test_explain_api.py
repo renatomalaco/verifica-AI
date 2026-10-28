@@ -48,6 +48,7 @@ async def env():
     explainer = FakeExplainerClient(ExplainResult(lines=["Linha 1", "Linha 2"]))
     store = InMemoryQuotaStore()
     settings = Settings(
+        _env_file=None,
         DEVICE_TOKEN_SECRET="segredo-de-teste",
         EXPLAIN_DAILY_LIMIT=2,
         EXPLAIN_MONTHLY_LIMIT=30,
@@ -121,7 +122,7 @@ async def test_quota_never_blocks_the_verdict(env):
     for _ in range(3):
         await client.post(f"/api/v1/scans/{scan.id}/explain")
 
-    resp = await client.post("/api/v1/scans", json={"content": "Bom dia, tudo bem com você?"})
+    resp = await client.post("/api/v1/scans", json={"content": "Bom dia, tudo bem com vocÃª?"})
     assert resp.status_code == 200
     assert resp.json()["verdict_message"]
 

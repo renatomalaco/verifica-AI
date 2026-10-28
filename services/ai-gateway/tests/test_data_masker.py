@@ -64,3 +64,13 @@ def test_preserve_currency_and_dates():
     masked = mask_pii(text)
     assert "R$ 1.250,50" in masked
     assert "15/08/2026" in masked
+
+
+def test_email_with_digits_is_masked_whole_before_cpf_and_phone():
+    # Phone and CPF patterns used to eat the digits and corrupt the address.
+    assert mask_pii("Fale com joao.11987654321@exemplo.com hoje") == "Fale com [EMAIL_MASCARADO] hoje"
+    assert mask_pii("12345678901@gmail.com") == "[EMAIL_MASCARADO]"
+
+
+def test_phone_is_not_matched_glued_to_letters():
+    assert mask_pii("protocolo AB1198765432") == "protocolo AB1198765432"

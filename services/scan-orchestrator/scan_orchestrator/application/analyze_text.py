@@ -196,8 +196,9 @@ class AnalyzeTextUseCase:
         if scam_url:
             return _embedded_scam_verdict(scam_url, Channel.IMAGE, "image_url", latency)
 
+        unverified = _has_unverified(url_responses, expected=len(extract.urls_found))
         score = RiskScore(triage.is_phishing if triage else 0.50)
-        threat = decide(score, has_links=True, policy=self._policy)
+        threat = decide(score, has_unverified_links=unverified, policy=self._policy)
         return _verdict(
             threat,
             triage.persuasion if triage else None,
@@ -206,7 +207,7 @@ class AnalyzeTextUseCase:
                 deciding_stage="image_ocr_and_urls",
                 category=triage.persuasion.value if triage else None,
                 scores={"is_phishing": score.value},
-                links_not_inspected=_has_unverified(url_responses),
+                links_not_inspected=unverified,
                 latency_breakdown=latency,
             ),
         )
@@ -227,7 +228,7 @@ class AnalyzeTextUseCase:
                 ),
             )
 
-        threat = decide(RiskScore(triage.is_phishing), has_links=False, policy=self._policy)
+        threat = decide(RiskScore(triage.is_phishing), has_unverified_links=False, policy=self._policy)
         return _verdict(
             threat,
             triage.persuasion,
@@ -244,7 +245,8 @@ class AnalyzeTextUseCase:
 
     async def _analyze_text_with_links(self, scan_input: ScanInput, report: StageListener) -> ScanResponse:
         started = time.perf_counter()
-        triage, url_responses = await self._triage_and_inspect(scan_input.content, scan_input.extract_urls(), report)
+        urls = scan_input.extract_urls()
+        triage, url_responses = await self._triage_and_inspect(scan_input.content, urls, report)
         latency = {"combined_scan": elapsed_ms(started)}
 
         scam_url = _first_scam(url_responses)
@@ -253,8 +255,9 @@ class AnalyzeTextUseCase:
         if triage is None:
             return _text_triage_unavailable(links_not_inspected=True, latency=latency)
 
-        threat = decide(RiskScore(triage.is_phishing), has_links=True, policy=self._policy)
-        return _text_triage_verdict(threat, triage, "combined_text_and_urls", _has_unverified(url_responses), latency)
+        unverified = _has_unverified(url_responses, expected=len(urls))
+        threat = decide(RiskScore(triage.is_phishing), has_unverified_links=unverified, policy=self._policy)
+        return _text_triage_verdict(threat, triage, "combined_text_and_urls", unverified, latency)
 
     async def _analyze_plain_text(self, scan_input: ScanInput, report: StageListener) -> ScanResponse:
         started = time.perf_counter()
@@ -264,7 +267,8 @@ class AnalyzeTextUseCase:
         if triage is None:
             return _text_triage_unavailable(links_not_inspected=scan_input.has_links, latency=latency)
 
-        threat = decide(RiskScore(triage.is_phishing), has_links=scan_input.has_links, policy=self._policy)
+        # No cascade wired: the links were never inspected.
+        threat = decide(RiskScore(triage.is_phishing), has_unverified_links=scan_input.has_links, policy=self._policy)
         return _text_triage_verdict(threat, triage, "triage", scan_input.has_links, latency)
 
 
@@ -285,7 +289,10 @@ def _first_scam(url_responses: list[ScanResponse]) -> ScanResponse | None:
     return next((u for u in url_responses if u.threat_level == ThreatLevel.SCAM), None)
 
 
-def _has_unverified(url_responses: list[ScanResponse]) -> bool:
+def _has_unverified(url_responses: list[ScanResponse], expected: int) -> bool:
+    # A crashed inspection returns nothing, so a missing response is an unverified link too.
+    if len(url_responses) < expected:
+        return True
     return any(u.threat_level in (ThreatLevel.INCONCLUSIVE, ThreatLevel.CAUTION) for u in url_responses)
 
 

@@ -52,8 +52,9 @@ async def test_triage_masks_pii_before_jev():
 async def test_brand_match_endpoint_detects_spoofing():
     from ai_gateway.api.main import get_visual_embedder
     from ai_gateway.domain.visual_embedder import FakeVisualEmbedder
+    from ai_gateway.domain.brand_matcher import one_hot
 
-    fake_emb = FakeVisualEmbedder(default_embedding=[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    fake_emb = FakeVisualEmbedder(default_embedding=one_hot(0, 768))
     app.dependency_overrides[get_visual_embedder] = lambda: fake_emb
 
     try:

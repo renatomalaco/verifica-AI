@@ -23,7 +23,7 @@ CPF_FORMATTED_PATTERN = re.compile(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b")
 CPF_RAW_PATTERN = re.compile(r"\b\d{11}\b")
 
 # 8. BR phone numbers (optional +55, 2-digit area code, 8 or 9 digits)
-PHONE_PATTERN = re.compile(r"(?:\+55\s?)?(?:\(?\d{2}\)?[\s-]?)?(?:9?\d{4})[\s-]?\d{4}\b")
+PHONE_PATTERN = re.compile(r"(?<![\w@.])(?:\+55\s?)?(?:\(?\d{2}\)?[\s-]?)?(?:9?\d{4})[\s-]?\d{4}\b")
 
 # 9. Emails
 EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
@@ -57,6 +57,9 @@ def mask_pii(text: str) -> str:
 
     # 1. JWT
     result = JWT_PATTERN.sub("[CHAVE_SENSIVEL]", result)
+
+    # Emails go before every digit pattern, which would otherwise corrupt the address.
+    result = EMAIL_PATTERN.sub("[EMAIL_MASCARADO]", result)
 
     # 2. PIX UUID
     result = PIX_UUID_PATTERN.sub("[PIX_MASCARADO]", result)
@@ -93,8 +96,5 @@ def mask_pii(text: str) -> str:
         return val
 
     result = PHONE_PATTERN.sub(_phone_replacer, result)
-
-    # 9. Emails
-    result = EMAIL_PATTERN.sub("[EMAIL_MASCARADO]", result)
 
     return result

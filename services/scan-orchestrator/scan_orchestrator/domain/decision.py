@@ -9,7 +9,7 @@ class ThresholdPolicy:
     safe: float = 0.10
 
 
-def decide(score: RiskScore, has_links: bool, policy: ThresholdPolicy) -> ThreatLevel:
+def decide(score: RiskScore, has_unverified_links: bool, policy: ThresholdPolicy) -> ThreatLevel:
     """
     Applies the cascade cutoff logic for defense in depth,
     using guard clauses and early returns (no 'else').
@@ -18,9 +18,9 @@ def decide(score: RiskScore, has_links: bool, policy: ThresholdPolicy) -> Threat
         return ThreatLevel.SCAM
 
     if score.value <= policy.safe:
-        # Ethical guideline: never issue a SEGURO verdict for messages containing
-        # uninspected external links.
-        if has_links:
+        # Ethical guideline: never issue SEGURO while a link could not be verified.
+        # A link that was inspected and found safe does not hold the verdict back.
+        if has_unverified_links:
             return ThreatLevel.CAUTION
         return ThreatLevel.SAFE
 
