@@ -1,5 +1,5 @@
 import { getLocale } from '../paraglide/runtime.js'
-import type { ExplainResponse, ScanRequest, ScanResponse, StageEvent } from '../types'
+import type { ExplainResponse, ResearchReport, ScanRequest, ScanResponse, StageEvent } from '../types'
 
 const API_BASE = ''
 
@@ -146,4 +146,12 @@ export async function scanStream(
     }
     onError(err instanceof Error ? err : new Error(String(err)))
   }
+}
+
+// Latest ablation study; null until someone runs `python -m research_runner`.
+export async function fetchResearchReport(signal?: AbortSignal): Promise<ResearchReport | null> {
+  const response = await fetch(`${API_BASE}/pesquisa/report`, { signal })
+  if (response.status === 404) return null
+  if (!response.ok) throw new Error(`Research report failed (${response.status})`)
+  return response.json()
 }

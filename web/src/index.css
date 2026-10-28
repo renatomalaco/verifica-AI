@@ -1301,3 +1301,43 @@ details.tech > summary::-webkit-details-marker {
 
 .lupa__icon { color: var(--lupa-ring); }
 .lupa[data-level='INCONCLUSIVO'] .lupa__icon { color: var(--unknown-text); }
+
+/* ---------- Research (ablation report) ---------- */
+
+.research-table-wrap { overflow-x: auto; }
+
+.research-table {
+  width: 100%;
+  min-width: 42rem;
+  border-collapse: collapse;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.research-table th,
+.research-table td {
+  padding: 0.625rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.research-table th { color: var(--color-ink-2); font-weight: 700; }
+.research-table tr[data-mode='cascade'] { background: var(--color-accent-soft); font-weight: 700; }
+.research-table td[data-skipped] { color: var(--color-ink-3); font-style: italic; }
+
+.research-notes {
+  border-radius: 0.875rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  padding: 1rem;
+}
+
+.research-latex {
+  overflow-x: auto;
+  border-radius: 0.875rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  padding: 1rem;
+  font-size: 0.875rem;
+  white-space: pre;
+}
