@@ -1,20 +1,17 @@
-from dataclasses import asdict
-from typing import Any, Dict, Optional
-from fastapi import FastAPI, Query
-from fastapi.middleware.cors import CORSMiddleware
-from research_runner.application.benchmark_service import BenchmarkService
-from research_runner.domain.ablation_models import AblationMode
-from research_runner.domain.report_generator import (
-    generate_markdown_table,
-    generate_latex_table,
-    generate_full_tcc_report,
-)
+from typing import Any
 
+from fastapi import FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+
+from research_runner.application.ablation_study import StudyConfig, run_study
+from research_runner.domain.report_generator import generate_latex_table
+from research_runner.infrastructure.dataset_file import load_samples
+from research_runner.infrastructure.report_files import read_report, reports_dir, write_report
 
 app = FastAPI(
     title="Verifica AI — Research Runner API",
-    description="Internal API to run ablation benchmarks and compute the TCC metrics.",
-    version="0.1.0",
+    description="Internal API to run the ablation study and serve its latest report.",
+    version="0.2.0",
 )
 
 app.add_middleware(
@@ -25,60 +22,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-service = BenchmarkService()
-
 
 @app.get("/health")
-async def health() -> Dict[str, str]:
+async def health() -> dict[str, str]:
     return {"status": "ok", "service": "research-runner"}
 
 
-@app.get("/pesquisa")
-async def get_pesquisa_summary() -> Dict[str, Any]:
-    evaluations = service.run_all_modes()
-    md_table = generate_markdown_table(evaluations)
-    latex_table = generate_latex_table(evaluations)
-    full_report = generate_full_tcc_report(evaluations)
-
-    evals_data = []
-    for ev in evaluations:
-        evals_data.append({
-            "mode": ev.mode.value,
-            "metrics": asdict(ev.metrics),
-            "stage_breakdown": ev.stage_breakdown,
-        })
-
-    return {
-        "markdown_table": md_table,
-        "latex_table": latex_table,
-        "full_report": full_report,
-        "evaluations": evals_data,
-    }
+@app.get("/pesquisa/report")
+async def latest_report() -> dict[str, Any]:
+    report = read_report(reports_dir())
+    if report is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No study has been run yet.")
+    return {**report, "latex_table": generate_latex_table(report["modes"])}
 
 
 @app.post("/pesquisa/run")
-async def run_pesquisa(
-    mode: str = Query("cascade", description="Ablation mode ('heuristic', 'classical_nlp', 'pure_vlm', 'cascade', 'all')")
-) -> Dict[str, Any]:
-    if mode == "all":
-        evaluations = service.run_all_modes()
-        return {
-            "evaluations": [
-                {
-                    "mode": ev.mode.value,
-                    "metrics": asdict(ev.metrics),
-                    "stage_breakdown": ev.stage_breakdown,
-                }
-                for ev in evaluations
-            ],
-            "markdown_table": generate_markdown_table(evaluations),
-            "latex_table": generate_latex_table(evaluations),
-        }
-
-    mode_enum = AblationMode(mode)
-    ev = service.run_mode(mode_enum)
-    return {
-        "mode": ev.mode.value,
-        "metrics": asdict(ev.metrics),
-        "stage_breakdown": ev.stage_breakdown,
-    }
+async def run_pesquisa() -> dict[str, Any]:
+    report = await run_study(load_samples(), StudyConfig())
+    write_report(report, reports_dir())
+    return report
