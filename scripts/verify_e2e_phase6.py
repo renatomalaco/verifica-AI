@@ -1,7 +1,9 @@
 import asyncio
 import multiprocessing
+import os
 import subprocess
 import sys
+import tempfile
 import time
 import httpx
 import uvicorn
@@ -22,29 +24,21 @@ async def verify_phase_6():
     print("Iniciando validacao ponta a ponta da Fase 6: Pesquisa, Ablacao e Observabilidade")
     print("=" * 80)
 
-    # 1. Validate the scientific regression gate CLI (F1 >= 0.92)
-    res_cli = subprocess.run(
-        [sys.executable, "-m", "research_runner", "--mode", "cascade", "--threshold-f1", "0.92"],
+    # 1. The F1 gate refuses to pass while the test split has no real samples (R1 honesty rule)
+    res_gate = subprocess.run(
+        [sys.executable, "-m", "research_runner", "--threshold-f1", "0.92"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
     )
-    assert res_cli.returncode == 0, f"Falha no CLI gate da cascata: {res_cli.stderr}"
-    assert "GATE CIENTIFICO: APROVADO" in res_cli.stdout
-    print("[OK] 1. CLI Gate Cientifico automatizado aprovado com F1 >= 0.92.")
+    assert res_gate.returncode in (0, 1, 2), f"Gate CLI crashed: {res_gate.stderr}"
+    assert "F1 gate" in res_gate.stdout
+    print(f"[OK] 1. F1 gate ran on the test split (exit code {res_gate.returncode}).")
 
-    # 2. Validate the ablation comparison table output and LaTeX code
-    res_all = subprocess.run(
-        [sys.executable, "-m", "research_runner", "--mode", "all"],
-        capture_output=True,
-        text=True,
-    )
-    assert res_all.returncode == 0
-    assert "Modo 1" in res_all.stdout
-    assert "Modo 1b" in res_all.stdout
-    assert "Modo 2" in res_all.stdout
-    assert "Modo 3" in res_all.stdout
-    assert "\\begin{table}" in res_all.stdout
-    print("[OK] 2. Geracao automatica de tabelas de ablacao comparativa e LaTeX (Booktabs) para o TCC validada.")
+    # 2. The study writes the ablation tables (Markdown + LaTeX) and latest.json
+    assert "Modo 1b" in res_gate.stdout and "Modo 3" in res_gate.stdout
+    assert r"\begin{table}" in res_gate.stdout
+    print("[OK] 2. Ablation tables (Markdown and LaTeX booktabs) generated.")
 
     # 3. Test the Phase 6 HTTP services
     async with httpx.AsyncClient(timeout=10.0) as client:
@@ -74,14 +68,11 @@ async def verify_phase_6():
         assert ready_orc, "Servico scan-orchestrator nao respondeu na porta 8000"
         print("[OK] 4. Servico scan-orchestrator operacional na porta 8000.")
 
-        # 4. Validate the internal /pesquisa route on the research-runner API
-        res_pesquisa = await client.get("http://127.0.0.1:8004/pesquisa")
-        assert res_pesquisa.status_code == 200
-        data_pesquisa = res_pesquisa.json()
-        assert len(data_pesquisa["evaluations"]) == 4
-        assert "markdown_table" in data_pesquisa
-        assert "latex_table" in data_pesquisa
-        print("[OK] 5. Rota interna /pesquisa retornou os 4 modos de ablacao com sucesso.")
+        # 4. The research-runner serves the report the CLI just wrote
+        res_report = await client.get("http://127.0.0.1:8004/pesquisa/report")
+        assert res_report.status_code == 200
+        assert len(res_report.json()["modes"]) == 4
+        print("[OK] 5. /pesquisa/report serves the latest study with the 4 ablation modes.")
 
         # 5. Validate OTel telemetry: W3C traceparent propagation and /metrics endpoint
         trace_headers = {"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
@@ -103,6 +94,8 @@ async def verify_phase_6():
 
 
 def main():
+    # CLI and API share one reports folder, so the API serves what the CLI wrote.
+    os.environ["RESEARCH_REPORTS_DIR"] = tempfile.mkdtemp(prefix="verifica-reports-")
     procs = [
         multiprocessing.Process(target=run_research_service, daemon=True),
         multiprocessing.Process(target=run_orchestrator_service, daemon=True),

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import List, Tuple
 import numpy as np
 from research_runner.domain.ablation_models import (
@@ -29,33 +30,35 @@ def calculate_confusion_matrix(predictions: List[SamplePrediction]) -> Confusion
     return ConfusionMatrix(tp=tp, fp=fp, tn=tn, fn=fn)
 
 
+@dataclass(frozen=True)
+class ReliabilityBin:
+    lower: float
+    upper: float
+    count: int
+    accuracy: float
+    mean_confidence: float
+
+
+def reliability_bins(predictions: List[SamplePrediction], n_bins: int = 10) -> List[ReliabilityBin]:
+    """Confidence buckets for the reliability diagram; empty buckets are left out."""
+    edges = [round(float(e), 10) for e in np.linspace(0.0, 1.0, n_bins + 1)]
+    bins: List[ReliabilityBin] = []
+    for i, (lower, upper) in enumerate(zip(edges, edges[1:])):
+        is_last = i == n_bins - 1
+        members = [p for p in predictions if lower <= p.confidence < upper or (is_last and p.confidence == upper)]
+        if not members:
+            continue
+        accuracy = sum(1 for p in members if p.is_correct) / len(members)
+        confidence = sum(p.confidence for p in members) / len(members)
+        bins.append(ReliabilityBin(lower, upper, len(members), accuracy, confidence))
+    return bins
+
+
 def calculate_ece(predictions: List[SamplePrediction], n_bins: int = 10) -> float:
     if not predictions:
         return 0.0
-
-    bins = np.linspace(0.0, 1.0, n_bins + 1)
-    ece = 0.0
     total = len(predictions)
-
-    for i in range(n_bins):
-        bin_lower = bins[i]
-        bin_upper = bins[i + 1]
-
-        in_bin = [
-            p for p in predictions
-            if (bin_lower <= p.confidence < bin_upper) or (i == n_bins - 1 and p.confidence == bin_upper)
-        ]
-
-        if not in_bin:
-            continue
-
-        bin_size = len(in_bin)
-        bin_accuracy = sum(1 for p in in_bin if p.is_correct) / bin_size
-        bin_confidence = sum(p.confidence for p in in_bin) / bin_size
-
-        ece += (bin_size / total) * abs(bin_accuracy - bin_confidence)
-
-    return float(ece)
+    return float(sum(b.count / total * abs(b.accuracy - b.mean_confidence) for b in reliability_bins(predictions, n_bins)))
 
 
 def calculate_percentiles(latencies: List[float]) -> Tuple[float, float, float]:

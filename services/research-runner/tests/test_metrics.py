@@ -88,3 +88,21 @@ def test_cost_calculation():
     # avg cost per req = 0.00015 -> per 1k = 0.15 USD -> * 5.50 = 0.825 BRL
     assert cost_usd_1k == pytest.approx(0.15, rel=1e-2)
     assert cost_brl_1k == pytest.approx(0.825, rel=1e-2)
+
+
+def test_reliability_bins_feed_the_diagram_and_the_ece():
+    from research_runner.domain.metrics import reliability_bins
+
+    predictions = [
+        SamplePrediction("a", "GOLPE", "GOLPE", 0.95, 1.0, 0.0, "x"),
+        SamplePrediction("b", "SEGURO", "GOLPE", 0.92, 1.0, 0.0, "x"),
+        SamplePrediction("c", "SEGURO", "SEGURO", 0.55, 1.0, 0.0, "x"),
+    ]
+    bins = reliability_bins(predictions, n_bins=10)
+
+    top = bins[-1]
+    assert (top.lower, top.upper, top.count) == (0.9, 1.0, 2)
+    assert top.accuracy == 0.5
+    assert abs(top.mean_confidence - 0.935) < 1e-9
+    assert sum(b.count for b in bins) == 3
+    assert abs(calculate_ece(predictions, n_bins=10) - sum(b.count / 3 * abs(b.accuracy - b.mean_confidence) for b in bins)) < 1e-9

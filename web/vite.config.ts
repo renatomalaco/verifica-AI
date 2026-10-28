@@ -21,6 +21,10 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
+      '/pesquisa/report': {
+        target: 'http://localhost:8004',
+        changeOrigin: true,
+      },
       '/pesquisa/run': {
         target: 'http://localhost:8004',
         changeOrigin: true,

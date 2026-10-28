@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { explainScan, scanDirect, scanStream } from './api'
+import { explainScan, fetchResearchReport, scanDirect, scanStream } from './api'
 import type { ScanResponse, StageEvent } from '../types'
 
 describe('API Service', () => {
@@ -105,5 +105,16 @@ describe('API Service', () => {
     expect(url).toBe('/api/v1/scans/scan-1/explain')
     expect(init.headers).toEqual({ 'Content-Type': 'application/json' })
     expect(JSON.parse(init.body)).toEqual({ locale: 'pt-BR' })
+  })
+
+  it('fetchResearchReport returns null while no study has been run', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) })
+    await expect(fetchResearchReport()).resolves.toBeNull()
+  })
+
+  it('fetchResearchReport returns the latest report', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ modes: [] }) })
+    await expect(fetchResearchReport()).resolves.toEqual({ modes: [] })
+    expect(global.fetch).toHaveBeenCalledWith('/pesquisa/report', expect.anything())
   })
 })

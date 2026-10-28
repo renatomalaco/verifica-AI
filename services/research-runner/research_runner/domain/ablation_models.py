@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
-from contracts import ThreatLevel
+from typing import Dict, List, Optional
 
 
 class AblationMode(str, Enum):
@@ -9,17 +8,6 @@ class AblationMode(str, Enum):
     CLASSICAL_NLP = "classical_nlp"
     PURE_VLM = "pure_vlm"
     CASCADE = "cascade"
-
-
-@dataclass
-class BenchmarkSample:
-    id: str
-    channel: str
-    content: str
-    expected_threat_level: str
-    is_adversarial_injection: bool = False
-    category: Optional[str] = None
-    image_b64: Optional[str] = None
 
 
 @dataclass
@@ -69,3 +57,5 @@ class ModeEvaluation:
     metrics: MetricsReport
     predictions: List[SamplePrediction] = field(default_factory=list)
     stage_breakdown: Dict[str, int] = field(default_factory=dict)
+    status: str = "executed"  # "executed" or "not_executed"; a skipped mode never gets numbers
+    note: Optional[str] = None

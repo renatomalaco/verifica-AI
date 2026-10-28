@@ -66,3 +66,39 @@ export interface ExplainResponse {
   lines: string[]
   remaining_today?: number
 }
+
+// Ablation study report served by the research-runner (GET /pesquisa/report).
+export type ResearchModeName = 'heuristic' | 'classical_nlp' | 'pure_vlm' | 'cascade'
+
+export interface ResearchMetrics {
+  accuracy: number
+  precision: number
+  recall: number
+  f1_score: number
+  f2_score: number
+  ece: number
+  p95_latency_ms: number
+  cost_per_1k_usd: number
+  total_samples: number
+}
+
+export interface ResearchMode {
+  mode: ResearchModeName
+  status: 'executed' | 'not_executed'
+  note?: string | null
+  metrics?: ResearchMetrics
+}
+
+export interface ResearchReport {
+  meta: {
+    generated_at: string
+    seed: number
+    split: { train: number; test: number }
+    triage: string
+    disabled_stages: string[]
+    warnings: string[]
+  }
+  modes: ResearchMode[]
+  adversarial: { total: number; detected_without_sanitization: number; detected_with_sanitization: number }
+  latex_table: string
+}

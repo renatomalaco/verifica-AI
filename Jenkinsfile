@@ -57,7 +57,8 @@ pipeline {
         stage('Gate Cientifico de Regressao F1') {
             steps {
                 echo '=== Validando Gate Cientifico Automatizado (F1 >= 0.92 na cascata) ==='
-                sh 'uv run python -m research_runner --mode cascade --threshold-f1=0.92'
+                // Exit 2 while the test split has no real samples: the gate never passes on made-up data.
+                sh 'uv run python -m research_runner --threshold-f1 0.92'
             }
         }
 

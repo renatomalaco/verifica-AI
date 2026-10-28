@@ -1,92 +1,69 @@
-from typing import List
-from research_runner.domain.ablation_models import AblationMode, ModeEvaluation
+"""Thesis tables (Markdown and LaTeX) built from the study report. The text is in Portuguese for the monograph."""
 
+from typing import Any
 
 MODE_LABELS = {
-    AblationMode.HEURISTIC: "Modo 1 (Heurístico / Feeds + Sinais de Domínio)",
-    AblationMode.CLASSICAL_NLP: "Modo 1b (NLP Clássico / TF-IDF + LogReg)",
-    AblationMode.PURE_VLM: "Modo 2 (VLM Puro Multimodal)",
-    AblationMode.CASCADE: "Modo 3 (Cascata Verifica AI com Early Return)",
+    "heuristic": "Modo 1 (Heurístico / Feeds + Sinais de Domínio)",
+    "classical_nlp": "Modo 1b (NLP Clássico / TF-IDF + LogReg)",
+    "pure_vlm": "Modo 2 (VLM Puro Multimodal)",
+    "cascade": "Modo 3 (Cascata Verifica AI)",
 }
 
 LATEX_MODE_LABELS = {
-    AblationMode.HEURISTIC: "Modo 1 (Heur\\'istico / Sinais de Dom\\'inio)",
-    AblationMode.CLASSICAL_NLP: "Modo 1b (NLP Cl\\'assico TF-IDF+LR)",
-    AblationMode.PURE_VLM: "Modo 2 (VLM Puro Multimodal)",
-    AblationMode.CASCADE: "\\textbf{Modo 3 (Cascata Verifica AI)}",
+    "heuristic": "Modo 1 (Heur\\'istico / Sinais de Dom\\'inio)",
+    "classical_nlp": "Modo 1b (NLP Cl\\'assico TF-IDF+LR)",
+    "pure_vlm": "Modo 2 (VLM Puro Multimodal)",
+    "cascade": "\\textbf{Modo 3 (Cascata Verifica AI)}",
 }
 
+NOT_EXECUTED = "não executado"
 
-def generate_markdown_table(evaluations: List[ModeEvaluation]) -> str:
+
+def generate_markdown_table(modes: list[dict[str, Any]]) -> str:
     lines = [
-        "| Modo | Acurácia | Precisão | Recall | F1-Score | F2-Score | ECE | P95 (ms) | Custo / 1k (USD) |",
+        "| Modo | Acurácia | Precisão | Recall | F1 | F2 | ECE | P95 (ms) | Custo / 1k (USD) |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
-    for ev in evaluations:
-        m = ev.metrics
-        label = MODE_LABELS.get(ev.mode, str(ev.mode))
+    for mode in modes:
+        label = MODE_LABELS.get(mode["mode"], mode["mode"])
+        if mode["status"] != "executed":
+            lines.append(f"| {label} | {NOT_EXECUTED}: {mode.get('note', '')} |" + " — |" * 7)
+            continue
+        m = mode["metrics"]
         lines.append(
-            f"| {label} | {m.accuracy * 100:.1f}% | {m.precision:.3f} | {m.recall:.3f} | "
-            f"{m.f1_score:.3f} | {m.f2_score:.3f} | {m.ece:.3f} | {m.p95_latency_ms:.1f} | "
-            f"${m.cost_per_1k_usd:.3f} |"
+            f"| {label} | {m['accuracy'] * 100:.1f}% | {m['precision']:.3f} | {m['recall']:.3f} | "
+            f"{m['f1_score']:.3f} | {m['f2_score']:.3f} | {m['ece']:.3f} | {m['p95_latency_ms']:.1f} | "
+            f"${m['cost_per_1k_usd']:.3f} |"
         )
     return "\n".join(lines)
 
 
-def generate_latex_table(evaluations: List[ModeEvaluation]) -> str:
-    latex_lines = [
+def generate_latex_table(modes: list[dict[str, Any]]) -> str:
+    rows = [_latex_row(mode) for mode in modes]
+    return "\n".join([
         "\\begin{table}[htbp]",
         "\\centering",
-        "\\caption{Resultados do Estudo de Ablação e Comparativo de Eficácia da Plataforma Verifica AI}",
+        "\\caption{Resultados do Estudo de Ablação no conjunto de teste (amostras reais)}",
         "\\label{tab:ablation_results}",
         "\\begin{tabular}{lcccccccc}",
         "\\toprule",
-        "\\textbf{Modo} & \\textbf{Acc.} & \\textbf{Prec.} & \\textbf{Rec.} & \\textbf{F1} & \\textbf{F2} & \\textbf{ECE} & \\textbf{P95 (ms)} & \\textbf{Custo/1k (USD)} \\\\",
+        "\\textbf{Modo} & \\textbf{Acc.} & \\textbf{Prec.} & \\textbf{Rec.} & \\textbf{F1} & \\textbf{F2} & "
+        "\\textbf{ECE} & \\textbf{P95 (ms)} & \\textbf{Custo/1k (USD)} \\\\",
         "\\midrule",
-    ]
-    for ev in evaluations:
-        m = ev.metrics
-        label = LATEX_MODE_LABELS.get(ev.mode, str(ev.mode))
-        latex_lines.append(
-            f"{label} & {m.accuracy * 100:.1f}\\% & {m.precision:.3f} & {m.recall:.3f} & "
-            f"{m.f1_score:.3f} & {m.f2_score:.3f} & {m.ece:.3f} & {m.p95_latency_ms:.1f} & "
-            f"\\${m.cost_per_1k_usd:.3f} \\\\"
-        )
-    latex_lines.extend([
+        *rows,
         "\\bottomrule",
         "\\end{tabular}",
         "\\end{table}",
     ])
-    return "\n".join(latex_lines)
 
 
-def generate_full_tcc_report(evaluations: List[ModeEvaluation]) -> str:
-    md_table = generate_markdown_table(evaluations)
-    latex_table = generate_latex_table(evaluations)
-
-    return f"""# Relatório Científico de Ablação e Eficácia — Verifica AI
-
-Documento gerado automaticamente pelo **research-runner** para embasamento experimental da defesa de TCC.
-
----
-
-## 1. Tabela Comparativa de Ablação
-
-{md_table}
-
----
-
-## 2. Tabela Comparativa em Formato LaTeX (Booktabs)
-
-```latex
-{latex_table}
-```
-
----
-
-## 3. Análise das Perguntas de Pesquisa
-
-- **Q1 (Necessidade de IA Multimodal):** A cascata equilibra o custo de processamento com short-circuit determinístico, acionando o VLM somente no resíduo não resolvido por heurísticas locais.
-- **Q2 (Viabilidade de NLP Clássico):** O Modo 1b (TF-IDF + Regressão Logística) demonstra bom desempenho para frases conhecidas em PT-BR, mas carece de generalização para coerção afetiva contextual sem palavras-chave explícitas.
-- **Q3 (Comparativo com Ferramentas de Domínio - SiteConfiável):** O Modo 1 (heurístico puro) falha em analisar textos sem URLs e imagens/prints de mensagens, cenários onde o Verifica AI alcança detecção robusta.
-"""
+def _latex_row(mode: dict[str, Any]) -> str:
+    label = LATEX_MODE_LABELS.get(mode["mode"], mode["mode"])
+    if mode["status"] != "executed":
+        return f"{label} & \\multicolumn{{8}}{{c}}{{{NOT_EXECUTED}}} \\\\"
+    m = mode["metrics"]
+    return (
+        f"{label} & {m['accuracy'] * 100:.1f}\\% & {m['precision']:.3f} & {m['recall']:.3f} & "
+        f"{m['f1_score']:.3f} & {m['f2_score']:.3f} & {m['ece']:.3f} & {m['p95_latency_ms']:.1f} & "
+        f"\\${m['cost_per_1k_usd']:.3f} \\\\"
+    )
