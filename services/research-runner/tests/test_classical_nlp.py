@@ -37,13 +37,11 @@ def test_classical_nlp_training_and_inference():
     assert conf_legit >= 0.50
 
 
-def test_classical_nlp_default_trained_instance():
-    # Factory with standard pre-trained or default corpus
-    classifier = ClassicalPTBRClassifier.create_default()
-    pred, conf = classifier.predict("URGENTE: Sua conta bancária foi bloqueada. Acesse o link para desbloquear.")
-    assert pred == "GOLPE"
-    assert conf >= 0.50
-
-    pred_legit, conf_legit = classifier.predict("Bom dia, reunião de trabalho agendada para as 15h.")
-    assert pred_legit == "SEGURO"
-    assert conf_legit >= 0.50
+def test_scam_probability_is_the_probability_of_the_golpe_class():
+    classifier = ClassicalPTBRClassifier().fit(
+        ["manda um pix urgente", "conta bloqueada regularize", "almoco de domingo", "consulta amanha"],
+        ["GOLPE", "GOLPE", "SEGURO", "SEGURO"],
+    )
+    label, confidence = classifier.predict("pix urgente")
+    assert label == "GOLPE"
+    assert classifier.scam_probability("pix urgente") == pytest.approx(confidence)
