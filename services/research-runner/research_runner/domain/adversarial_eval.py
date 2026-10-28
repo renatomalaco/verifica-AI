@@ -1,35 +1,27 @@
-from typing import Any, Dict, List
-from ai_gateway.domain.sanitizer import sanitize_text
-from ai_gateway.domain.envelope import build_envelope
-from research_runner.domain.classical_nlp import ClassicalPTBRClassifier
+"""Adversarial robustness: the same detector, with and without input sanitization."""
+
+from collections.abc import Callable
+from dataclasses import dataclass
+
+from research_runner.domain.dataset import Sample
+
+SCAM_THRESHOLD = 0.5
 
 
-def evaluate_adversarial_injections(
-    samples: List[str],
-) -> Dict[str, Any]:
-    classifier = ClassicalPTBRClassifier.create_default()
+@dataclass(frozen=True)
+class AdversarialResult:
+    total: int
+    detected_without_sanitization: int
+    detected_with_sanitization: int
 
-    total = len(samples)
-    defended_count = 0
-    raw_bypassed_count = 0
 
-    for sample in samples:
-        # Without sanitization: injections with override commands or zero-width chars
-        # With sanitization + envelope:
-        clean_text = sanitize_text(sample)
-        wrapped = build_envelope(clean_text)
-
-        # The classifier evaluates the sanitized text (real content stripped of zero-width chars and delimiters)
-        pred, conf = classifier.predict(clean_text)
-
-        # Scam detected despite the adversarial injection attempt
-        if pred == "GOLPE":
-            defended_count += 1
-
-    robustness = defended_count / total if total > 0 else 1.0
-
-    return {
-        "total_adversarial": total,
-        "defended_with_sanitization": defended_count,
-        "robustness_rate": robustness,
-    }
+def evaluate_adversarial(
+    samples: list[Sample],
+    scam_probability: Callable[[str], float],
+    sanitize: Callable[[str], str],
+) -> AdversarialResult:
+    """Counts adversarial scams caught on the raw text versus the sanitized text."""
+    attacks = [s for s in samples if s.adversarial and s.label == "GOLPE"]
+    raw = sum(1 for s in attacks if scam_probability(s.content) >= SCAM_THRESHOLD)
+    clean = sum(1 for s in attacks if scam_probability(sanitize(s.content)) >= SCAM_THRESHOLD)
+    return AdversarialResult(total=len(attacks), detected_without_sanitization=raw, detected_with_sanitization=clean)
