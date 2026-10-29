@@ -15,12 +15,15 @@ from contracts import (
     TriageResult,
     Persuasion,
     ExtractResult,
+    extract_domain,
+    normalize_url,
 )
 from scan_orchestrator.domain.scan_input import ScanInput
 from scan_orchestrator.domain.risk_score import RiskScore
-from scan_orchestrator.domain.decision import ThresholdPolicy, decide
+from scan_orchestrator.domain.decision import ThresholdPolicy, decide, ocr_is_reliable
 from scan_orchestrator.domain.verdict_catalog import verdict_message_for
 from scan_orchestrator.domain.cascade import (
+    BrandMatcherClientProtocol,
     Cascade,
     RedisCacheClientProtocol,
     StageContext,
@@ -108,6 +111,7 @@ class AnalyzeTextUseCase:
         cascade: Cascade | None = None,
         image_extractor: ImageExtractorClientProtocol | None = None,
         redis_client: RedisCacheClientProtocol | None = None,
+        brand_matcher: BrandMatcherClientProtocol | None = None,
     ):
         self._triage_client = triage_client
         self._repository = repository
@@ -115,6 +119,7 @@ class AnalyzeTextUseCase:
         self._cascade = cascade
         self._image_extractor = image_extractor
         self._redis_client = redis_client
+        self._brand_matcher = brand_matcher
 
     async def execute(self, scan_input: ScanInput) -> AsyncIterator[StageEvent | ScanResponse]:
         pump = _EventPump()
@@ -173,6 +178,15 @@ class AnalyzeTextUseCase:
         return response
 
     async def _image_verdict(self, extract: ExtractResult, duration_ms: float, report: StageListener) -> ScanResponse:
+        response = await self._read_image(extract, duration_ms, report)
+        if response.threat_level is ThreatLevel.SAFE and not ocr_is_reliable(extract.ocr_confidence):
+            return _unsure_ocr_verdict(response)
+        return response
+
+    async def _read_image(self, extract: ExtractResult, duration_ms: float, report: StageListener) -> ScanResponse:
+        spoofing = await self._brand_spoofing_verdict(extract, duration_ms, report)
+        if spoofing:
+            return spoofing
         if extract.urls_found and self._cascade:
             return await self._image_with_links_verdict(extract, duration_ms, report)
         if extract.extracted_text:
@@ -185,6 +199,39 @@ class AnalyzeTextUseCase:
                 deciding_stage="empty_ocr_and_qr",
                 category="no_text_or_url_detected",
                 scores={"is_phishing": 0.0},
+                latency_breakdown={"image_processing": duration_ms},
+            ),
+        )
+
+    async def _brand_spoofing_verdict(
+        self, extract: ExtractResult, duration_ms: float, report: StageListener
+    ) -> ScanResponse | None:
+        """
+        Visual RAG on the clean screenshot. Only with a visible link: without a domain, a real
+        bank app screenshot would look exactly like an imitation.
+        """
+        if not (self._brand_matcher and extract.urls_found and extract.clean_image_b64):
+            return None
+        domain = extract_domain(normalize_url(extract.urls_found[0]))
+        report(StageName.VISUAL_RAG, "started")
+        try:
+            match = await self._brand_matcher.match_brand(extract.clean_image_b64, current_domain=domain)
+        except Exception:
+            logger.warning("visual RAG unavailable for the screenshot", exc_info=True)
+            return None
+        finally:
+            report(StageName.VISUAL_RAG, "done")
+        if not match.is_spoofing:
+            return None
+        return _verdict(
+            ThreatLevel.SCAM,
+            None,
+            ScanDetails(
+                channel=Channel.IMAGE,
+                deciding_stage="image_visual_rag_brand_spoofing",
+                category="brand_spoofing",
+                scores={"is_phishing": 1.0, "brand_spoofing": 1.0},
+                domain_signals={"spoofed_brand": match.matched_brand or "", "official_domains": ", ".join(match.official_domains)},
                 latency_breakdown={"image_processing": duration_ms},
             ),
         )
@@ -279,9 +326,14 @@ def _verdict(threat: ThreatLevel, persuasion: Persuasion | None, details: ScanDe
     return ScanResponse(
         id=uuid4(),
         threat_level=threat,
-        verdict_message=verdict_message_for(threat, persuasion),
+        verdict_message=verdict_message_for(threat, persuasion, category=details.category),
         details=details,
     )
+
+
+def _unsure_ocr_verdict(response: ScanResponse) -> ScanResponse:
+    details = response.details.model_copy(update={"deciding_stage": "image_ocr_low_confidence"})
+    return _verdict(ThreatLevel.INCONCLUSIVE, None, details)
 
 
 def _scan_responses(results: list) -> list[ScanResponse]:

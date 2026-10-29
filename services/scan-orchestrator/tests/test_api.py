@@ -99,7 +99,7 @@ async def test_scan_image_returns_verdict():
     fake_extractor = FakeImageExtractorClient(
         default_result=ExtractResult(
             sha256="image_sha256",
-            phash="phash_image",
+            phash="fedcba9876543210",
             extracted_text="Aviso de cobrança urgente com PIX no CPF 000.000.000-00",
             qr_codes=[],
             urls_found=[],
@@ -168,3 +168,49 @@ async def test_scan_url_with_visual_rag_brand_spoofing():
             assert data["verdict_message"] == "scam_brand_spoofing"
     finally:
         app.dependency_overrides.clear()
+
+
+# --- Multipart upload (Share Target sends the screenshot as a file) ---
+
+def _png_bytes() -> bytes:
+    import io
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.new("RGB", (20, 20), "white").save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_stream_accepts_a_screenshot_as_multipart_file():
+    from contracts import ExtractResult
+    from scan_orchestrator.api.dependencies import get_image_extractor_client
+    from scan_orchestrator.infrastructure.image_extractor_client import FakeImageExtractorClient
+
+    extractor = FakeImageExtractorClient(
+        default_result=ExtractResult(sha256="s", phash="0123456789abcdef", extracted_text="", ocr_confidence=None)
+    )
+    app.dependency_overrides[get_image_extractor_client] = lambda: extractor
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post("/api/v1/scans/stream", files={"image": ("print.png", _png_bytes(), "image/png")})
+        assert resp.status_code == 200
+        assert "image_extraction" in resp.text
+        assert extractor.calls == 1
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_multipart_upload_above_the_limit_is_refused():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        big = b"\x89PNG\r\n\x1a\n" + b"0" * (8 * 1024 * 1024)
+        resp = await client.post("/api/v1/scans/stream", files={"image": ("print.png", big, "image/png")})
+    assert resp.status_code == 413
+
+
+@pytest.mark.asyncio
+async def test_multipart_without_image_or_text_is_a_bad_request():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post("/api/v1/scans/stream", data={"content": "   "})
+    assert resp.status_code in (400, 422)

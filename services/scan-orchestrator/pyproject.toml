@@ -16,6 +16,7 @@ dependencies = [
     "sse-starlette>=2.1.0",
     "slowapi>=0.1.9",
     "tldextract==5.3.2",
+    "python-multipart==0.0.32",
 ]
 
 [tool.uv.sources]

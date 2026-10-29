@@ -1,9 +1,12 @@
+import base64
 from typing import AsyncIterator
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
+from pydantic import ValidationError
+from starlette.datastructures import UploadFile
 from sse_starlette.sse import EventSourceResponse
 
 from contracts import ExplainResponse, ExplainScanRequest, Locale, QuotaExceeded, ScanRequest, ScanResponse, StageEvent
@@ -81,9 +84,43 @@ async def scan(
     return response
 
 
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # same limit the image-extractor enforces
+FORM_TYPES = ("multipart/form-data", "application/x-www-form-urlencoded")
+
+
+async def read_scan_request(request: Request) -> ScanRequest:
+    """JSON from the web app, or multipart when a phone shares a screenshot as a file (Share Target)."""
+    content_type = request.headers.get("content-type", "")
+    if not content_type.startswith(FORM_TYPES):
+        return _validated(await _json_body(request))
+    form = await request.form()
+    upload = form.get("image")
+    image_b64 = None
+    if isinstance(upload, UploadFile):
+        raw = await upload.read(MAX_UPLOAD_BYTES + 1)
+        if len(raw) > MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail="Image exceeds 8MB.")
+        image_b64 = base64.b64encode(raw).decode("ascii")
+    return _validated({"content": str(form.get("content") or ""), "image_b64": image_b64})
+
+
+async def _json_body(request: Request) -> object:
+    try:
+        return await request.json()
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Body must be JSON or a form.")
+
+
+def _validated(payload: object) -> ScanRequest:
+    try:
+        return ScanRequest.model_validate(payload)
+    except ValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=exc.errors(include_input=False, include_context=False))
+
+
 @app.post("/api/v1/scans/stream")
 async def scan_stream(
-    request: ScanRequest,
+    request: ScanRequest = Depends(read_scan_request),
     use_case: AnalyzeTextUseCase = Depends(get_analyze_text_use_case),
 ):
     scan_input = _to_scan_input(request)

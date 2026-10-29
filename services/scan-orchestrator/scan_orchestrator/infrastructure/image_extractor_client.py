@@ -12,16 +12,18 @@ class FakeImageExtractorClient:
     def __init__(self, default_result: ExtractResult | None = None) -> None:
         self._default = default_result or ExtractResult(
             sha256="fake_sha256" * 4,
-            phash="fake_phash_12345",
+            phash="0000000000000000",
             extracted_text="",
             qr_codes=[],
             urls_found=[],
         )
+        self.calls = 0
 
     def set_result(self, result: ExtractResult) -> None:
         self._default = result
 
     async def extract(self, image_b64: str) -> ExtractResult:
+        self.calls += 1
         return self._default
 
 
