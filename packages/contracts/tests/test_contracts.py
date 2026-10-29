@@ -105,3 +105,11 @@ def test_stage_event_validation():
 
     with pytest.raises(ValidationError):
         StageEvent(stage="triage", status="invalid_status")
+
+
+def test_protected_domains_are_unique_registrable_names():
+    from contracts.protected_brands import protected_domains
+
+    domains = protected_domains()
+    assert len(domains) == len(set(domains))
+    assert all(d == d.lower() and "." in d and "/" not in d for d in domains)
