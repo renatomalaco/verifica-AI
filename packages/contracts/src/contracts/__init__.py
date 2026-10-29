@@ -139,6 +139,8 @@ class ExtractResult(BaseModel):
     extracted_text: str = ""
     qr_codes: list[str] = Field(default_factory=list)
     urls_found: list[str] = Field(default_factory=list)
+    ocr_confidence: float | None = None  # 0-100; None when the engine cannot tell
+    clean_image_b64: str | None = None  # upright JPEG without EXIF: the only copy that travels on
 
 
 # DTOs for Visual RAG and Brand Spoofing (Phase 4)

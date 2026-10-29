@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from contracts import ExtractRequest, ExtractResult
 from image_extractor.domain.extractor_service import ImageExtractorService
-from image_extractor.domain.ocr_reader import DefaultOcrEngine, DefaultQrReader
+from image_extractor.infrastructure.ocr import TesseractOcrEngine, ZbarQrReader
 
 app = FastAPI(
     title="Verifica AI - Image Extractor",
@@ -9,10 +9,8 @@ app = FastAPI(
     version="0.1.0",
 )
 
-_global_service = ImageExtractorService(
-    ocr_engine=DefaultOcrEngine(),
-    qr_reader=DefaultQrReader(),
-)
+# A fallback OCR (Florence-2) plugs in through fallback_ocr when it is deployed; off by default.
+_global_service = ImageExtractorService(ocr_engine=TesseractOcrEngine(), qr_reader=ZbarQrReader())
 
 
 def get_extractor_service() -> ImageExtractorService:
