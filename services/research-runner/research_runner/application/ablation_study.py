@@ -21,7 +21,11 @@ from research_runner.infrastructure.evaluators import (
     train_classifier,
 )
 
-DISABLED_STAGES = ["stage_2_inspection", "visual_rag"]  # need the R2 egress proxy and the R4 Visual RAG
+DISABLED_STAGES = [
+    "stage_1_registry_lookups",  # RDAP, crt.sh and Tranco need the network; the benchmark runs offline
+    "stage_2_inspection",
+    "visual_rag",  # needs the R4 Visual RAG
+]
 TRIAGE = "local classical classifier (TF-IDF + LogReg) trained on the train split; no LLM configured"
 NO_LLM = "no LLM provider configured (GEMINI_API_KEY); labels are never copied"
 

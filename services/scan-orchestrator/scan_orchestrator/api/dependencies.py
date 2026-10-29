@@ -13,7 +13,7 @@ from scan_orchestrator.domain.cascade import (
     Cascade,
     InspectorClientProtocol,
     RedisCacheClientProtocol,
-    ReputationClientProtocol,
+    DomainEvidenceClient,
     Stage0CacheAndFeeds,
     Stage1ReputationAndSignals,
     Stage2RemoteInspection,
@@ -30,7 +30,12 @@ from scan_orchestrator.infrastructure.image_extractor_client import (
 from scan_orchestrator.infrastructure.inspector_client import HttpInspectorClient
 from scan_orchestrator.infrastructure.quota_store import RedisQuotaStore
 from scan_orchestrator.infrastructure.redis_client import RedisCacheClient
-from scan_orchestrator.infrastructure.reputation_client import DomainSignalsClient
+from scan_orchestrator.infrastructure.domain_evidence_client import (
+    CrtShClient,
+    HttpDomainEvidenceClient,
+    RdapClient,
+    RedisTrancoRanks,
+)
 from scan_orchestrator.infrastructure.scan_repository import (
     InMemoryScanRepository,
     ScanRepository,
@@ -80,8 +85,13 @@ def get_redis_client(settings: Settings = Depends(get_settings)) -> RedisCacheCl
     return RedisCacheClient(redis_url=settings.REDIS_URL)
 
 
-def get_reputation_client() -> ReputationClientProtocol:
-    return DomainSignalsClient()
+@lru_cache
+def _tranco_ranks(redis_url: str) -> RedisTrancoRanks:
+    return RedisTrancoRanks.from_url(redis_url)
+
+
+def get_domain_evidence_client(settings: Settings = Depends(get_settings)) -> DomainEvidenceClient:
+    return HttpDomainEvidenceClient(rdap=RdapClient(), crtsh=CrtShClient(), tranco=_tranco_ranks(settings.REDIS_URL))
 
 
 def get_inspector_client(settings: Settings = Depends(get_settings)) -> InspectorClientProtocol:
@@ -112,14 +122,14 @@ def get_quota_store(settings: Settings = Depends(get_settings)) -> QuotaStore:
 def get_cascade(
     policy: ThresholdPolicy = Depends(get_threshold_policy),
     redis_client: RedisCacheClientProtocol = Depends(get_redis_client),
-    reputation_client: ReputationClientProtocol = Depends(get_reputation_client),
+    evidence_client: DomainEvidenceClient = Depends(get_domain_evidence_client),
     inspector_client: InspectorClientProtocol = Depends(get_inspector_client),
     triage_client: TriageClient = Depends(get_triage_client),
     brand_matcher: BrandMatcherClientProtocol = Depends(get_brand_matcher_client),
 ) -> Cascade:
     stages = [
         Stage0CacheAndFeeds(cache_client=redis_client),
-        Stage1ReputationAndSignals(reputation_client=reputation_client),
+        Stage1ReputationAndSignals(evidence_client=evidence_client),
         Stage2RemoteInspection(
             inspector_client=inspector_client,
             triage_client=triage_client,

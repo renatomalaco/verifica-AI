@@ -292,3 +292,12 @@ async def test_a_link_whose_inspection_crashed_counts_as_unverified():
     )
     assert response.threat_level is ThreatLevel.CAUTION
     assert response.details.links_not_inspected is True
+
+
+async def test_a_crashed_link_inspection_is_logged_not_swallowed(caplog):
+    with caplog.at_level("WARNING", logger="scan_orchestrator.analyze_text"):
+        await _verdict_for(
+            "Veja: https://a.example/x",
+            ScriptedCascade([RuntimeError("inspector down")]),
+        )
+    assert "inspector down" in caplog.text
