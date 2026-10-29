@@ -3,13 +3,13 @@ from PIL import Image
 import imagehash
 
 
-def compute_hashes(b64_str: str, img: Image.Image) -> tuple[str, str]:
+def compute_hashes(raw: bytes, img: Image.Image) -> tuple[str, str]:
     """
     Computes the image hashes:
-    1. Exact SHA-256 for deterministic caching
+    1. Exact SHA-256 of the file bytes (base64 line breaks or padding must not change it)
     2. Perceptual pHash (DCT) to tolerate WhatsApp/Telegram JPEG compression
     """
-    sha256 = hashlib.sha256(b64_str.encode("ascii")).hexdigest()
+    sha256 = hashlib.sha256(raw).hexdigest()
     phash = str(imagehash.phash(img))
     return sha256, phash
 

@@ -1,11 +1,13 @@
 from contracts import BrandMatchResult, InspectResult, Persuasion, ScanResponse, TriageResult, normalize_url
 from scan_orchestrator.domain.domain_risk import DomainEvidence
+from scan_orchestrator.domain.perceptual_hash import nearest
 
 
 class FakeRedisCacheClient:
     def __init__(self) -> None:
         self._blacklist: set[str] = set()
         self._cache: dict[str, ScanResponse] = {}
+        self._phashes: dict[str, ScanResponse] = {}
 
     def add_to_blacklist(self, url: str) -> None:
         self._blacklist.add(normalize_url(url))
@@ -20,10 +22,11 @@ class FakeRedisCacheClient:
         self._cache[sha256_hash] = response
 
     async def get_cached_phash(self, phash: str) -> ScanResponse | None:
-        return self._cache.get(f"phash:{phash}")
+        match = nearest(phash, set(self._phashes))
+        return self._phashes[match] if match else None
 
     async def set_cached_phash(self, phash: str, response: ScanResponse, ttl: int = 3600) -> None:
-        self._cache[f"phash:{phash}"] = response
+        self._phashes[phash] = response
 
 
 class FakeDomainEvidenceClient:

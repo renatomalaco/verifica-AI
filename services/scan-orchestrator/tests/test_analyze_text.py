@@ -154,7 +154,7 @@ async def test_analyze_image_with_phishing_qr_code_marks_scam():
     image_client = FakeImageExtractorClient(
         default_result=ExtractResult(
             sha256="image_sha256",
-            phash="phash_1234",
+            phash="0123456789abcdef",
             extracted_text="Pague agora com QR Code abaixo",
             qr_codes=["https://phish-qr.top/pix"],
             urls_found=["https://phish-qr.top/pix"],
@@ -199,12 +199,12 @@ async def test_analyze_image_phash_cache_hit():
             scores={"is_phishing": 1.0},
         ),
     )
-    await fake_redis.set_cached_phash("phash_cached_print", cached_response)
+    await fake_redis.set_cached_phash("a1b2c3d4e5f60718", cached_response)
 
     image_client = FakeImageExtractorClient(
         default_result=ExtractResult(
             sha256="new_image_sha",
-            phash="phash_cached_print",
+            phash="a1b2c3d4e5f60718",
             extracted_text="",
             qr_codes=[],
             urls_found=[],
@@ -301,3 +301,87 @@ async def test_a_crashed_link_inspection_is_logged_not_swallowed(caplog):
             ScriptedCascade([RuntimeError("inspector down")]),
         )
     assert "inspector down" in caplog.text
+
+
+# --- Image: an unsure OCR never leads to SEGURO ---
+
+async def _image_verdict(ocr_confidence: float | None) -> ScanResponse:
+    from contracts import ExtractResult
+    from scan_orchestrator.infrastructure.image_extractor_client import FakeImageExtractorClient
+
+    extractor = FakeImageExtractorClient(
+        default_result=ExtractResult(
+            sha256="s", phash="0123456789abcdef", extracted_text="bom dia, tudo certo", ocr_confidence=ocr_confidence
+        )
+    )
+    use_case = AnalyzeTextUseCase(
+        triage_client=FakeTriageClient(result=TriageResult(is_phishing=0.02, persuasion=Persuasion.NONE)),
+        repository=InMemoryScanRepository(),
+        policy=ThresholdPolicy(scam=0.90, safe=0.10),
+        image_extractor=extractor,
+    )
+    events = [item async for item in use_case.execute(ScanInput(image_b64="img"))]
+    return events[-1]
+
+
+async def test_well_read_image_with_harmless_text_can_be_safe():
+    assert (await _image_verdict(ocr_confidence=92.0)).threat_level is ThreatLevel.SAFE
+
+
+@pytest.mark.parametrize("confidence", [35.0, None])
+async def test_poorly_read_image_is_inconclusive_instead_of_safe(confidence):
+    response = await _image_verdict(ocr_confidence=confidence)
+    assert response.threat_level is ThreatLevel.INCONCLUSIVE
+    assert response.details.deciding_stage == "image_ocr_low_confidence"
+
+
+# --- Image: the clean screenshot goes to Visual RAG when a link shows the domain ---
+
+class RecordingBrandMatcher:
+    def __init__(self, spoofing: bool):
+        self.spoofing = spoofing
+        self.calls: list[tuple[str, str | None]] = []
+
+    async def match_brand(self, image_b64: str, current_domain: str | None = None):
+        from contracts import BrandMatchResult
+
+        self.calls.append((image_b64, current_domain))
+        return BrandMatchResult(matched_brand="Itaú Unibanco", is_spoofing=self.spoofing, similarity=0.97,
+                                official_domains=["itau.com.br"])
+
+
+async def _image_with_matcher(urls: list[str], matcher: RecordingBrandMatcher) -> ScanResponse:
+    from contracts import ExtractResult
+    from scan_orchestrator.domain.cascade import Cascade
+    from scan_orchestrator.infrastructure.image_extractor_client import FakeImageExtractorClient
+
+    extractor = FakeImageExtractorClient(default_result=ExtractResult(
+        sha256="s", phash="0123456789abcdef", extracted_text="Atualize seu cadastro", urls_found=urls,
+        ocr_confidence=90.0, clean_image_b64="CLEAN",
+    ))
+    use_case = AnalyzeTextUseCase(
+        triage_client=FakeTriageClient(result=TriageResult(is_phishing=0.2, persuasion=Persuasion.NONE)),
+        repository=InMemoryScanRepository(),
+        policy=ThresholdPolicy(scam=0.90, safe=0.10),
+        cascade=Cascade(stages=[], policy=ThresholdPolicy(scam=0.90, safe=0.10)),
+        image_extractor=extractor,
+        brand_matcher=matcher,
+    )
+    events = [item async for item in use_case.execute(ScanInput(image_b64="ORIGINAL"))]
+    return events[-1]
+
+
+async def test_screenshot_imitating_a_bank_on_another_domain_is_a_scam():
+    matcher = RecordingBrandMatcher(spoofing=True)
+    response = await _image_with_matcher(["https://itau-atualiza.top/login"], matcher)
+
+    assert response.threat_level is ThreatLevel.SCAM
+    assert response.details.deciding_stage == "image_visual_rag_brand_spoofing"
+    # Only the clean copy (no EXIF) leaves the extractor.
+    assert matcher.calls == [("CLEAN", "itau-atualiza.top")]
+
+
+async def test_screenshot_without_a_visible_link_is_not_compared_to_brands():
+    matcher = RecordingBrandMatcher(spoofing=True)
+    await _image_with_matcher([], matcher)
+    assert matcher.calls == []

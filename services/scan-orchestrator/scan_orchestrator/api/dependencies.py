@@ -146,6 +146,7 @@ def get_analyze_text_use_case(
     cascade: Cascade = Depends(get_cascade),
     image_extractor: ImageExtractorClientProtocol = Depends(get_image_extractor_client),
     redis_client: RedisCacheClientProtocol = Depends(get_redis_client),
+    brand_matcher: BrandMatcherClientProtocol = Depends(get_brand_matcher_client),
 ) -> AnalyzeTextUseCase:
     return AnalyzeTextUseCase(
         triage_client=triage_client,
@@ -154,6 +155,7 @@ def get_analyze_text_use_case(
         cascade=cascade,
         image_extractor=image_extractor,
         redis_client=redis_client,
+        brand_matcher=brand_matcher,
     )
 
 

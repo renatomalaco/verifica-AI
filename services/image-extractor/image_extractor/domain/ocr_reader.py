@@ -1,9 +1,17 @@
+from dataclasses import dataclass
 from typing import Protocol
+
 from PIL import Image
 
 
+@dataclass(frozen=True)
+class OcrResult:
+    text: str
+    confidence: float | None  # mean word confidence, 0-100
+
+
 class OcrEngineProtocol(Protocol):
-    def extract_text(self, img: Image.Image) -> str:
+    def extract_text(self, img: Image.Image) -> OcrResult:
         ...
 
 
@@ -12,40 +20,15 @@ class QrReaderProtocol(Protocol):
         ...
 
 
-class FakeOcrEngine:
-    def __init__(self, text: str = "") -> None:
-        self._text = text
-
-    def extract_text(self, img: Image.Image) -> str:
-        return self._text
-
-
-class FakeQrReader:
-    def __init__(self, qr_codes: list[str] | None = None) -> None:
-        self._qr_codes = qr_codes or []
-
-    def read_qr_codes(self, img: Image.Image) -> list[str]:
-        return list(self._qr_codes)
-
-
-class DefaultOcrEngine:
-    """OCR implementation backed by Tesseract with graceful fallback."""
-
-    def extract_text(self, img: Image.Image) -> str:
-        try:
-            import pytesseract
-            return pytesseract.image_to_string(img, lang="por+eng").strip()
-        except Exception:
-            return ""
-
-
-class DefaultQrReader:
-    """QR code implementation backed by pyzbar with graceful fallback."""
-
-    def read_qr_codes(self, img: Image.Image) -> list[str]:
-        try:
-            from pyzbar.pyzbar import decode
-            decoded_objects = decode(img)
-            return [obj.data.decode("utf-8", errors="ignore").strip() for obj in decoded_objects if obj.data]
-        except Exception:
-            return []
+def read_text(
+    img: Image.Image,
+    primary: OcrEngineProtocol,
+    fallback: OcrEngineProtocol | None,
+    min_confidence: float,
+) -> OcrResult:
+    """Photos of screens defeat Tesseract; a stronger engine (Florence-2) only runs when it doubts."""
+    result = primary.extract_text(img)
+    is_doubtful = result.confidence is None or result.confidence < min_confidence
+    if fallback is None or not is_doubtful:
+        return result
+    return fallback.extract_text(img)

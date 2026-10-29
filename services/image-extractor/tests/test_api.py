@@ -5,7 +5,8 @@ from httpx import AsyncClient, ASGITransport
 from PIL import Image
 from image_extractor.api.main import app, get_extractor_service
 from image_extractor.domain.extractor_service import ImageExtractorService
-from image_extractor.domain.ocr_reader import FakeOcrEngine, FakeQrReader
+from image_extractor.domain.ocr_reader import OcrResult
+from image_extractor.infrastructure.fakes import FakeOcrEngine, FakeQrReader
 
 
 def create_sample_image() -> str:
@@ -17,7 +18,7 @@ def create_sample_image() -> str:
 
 @pytest.fixture
 def fake_service():
-    ocr = FakeOcrEngine(text="Texto de teste da imagem com link https://site-fake.top")
+    ocr = FakeOcrEngine(OcrResult("Texto de teste da imagem com link https://site-fake.top", confidence=90.0))
     qr = FakeQrReader(qr_codes=[])
     return ImageExtractorService(ocr_engine=ocr, qr_reader=qr)
 
