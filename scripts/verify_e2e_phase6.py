@@ -1,3 +1,4 @@
+import os
 import asyncio
 import multiprocessing
 import os
@@ -6,9 +7,13 @@ import sys
 import tempfile
 import time
 import httpx
+from service_wait import wait_until_healthy
 import uvicorn
 from research_runner.api.main import app as research_app
 from scan_orchestrator.api.main import app as orchestrator_app
+
+# In-memory scans unless DATABASE_URL is set explicitly; the developer .env may point to a stopped Postgres.
+os.environ.setdefault("DATABASE_URL", "")
 
 
 def run_research_service():
@@ -104,7 +109,7 @@ def main():
     for p in procs:
         p.start()
 
-    time.sleep(1.0)
+    wait_until_healthy([8000, 8004])
 
     try:
         asyncio.run(verify_phase_6())

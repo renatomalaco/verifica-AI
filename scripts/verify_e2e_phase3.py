@@ -1,15 +1,20 @@
+import os
 import asyncio
 import io
 import base64
 import multiprocessing
 import time
 import httpx
+from service_wait import wait_until_healthy
 import uvicorn
 from PIL import Image
 from ai_gateway.api.main import app as gateway_app
 from url_inspector.api.main import app as inspector_app
 from image_extractor.api.main import app as image_app
 from scan_orchestrator.api.main import app as orchestrator_app
+
+# In-memory scans unless DATABASE_URL is set explicitly; the developer .env may point to a stopped Postgres.
+os.environ.setdefault("DATABASE_URL", "")
 
 
 def create_test_image_b64() -> str:
@@ -109,7 +114,7 @@ if __name__ == "__main__":
     p_ins.start()
     p_img.start()
     p_orc.start()
-    time.sleep(2)
+    wait_until_healthy([8000, 8001, 8002, 8003])
 
     try:
         asyncio.run(verify_phase_3())
