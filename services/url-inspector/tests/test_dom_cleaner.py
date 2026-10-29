@@ -43,3 +43,12 @@ def test_check_antibot_allows_normal_page():
     is_blocked, reason = check_antibot_block(normal_html, title="Loja de Roupas")
     assert is_blocked is False
     assert reason is None
+
+
+def test_small_but_visible_font_sizes_are_kept():
+    # "font-size: 0.9em" used to match the "font-size: 0" rule and drop real text.
+    html = '<p style="font-size: 0.9em">Oferta valida ate hoje</p><p style="font-size:0">escondido</p><p style="opacity: 0.5">meio</p>'
+    text = clean_dom_text(html)
+    assert "Oferta valida ate hoje" in text
+    assert "meio" in text
+    assert "escondido" not in text

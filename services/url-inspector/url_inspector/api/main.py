@@ -1,3 +1,4 @@
+import os
 from urllib.parse import urlparse
 from fastapi import FastAPI, Depends, HTTPException, status
 from contracts import InspectRequest, InspectResult
@@ -11,7 +12,8 @@ app = FastAPI(
     version="0.1.0",
 )
 
-_global_driver = PlaywrightBrowserDriver()
+# In production EGRESS_PROXY_URL points to the egress container; empty means local development.
+_global_driver = PlaywrightBrowserDriver(proxy_url=os.environ.get("EGRESS_PROXY_URL", ""))
 
 
 def get_browser_driver() -> BrowserDriverProtocol:
