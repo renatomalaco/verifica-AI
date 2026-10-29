@@ -4,11 +4,15 @@ import multiprocessing
 import os
 import time
 import httpx
+from service_wait import wait_until_healthy
 import uvicorn
 from ai_gateway.api.main import app as gateway_app
 from url_inspector.api.main import app as inspector_app
 from image_extractor.api.main import app as image_app
 from scan_orchestrator.api.main import app as orchestrator_app
+
+# In-memory scans unless DATABASE_URL is set explicitly; the developer .env may point to a stopped Postgres.
+os.environ.setdefault("DATABASE_URL", "")
 
 
 def run_gateway():
@@ -139,7 +143,7 @@ def main():
     for p in procs:
         p.start()
 
-    time.sleep(1.0)
+    wait_until_healthy([8000, 8001, 8002, 8003])
 
     try:
         asyncio.run(verify_phase_5())

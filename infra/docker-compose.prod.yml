@@ -85,8 +85,25 @@ services:
       dockerfile: services/url-inspector/Dockerfile
     container_name: verifica-url-inspector
     restart: unless-stopped
+    environment:
+      # No route to the internet of its own: every browser request goes through the egress proxy.
+      - EGRESS_PROXY_URL=http://egress:3128
     networks:
       - isolated-inspector
+    depends_on:
+      - egress
+
+  # Egress proxy: resolves every request, applies the SSRF shield and connects to the validated IP.
+  egress:
+    build:
+      context: ..
+      dockerfile: services/url-inspector/Dockerfile
+    container_name: verifica-egress
+    restart: unless-stopped
+    command: ["python", "-m", "url_inspector.egress"]
+    networks:
+      - isolated-inspector
+      - egress-out
 
   image-extractor:
     build:
@@ -107,6 +124,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
     networks:
       - internal
+      - egress-out  # downloads feeds and the Tranco list from fixed, trusted hosts
     depends_on:
       - redis
 
@@ -159,6 +177,8 @@ networks:
     internal: true
   isolated-inspector:
     internal: true
+  egress-out:
+    driver: bridge
 
 volumes:
   pgdata_prod:

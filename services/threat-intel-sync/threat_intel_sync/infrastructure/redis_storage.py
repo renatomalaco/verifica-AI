@@ -2,6 +2,10 @@ import redis.asyncio as aioredis
 from threat_intel_sync.domain.sync_manager import RedisStorageProtocol
 
 
+BATCH = 1000
+TRANCO_KEY = "tranco:rank"  # read by the scan-orchestrator stage 1
+
+
 class RedisStackStorage(RedisStorageProtocol):
     """Atomic Redis Stack storage with a Bloom Filter and an exact Set."""
 
@@ -16,40 +20,48 @@ class RedisStackStorage(RedisStorageProtocol):
 
     async def save_urls_atomically(self, urls: set[str]) -> None:
         if not urls:
-            return
+            return  # a feed that came back empty keeps the previous blacklist
 
         client = await self._get_client()
-        temp_bloom = "blacklist:bloom:temp"
-        temp_exact = "blacklist:exact:temp"
-
-        # Clear leftover temporary structures, if any
+        temp_bloom, temp_exact = "blacklist:bloom:temp", "blacklist:exact:temp"
         await client.delete(temp_bloom, temp_exact)
-
-        # Create a temporary Bloom filter (false positive rate 0.001, capacity 5,000,000)
-        try:
-            await client.execute_command("BF.RESERVE", temp_bloom, "0.001", "5000000")
-        except Exception:
-            # In case the command is unsupported or the key already exists
-            pass
+        has_bloom = await self._reserve_bloom(client, temp_bloom)
 
         url_list = list(urls)
-        batch_size = 1000
-        for i in range(0, len(url_list), batch_size):
-            batch = url_list[i : i + batch_size]
-            pipe = client.pipeline()
-            try:
+        for i in range(0, len(url_list), BATCH):
+            batch = url_list[i : i + BATCH]
+            pipe = client.pipeline(transaction=False)
+            if has_bloom:
                 pipe.execute_command("BF.MADD", temp_bloom, *batch)
-            except Exception:
-                pass
             pipe.sadd(temp_exact, *batch)
             await pipe.execute()
 
-        # Atomic swap in Redis
+        # Both renames in one MULTI/EXEC: readers never see a new Bloom with an old Set.
+        swap = client.pipeline(transaction=True)
+        if has_bloom:
+            swap.rename(temp_bloom, "blacklist:bloom")
+        swap.rename(temp_exact, "blacklist:exact")
+        await swap.execute()
+
+    async def save_tranco_ranks(self, ranks: dict[str, int]) -> None:
+        if not ranks:
+            return
+        client = await self._get_client()
+        temp = f"{TRANCO_KEY}:temp"
+        await client.delete(temp)
+        items = list(ranks.items())
+        for i in range(0, len(items), BATCH):
+            await client.hset(temp, mapping=dict(items[i : i + BATCH]))
+        await client.rename(temp, TRANCO_KEY)
+
+    @staticmethod
+    async def _reserve_bloom(client: aioredis.Redis, key: str) -> bool:
+        """Redis without the Bloom module still works with the exact Set alone."""
         try:
-            await client.rename(temp_bloom, "blacklist:bloom")
-        except Exception:
-            pass
-        await client.rename(temp_exact, "blacklist:exact")
+            await client.execute_command("BF.RESERVE", key, "0.001", "5000000")
+            return True
+        except aioredis.ResponseError:
+            return False
 
     async def check_url(self, url: str) -> bool:
         client = await self._get_client()

@@ -10,7 +10,7 @@ from scan_orchestrator.domain.cascade import (
 )
 from scan_orchestrator.infrastructure.fakes import (
     FakeRedisCacheClient,
-    FakeReputationClient,
+    FakeDomainEvidenceClient,
     FakeInspectorClient,
     FakeTriageClient,
 )
@@ -28,7 +28,7 @@ def fake_redis():
 
 @pytest.fixture
 def fake_reputation():
-    return FakeReputationClient()
+    return FakeDomainEvidenceClient()
 
 
 @pytest.fixture
@@ -44,7 +44,7 @@ def fake_triage():
 @pytest.fixture
 def cascade(fake_redis, fake_reputation, fake_inspector, fake_triage, policy):
     stage0 = Stage0CacheAndFeeds(cache_client=fake_redis)
-    stage1 = Stage1ReputationAndSignals(reputation_client=fake_reputation)
+    stage1 = Stage1ReputationAndSignals(evidence_client=fake_reputation)
     stage2 = Stage2RemoteInspection(
         inspector_client=fake_inspector,
         triage_client=fake_triage,
@@ -160,7 +160,7 @@ async def test_stage2_visual_rag_brand_spoofing_short_circuit(
     )
 
     stage0 = Stage0CacheAndFeeds(cache_client=fake_redis)
-    stage1 = Stage1ReputationAndSignals(reputation_client=fake_reputation)
+    stage1 = Stage1ReputationAndSignals(evidence_client=fake_reputation)
     stage2 = Stage2RemoteInspection(
         inspector_client=fake_inspector,
         triage_client=fake_triage,
@@ -187,3 +187,46 @@ async def test_stage2_visual_rag_brand_spoofing_short_circuit(
     assert res.details.category == "brand_spoofing"
     assert res.details.scores["brand_spoofing"] == 1.0
     assert res.details.domain_signals["spoofed_brand"] == "Banco do Brasil"
+
+
+async def test_url_nobody_scored_is_inconclusive_never_safe(policy, fake_redis, fake_reputation):
+    # Without page inspection no stage produces a score; 0.0 used to read as SEGURO.
+    cascade = Cascade(stages=[Stage0CacheAndFeeds(fake_redis), Stage1ReputationAndSignals(fake_reputation)], policy=policy)
+
+    result = await cascade.run(StageContext(raw_url="https://desconhecido.example/promo"))
+
+    assert result.threat_level is ThreatLevel.INCONCLUSIVE
+    assert result.details.deciding_stage == "no_stage_scored"
+
+
+
+# --- Stage 1: domain evidence and typosquatting (R2) ---
+
+from scan_orchestrator.domain.domain_risk import DomainEvidence  # noqa: E402
+
+
+async def test_young_domain_imitating_a_bank_is_a_scam_without_opening_the_page(cascade, fake_reputation, fake_inspector):
+    fake_reputation.set_evidence("itau-seguranca.com", DomainEvidence(age_days=3))
+
+    res = await cascade.run(StageContext(raw_url="https://itau-seguranca.com/login"))
+
+    assert res.threat_level is ThreatLevel.SCAM
+    assert res.details.deciding_stage == "stage_1_young_lookalike"
+    assert res.details.domain_signals["imitates"] == "itau.com.br"
+    assert fake_inspector.calls == []
+
+
+async def test_page_inspection_cannot_clear_a_stage_1_suspicion(cascade, fake_reputation, fake_triage):
+    fake_reputation.set_evidence("mercadolivre.com", DomainEvidence(age_days=3000))
+    fake_triage.set_result(TriageResult(is_phishing=0.05, persuasion=Persuasion.NONE))
+
+    res = await cascade.run(StageContext(raw_url="https://mercadolivre.com/oferta"))
+
+    assert res.threat_level is ThreatLevel.CAUTION
+    assert res.details.scores["is_phishing"] == 0.6
+
+
+async def test_popular_old_domain_is_marked_reputable(cascade, fake_reputation):
+    fake_reputation.set_evidence("minha-loja-legitima.com.br", DomainEvidence(age_days=4000, tranco_rank=900))
+    res = await cascade.run(StageContext(raw_url="https://minha-loja-legitima.com.br"))
+    assert res.details.domain_signals["reputation"] == "high"

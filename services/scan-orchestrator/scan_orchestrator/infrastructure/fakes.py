@@ -1,4 +1,5 @@
 from contracts import BrandMatchResult, InspectResult, Persuasion, ScanResponse, TriageResult, normalize_url
+from scan_orchestrator.domain.domain_risk import DomainEvidence
 
 
 class FakeRedisCacheClient:
@@ -25,23 +26,30 @@ class FakeRedisCacheClient:
         self._cache[f"phash:{phash}"] = response
 
 
-class FakeReputationClient:
-    def __init__(self, signals: dict[str, dict[str, str]] | None = None) -> None:
-        self._signals = signals or {}
+class FakeDomainEvidenceClient:
+    """Unknown evidence by default, like a registry that did not answer."""
 
-    async def get_domain_signals(self, domain: str) -> dict[str, str]:
-        return self._signals.get(domain, {"age": "unknown", "reputation": "neutral"})
+    def __init__(self) -> None:
+        self._evidence: dict[str, DomainEvidence] = {}
+
+    def set_evidence(self, domain: str, evidence: DomainEvidence) -> None:
+        self._evidence[domain] = evidence
+
+    async def lookup(self, domain: str) -> DomainEvidence:
+        return self._evidence.get(domain, DomainEvidence())
 
 
 class FakeInspectorClient:
     def __init__(self) -> None:
         self._results: dict[str, InspectResult] = {}
         self._default = InspectResult(dom_text="", final_url="", is_blocked=False)
+        self.calls: list[str] = []
 
     def set_result(self, url: str, result: InspectResult) -> None:
         self._results[normalize_url(url)] = result
 
     async def inspect(self, url: str) -> InspectResult:
+        self.calls.append(url)
         return self._results.get(normalize_url(url), self._default)
 
 

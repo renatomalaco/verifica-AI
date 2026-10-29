@@ -2,6 +2,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Protocol
 from contracts import BrandMatchResult
+from contracts.protected_brands import PROTECTED_BRANDS
 
 
 @dataclass(frozen=True)
@@ -28,22 +29,12 @@ def one_hot(index: int, dimension: int) -> list[float]:
     return [1.0 if i == index else 0.0 for i in range(dimension)]
 
 
-# Placeholder catalog until the pgvector seed with real logo embeddings exists (R4).
-_DEFAULT_BRANDS: list[tuple[str, list[str]]] = [
-    ("Banco do Brasil", ["bb.com.br", "bancodobrasil.com.br"]),
-    ("Nubank", ["nubank.com.br"]),
-    ("Caixa Econômica Federal", ["caixa.gov.br"]),
-    ("Itaú Unibanco", ["itau.com.br"]),
-    ("Mercado Livre", ["mercadolivre.com.br"]),
-    ("Receita Federal / Gov.br", ["gov.br", "receita.fazenda.gov.br"]),
-]
-
-
 class DefaultBrandCatalog(BrandCatalogProtocol):
     def __init__(self, dimension: int = 768) -> None:
         self._brands = [
-            ProtectedBrand(name=name, official_domains=domains, embedding=one_hot(i, dimension))
-            for i, (name, domains) in enumerate(_DEFAULT_BRANDS)
+            # Placeholder embeddings until the pgvector seed with real logos exists (R4).
+            ProtectedBrand(name=name, official_domains=list(domains), embedding=one_hot(i, dimension))
+            for i, (name, domains) in enumerate(PROTECTED_BRANDS.items())
         ]
 
     def get_all_brands(self) -> list[ProtectedBrand]:

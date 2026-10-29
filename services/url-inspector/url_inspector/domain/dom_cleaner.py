@@ -1,8 +1,11 @@
 import re
 from bs4 import BeautifulSoup
 
+# Zero must be the whole value: "font-size: 0.9em" or "opacity: 0.5" are visible text.
 _HIDDEN_STYLE_REGEX = re.compile(
-    r"(display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0|opacity\s*:\s*0)",
+    r"(display\s*:\s*none|visibility\s*:\s*hidden"
+    r"|font-size\s*:\s*0(?:\.0+)?(?:px|em|rem|pt|%)?\s*(?:;|$|!)"
+    r"|opacity\s*:\s*0(?:\.0+)?\s*(?:;|$|!))",
     re.IGNORECASE,
 )
 _REMOVE_TAGS = ("script", "style", "noscript", "template", "iframe", "svg")

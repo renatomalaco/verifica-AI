@@ -5,8 +5,7 @@ from scan_orchestrator.application.analyze_text import AnalyzeTextUseCase
 from scan_orchestrator.domain.cascade import Cascade, Stage0CacheAndFeeds, Stage1ReputationAndSignals, StageContext
 from scan_orchestrator.domain.decision import ThresholdPolicy
 from scan_orchestrator.domain.scan_input import ScanInput
-from scan_orchestrator.infrastructure.fakes import FakeRedisCacheClient
-from scan_orchestrator.infrastructure.reputation_client import DomainSignalsClient
+from scan_orchestrator.infrastructure.fakes import FakeDomainEvidenceClient, FakeRedisCacheClient
 from scan_orchestrator.infrastructure.scan_repository import InMemoryScanRepository
 
 from research_runner.application.benchmark_service import Outcome
@@ -26,7 +25,9 @@ def build_url_cascade(feed_urls: list[str]) -> Cascade:
     feeds = FakeRedisCacheClient()  # in-memory store holding a dated feed snapshot
     for url in feed_urls:
         feeds.add_to_blacklist(url)
-    return Cascade(stages=[Stage0CacheAndFeeds(feeds), Stage1ReputationAndSignals(DomainSignalsClient())], policy=POLICY)
+    # Stage 1 runs its typosquatting rule offline; registry, certificate and Tranco lookups answer "unknown".
+    stage1 = Stage1ReputationAndSignals(evidence_client=FakeDomainEvidenceClient())
+    return Cascade(stages=[Stage0CacheAndFeeds(feeds), stage1], policy=POLICY)
 
 
 def _scam_probability(response: ScanResponse) -> float:

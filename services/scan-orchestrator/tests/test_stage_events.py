@@ -20,7 +20,7 @@ from scan_orchestrator.infrastructure.fakes import (
     FakeBrandMatcherClient,
     FakeInspectorClient,
     FakeRedisCacheClient,
-    FakeReputationClient,
+    FakeDomainEvidenceClient,
     FakeTriageClient,
 )
 from scan_orchestrator.domain.decision import ThresholdPolicy
@@ -35,7 +35,7 @@ def build_cascade(redis=None, inspector=None, brand_matcher=None) -> Cascade:
     return Cascade(
         stages=[
             Stage0CacheAndFeeds(cache_client=redis or FakeRedisCacheClient()),
-            Stage1ReputationAndSignals(reputation_client=FakeReputationClient()),
+            Stage1ReputationAndSignals(evidence_client=FakeDomainEvidenceClient()),
             Stage2RemoteInspection(
                 inspector_client=inspector or FakeInspectorClient(),
                 triage_client=FakeTriageClient(),

@@ -1,10 +1,15 @@
+import os
 import asyncio
 import httpx
+from service_wait import wait_until_healthy
 import uvicorn
 import multiprocessing
 import time
 from ai_gateway.api.main import app as gateway_app
 from scan_orchestrator.api.main import app as orchestrator_app
+
+# In-memory scans unless DATABASE_URL is set explicitly; the developer .env may point to a stopped Postgres.
+os.environ.setdefault("DATABASE_URL", "")
 
 
 def run_gateway():
@@ -73,7 +78,7 @@ if __name__ == "__main__":
 
     p_gw.start()
     p_orc.start()
-    time.sleep(2)  # Wait for the servers to start
+    wait_until_healthy([8000, 8001])
 
     try:
         asyncio.run(verify_phase_1())

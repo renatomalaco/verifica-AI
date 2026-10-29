@@ -17,6 +17,9 @@ from contracts import (
 )
 from scan_orchestrator.domain.risk_score import RiskScore
 from scan_orchestrator.domain.decision import ThresholdPolicy, decide
+from contracts.protected_brands import protected_domains
+from scan_orchestrator.domain.domain_risk import DomainAssessment, DomainEvidence, assess_domain
+from scan_orchestrator.domain.lookalike import find_imitated_domain
 from scan_orchestrator.domain.verdict_catalog import verdict_message_for
 
 
@@ -75,8 +78,8 @@ class RedisCacheClientProtocol(Protocol):
         ...
 
 
-class ReputationClientProtocol(Protocol):
-    async def get_domain_signals(self, domain: str) -> dict[str, str]:
+class DomainEvidenceClient(Protocol):
+    async def lookup(self, domain: str) -> DomainEvidence:
         ...
 
 
@@ -123,18 +126,43 @@ class Stage0CacheAndFeeds:
 
 
 class Stage1ReputationAndSignals:
-    """Stage 1: collects domain signals (age, Tranco top 1m, homoglyphs)."""
+    """Stage 1: registration age, first certificate, popularity and typosquatting of the domain."""
 
     name = StageName.STAGE_1_SIGNALS
 
-    def __init__(self, reputation_client: ReputationClientProtocol) -> None:
-        self._reputation = reputation_client
+    def __init__(self, evidence_client: DomainEvidenceClient, protected: list[str] | None = None) -> None:
+        self._evidence = evidence_client
+        self._protected = protected if protected is not None else protected_domains()
 
     async def process(self, ctx: StageContext) -> None:
         started = time.perf_counter()
-        signals = await self._reputation.get_domain_signals(ctx.domain)
+        evidence = await self._evidence.lookup(ctx.domain)
         ctx.latency_breakdown["stage_1"] = elapsed_ms(started)
-        ctx.domain_signals.update(signals)
+
+        imitated = find_imitated_domain(ctx.domain, self._protected)
+        assessment = assess_domain(evidence, imitated)
+        _record_signals(ctx, evidence, imitated, assessment)
+
+        if assessment.threat is ThreatLevel.SCAM:
+            ctx.short_circuit(ThreatLevel.SCAM, "stage_1_young_lookalike", "brand_spoofing")
+            ctx.scores["is_phishing"] = 1.0
+            return
+        if assessment.score_floor is not None:
+            raise_score(ctx, assessment.score_floor)
+            ctx.deciding_stage = "stage_1_domain_signals"
+
+
+def _record_signals(ctx: StageContext, evidence: DomainEvidence, imitated: str | None, assessment: DomainAssessment) -> None:
+    ctx.domain_signals.update(evidence.as_signals())
+    if imitated:
+        ctx.domain_signals["imitates"] = imitated
+    if assessment.is_reputable:
+        ctx.domain_signals["reputation"] = "high"
+
+
+def raise_score(ctx: StageContext, score: float) -> None:
+    """Scores only go up: a later stage cannot clear what an earlier one found suspicious."""
+    ctx.scores["is_phishing"] = max(ctx.scores.get("is_phishing", 0.0), score)
 
 
 class Stage2RemoteInspection:
@@ -209,7 +237,7 @@ class Stage2RemoteInspection:
         if ctx.has_password_field and not is_trusted:
             score = max(score, 0.85)
 
-        ctx.scores["is_phishing"] = score
+        raise_score(ctx, score)
         ctx.category = triage.persuasion.value
         ctx.deciding_stage = "stage_2_inspection"
 
@@ -221,6 +249,13 @@ class Cascade:
         self._stages = stages
         self._policy = policy
 
+    def _decide_from_scores(self, ctx: StageContext) -> ThreatLevel:
+        # Ethics rule: a URL no stage could score is unknown, never SEGURO.
+        if "is_phishing" not in ctx.scores:
+            ctx.deciding_stage = ctx.deciding_stage or "no_stage_scored"
+            return ThreatLevel.INCONCLUSIVE
+        return decide(RiskScore(ctx.scores["is_phishing"]), has_unverified_links=False, policy=self._policy)
+
     async def run(self, ctx: StageContext) -> ScanResponse:
         for stage in self._stages:
             if ctx.is_short_circuited:
@@ -230,9 +265,7 @@ class Cascade:
             await stage.process(ctx)
             ctx.report(stage.name, "done")
 
-        threat = ctx.short_circuit_threat or decide(
-            RiskScore(ctx.scores.get("is_phishing", 0.0)), has_unverified_links=False, policy=self._policy
-        )
+        threat = ctx.short_circuit_threat or self._decide_from_scores(ctx)
         persuasion = Persuasion(ctx.category) if ctx.category in Persuasion else None
         return ScanResponse(
             id=uuid4(),

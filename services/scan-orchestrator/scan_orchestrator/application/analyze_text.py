@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 from collections import Counter
 from uuid import uuid4
@@ -29,6 +30,8 @@ from scan_orchestrator.domain.cascade import (
 )
 from scan_orchestrator.infrastructure.scan_repository import ScanRepository
 from scan_orchestrator.infrastructure.image_extractor_client import ImageExtractorClientProtocol
+
+logger = logging.getLogger("scan_orchestrator.analyze_text")
 
 
 class StageProgress:
@@ -282,6 +285,9 @@ def _verdict(threat: ThreatLevel, persuasion: Persuasion | None, details: ScanDe
 
 
 def _scan_responses(results: list) -> list[ScanResponse]:
+    # A crashed inspection still counts as an unverified link (see _has_unverified); log why.
+    for failure in (r for r in results if isinstance(r, BaseException)):
+        logger.warning("link inspection failed: %r", failure)
     return [r for r in results if isinstance(r, ScanResponse)]
 
 
