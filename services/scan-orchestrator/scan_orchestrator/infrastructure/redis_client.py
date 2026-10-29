@@ -1,5 +1,6 @@
 import redis.asyncio as aioredis
 from contracts import ScanResponse, normalize_url
+from scan_orchestrator.domain.perceptual_hash import nearest, segments
 from scan_orchestrator.domain.cascade import RedisCacheClientProtocol
 
 
@@ -53,17 +54,22 @@ class RedisCacheClient(RedisCacheClientProtocol):
     async def get_cached_phash(self, phash: str) -> ScanResponse | None:
         try:
             client = await self._get_client()
-            cached_raw = await client.get(f"image:phash:{phash}")
-            if cached_raw:
-                return ScanResponse.model_validate_json(cached_raw)
-            return None
+            candidates = await client.sunion(*[f"image:phash:seg:{seg}" for seg in segments(phash)])
+            match = nearest(phash, set(candidates))
+            cached_raw = await client.get(f"image:phash:{match}") if match else None
+            return ScanResponse.model_validate_json(cached_raw) if cached_raw else None
         except Exception:
             return None
 
     async def set_cached_phash(self, phash: str, response: ScanResponse, ttl: int = 3600) -> None:
         try:
             client = await self._get_client()
-            await client.set(f"image:phash:{phash}", response.model_dump_json(), ex=ttl)
+            pipe = client.pipeline(transaction=True)
+            pipe.set(f"image:phash:{phash}", response.model_dump_json(), ex=ttl)
+            for seg in segments(phash):
+                pipe.sadd(f"image:phash:seg:{seg}", phash)
+                pipe.expire(f"image:phash:seg:{seg}", ttl)
+            await pipe.execute()
         except Exception:
             pass
 

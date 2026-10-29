@@ -177,7 +177,7 @@ async def test_image_with_link_streams_extraction_triage_and_cascade():
     extractor = FakeImageExtractorClient(
         default_result=ExtractResult(
             sha256="s",
-            phash="p",
+            phash="0000000000000000",
             extracted_text="Pague o boleto",
             urls_found=["https://boleto.top/pagar"],
         )
