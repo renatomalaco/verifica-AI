@@ -230,3 +230,55 @@ async def test_popular_old_domain_is_marked_reputable(cascade, fake_reputation):
     fake_reputation.set_evidence("minha-loja-legitima.com.br", DomainEvidence(age_days=4000, tranco_rank=900))
     res = await cascade.run(StageContext(raw_url="https://minha-loja-legitima.com.br"))
     assert res.details.domain_signals["reputation"] == "high"
+
+
+# --- Visual RAG: failures count as unverified, gray zone is a signal (R4) ---
+
+async def _cascade_with_matcher(matcher, fake_redis, fake_reputation, fake_inspector, fake_triage, policy):
+    target_url = "https://bb-seguro-atualizacao.xyz/entrar"
+    fake_inspector.set_result(
+        target_url,
+        InspectResult(dom_text="Acesse sua conta", final_url=target_url, screenshot_b64="SHOT", is_blocked=False),
+    )
+    fake_triage.set_result(TriageResult(is_phishing=0.02, persuasion=Persuasion.NONE))
+    stage2 = Stage2RemoteInspection(inspector_client=fake_inspector, triage_client=fake_triage, brand_matcher=matcher)
+    cascade = Cascade(
+        stages=[Stage0CacheAndFeeds(fake_redis), Stage1ReputationAndSignals(fake_reputation), stage2], policy=policy
+    )
+    return await cascade.run(StageContext(raw_url=target_url))
+
+
+async def test_page_screenshot_is_sent_as_such(fake_redis, fake_reputation, fake_inspector, fake_triage, policy):
+    from contracts import ImageSource
+    from scan_orchestrator.infrastructure.fakes import FakeBrandMatcherClient
+
+    matcher = FakeBrandMatcherClient()
+    await _cascade_with_matcher(matcher, fake_redis, fake_reputation, fake_inspector, fake_triage, policy)
+
+    assert matcher.calls == [("SHOT", "bb-seguro-atualizacao.xyz", ImageSource.PAGE_SCREENSHOT)]
+
+
+async def test_unavailable_visual_rag_never_lets_the_page_be_safe(
+    fake_redis, fake_reputation, fake_inspector, fake_triage, policy
+):
+    from scan_orchestrator.domain.cascade import BrandMatchUnavailable
+    from scan_orchestrator.infrastructure.fakes import FakeBrandMatcherClient
+
+    matcher = FakeBrandMatcherClient(error=BrandMatchUnavailable("ai-gateway 503"))
+    result = await _cascade_with_matcher(matcher, fake_redis, fake_reputation, fake_inspector, fake_triage, policy)
+
+    assert result.threat_level is ThreatLevel.CAUTION
+    assert result.details.links_not_inspected is True
+
+
+async def test_gray_zone_brand_shows_up_as_a_signal_only(
+    fake_redis, fake_reputation, fake_inspector, fake_triage, policy
+):
+    from contracts import BrandMatchResult
+    from scan_orchestrator.infrastructure.fakes import FakeBrandMatcherClient
+
+    matcher = FakeBrandMatcherClient(BrandMatchResult(possible_brand="Banco do Brasil", similarity=0.75))
+    result = await _cascade_with_matcher(matcher, fake_redis, fake_reputation, fake_inspector, fake_triage, policy)
+
+    assert result.threat_level is not ThreatLevel.SCAM
+    assert result.details.domain_signals["possible_brand"] == "Banco do Brasil"

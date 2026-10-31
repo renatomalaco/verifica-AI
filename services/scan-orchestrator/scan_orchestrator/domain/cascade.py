@@ -10,6 +10,7 @@ from contracts import (
     TriageResult,
     Persuasion,
     BrandMatchResult,
+    ImageSource,
     StageName,
     StageStatus,
     normalize_url,
@@ -88,8 +89,14 @@ class InspectorClientProtocol(Protocol):
         ...
 
 
+class BrandMatchUnavailable(RuntimeError):
+    """Visual RAG could not compare the image: the page counts as not verified, never as clean."""
+
+
 class BrandMatcherClientProtocol(Protocol):
-    async def match_brand(self, image_b64: str, current_domain: str | None = None) -> BrandMatchResult:
+    async def match_brand(
+        self, image_b64: str, current_domain: str | None, image_source: ImageSource
+    ) -> BrandMatchResult:
         ...
 
 
@@ -210,9 +217,17 @@ class Stage2RemoteInspection:
 
         ctx.report(StageName.VISUAL_RAG, "started")
         started = time.perf_counter()
-        match = await self._brand_matcher.match_brand(ctx.screenshot_b64, current_domain=ctx.domain)
-        ctx.latency_breakdown["stage_2_visual_rag"] = elapsed_ms(started)
-        ctx.report(StageName.VISUAL_RAG, "done")
+        try:
+            match = await self._brand_matcher.match_brand(ctx.screenshot_b64, ctx.domain, ImageSource.PAGE_SCREENSHOT)
+        except BrandMatchUnavailable:
+            # Same ethics rule as a link we could not open: at most CUIDADO, never SEGURO.
+            ctx.links_not_inspected = True
+            return
+        finally:
+            ctx.latency_breakdown["stage_2_visual_rag"] = elapsed_ms(started)
+            ctx.report(StageName.VISUAL_RAG, "done")
+        if match.possible_brand:
+            ctx.domain_signals["possible_brand"] = match.possible_brand
         if not match.is_spoofing:
             return
 
@@ -254,7 +269,9 @@ class Cascade:
         if "is_phishing" not in ctx.scores:
             ctx.deciding_stage = ctx.deciding_stage or "no_stage_scored"
             return ThreatLevel.INCONCLUSIVE
-        return decide(RiskScore(ctx.scores["is_phishing"]), has_unverified_links=False, policy=self._policy)
+        return decide(
+            RiskScore(ctx.scores["is_phishing"]), has_unverified_links=ctx.links_not_inspected, policy=self._policy
+        )
 
     async def run(self, ctx: StageContext) -> ScanResponse:
         for stage in self._stages:

@@ -1,6 +1,10 @@
+import logging
+
 import httpx
-from contracts import BrandMatchRequest, BrandMatchResult
-from scan_orchestrator.domain.cascade import BrandMatcherClientProtocol
+from contracts import BrandMatchRequest, BrandMatchResult, ImageSource
+from scan_orchestrator.domain.cascade import BrandMatchUnavailable, BrandMatcherClientProtocol
+
+logger = logging.getLogger(__name__)
 
 
 class HttpBrandMatcherClient(BrandMatcherClientProtocol):
@@ -16,25 +20,22 @@ class HttpBrandMatcherClient(BrandMatcherClientProtocol):
         self._timeout_seconds = timeout_seconds
         self._client = client
 
-    async def match_brand(self, image_b64: str, current_domain: str | None = None) -> BrandMatchResult:
-        payload = BrandMatchRequest(image_b64=image_b64, current_domain=current_domain)
+    async def match_brand(
+        self, image_b64: str, current_domain: str | None, image_source: ImageSource
+    ) -> BrandMatchResult:
+        payload = BrandMatchRequest(image_b64=image_b64, current_domain=current_domain, image_source=image_source)
         try:
-            if self._client:
-                resp = await self._client.post(
-                    f"{self._base_url}/v1/brand-match",
-                    json=payload.model_dump(),
-                    timeout=self._timeout_seconds,
-                )
-            else:
-                async with httpx.AsyncClient(timeout=self._timeout_seconds) as cli:
-                    resp = await cli.post(
-                        f"{self._base_url}/v1/brand-match",
-                        json=payload.model_dump(),
-                    )
+            resp = await self._post(payload.model_dump(mode="json"))
+            resp.raise_for_status()
+            return BrandMatchResult.model_validate(resp.json())
+        except (httpx.HTTPError, ValueError) as exc:
+            # An empty result here would read as "checked, no brand"; the caller must know it failed.
+            logger.warning("visual RAG unavailable: %r", exc)
+            raise BrandMatchUnavailable(str(exc)) from exc
 
-            if resp.status_code == 200:
-                return BrandMatchResult.model_validate(resp.json())
-
-            return BrandMatchResult()
-        except Exception:
-            return BrandMatchResult()
+    async def _post(self, body: dict) -> httpx.Response:
+        url = f"{self._base_url}/v1/brand-match"
+        if self._client:
+            return await self._client.post(url, json=body, timeout=self._timeout_seconds)
+        async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
+            return await client.post(url, json=body)
