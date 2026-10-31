@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     THRESHOLD_SAFE: float = 0.10
     DATABASE_URL: str = ""
     RATE_LIMIT_PER_MINUTE: str = "60/minute"
+    # Off until the brand catalog is seeded and the threshold calibrated (R4): an empty catalog
+    # answers 503, and that failure would cap every inspected page at CUIDADO.
+    VISUAL_RAG_ENABLED: bool = False
 
     # "Me explica" (R5b): per-device quota and per-IP cap. The verdict and "o que fazer" never go through here.
     DEVICE_TOKEN_SECRET: str = ""  # empty = random per-process secret (cookies are invalidated on every restart)

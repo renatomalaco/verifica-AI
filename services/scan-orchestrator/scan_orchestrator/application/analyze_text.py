@@ -15,6 +15,7 @@ from contracts import (
     TriageResult,
     Persuasion,
     ExtractResult,
+    ImageSource,
     extract_domain,
     normalize_url,
 )
@@ -23,6 +24,7 @@ from scan_orchestrator.domain.risk_score import RiskScore
 from scan_orchestrator.domain.decision import ThresholdPolicy, decide, ocr_is_reliable
 from scan_orchestrator.domain.verdict_catalog import verdict_message_for
 from scan_orchestrator.domain.cascade import (
+    BrandMatchUnavailable,
     BrandMatcherClientProtocol,
     Cascade,
     RedisCacheClientProtocol,
@@ -178,15 +180,24 @@ class AnalyzeTextUseCase:
         return response
 
     async def _image_verdict(self, extract: ExtractResult, duration_ms: float, report: StageListener) -> ScanResponse:
+        visual_checked = True
+        try:
+            spoofing = await self._brand_spoofing_verdict(extract, duration_ms, report)
+        except BrandMatchUnavailable:
+            spoofing, visual_checked = None, False
+        if spoofing:
+            return spoofing
+
         response = await self._read_image(extract, duration_ms, report)
-        if response.threat_level is ThreatLevel.SAFE and not ocr_is_reliable(extract.ocr_confidence):
-            return _unsure_ocr_verdict(response)
+        if response.threat_level is not ThreatLevel.SAFE:
+            return response
+        if not ocr_is_reliable(extract.ocr_confidence):
+            return _unsure_verdict(response, "image_ocr_low_confidence")
+        if not visual_checked:
+            return _unsure_verdict(response, "image_visual_rag_unavailable")
         return response
 
     async def _read_image(self, extract: ExtractResult, duration_ms: float, report: StageListener) -> ScanResponse:
-        spoofing = await self._brand_spoofing_verdict(extract, duration_ms, report)
-        if spoofing:
-            return spoofing
         if extract.urls_found and self._cascade:
             return await self._image_with_links_verdict(extract, duration_ms, report)
         if extract.extracted_text:
@@ -215,10 +226,8 @@ class AnalyzeTextUseCase:
         domain = extract_domain(normalize_url(extract.urls_found[0]))
         report(StageName.VISUAL_RAG, "started")
         try:
-            match = await self._brand_matcher.match_brand(extract.clean_image_b64, current_domain=domain)
-        except Exception:
-            logger.warning("visual RAG unavailable for the screenshot", exc_info=True)
-            return None
+            # A person's screenshot: compared locally, never sent to a third-party VLM.
+            match = await self._brand_matcher.match_brand(extract.clean_image_b64, domain, ImageSource.USER_IMAGE)
         finally:
             report(StageName.VISUAL_RAG, "done")
         if not match.is_spoofing:
@@ -331,8 +340,8 @@ def _verdict(threat: ThreatLevel, persuasion: Persuasion | None, details: ScanDe
     )
 
 
-def _unsure_ocr_verdict(response: ScanResponse) -> ScanResponse:
-    details = response.details.model_copy(update={"deciding_stage": "image_ocr_low_confidence"})
+def _unsure_verdict(response: ScanResponse, deciding_stage: str) -> ScanResponse:
+    details = response.details.model_copy(update={"deciding_stage": deciding_stage})
     return _verdict(ThreatLevel.INCONCLUSIVE, None, details)
 
 

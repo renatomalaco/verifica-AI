@@ -1,4 +1,4 @@
-from contracts import BrandMatchResult, InspectResult, Persuasion, TriageResult
+from contracts import BrandMatchResult, ImageSource, InspectResult, Persuasion, TriageResult
 from scan_orchestrator.domain import cascade
 from scan_orchestrator.domain.domain_risk import DomainEvidence
 from scan_orchestrator.infrastructure.fakes import (
@@ -18,5 +18,5 @@ async def test_fakes_work_without_arguments():
     assert await FakeRedisCacheClient().is_blacklisted("https://exemplo.com") is False
     assert await FakeDomainEvidenceClient().lookup("exemplo.com") == DomainEvidence()
     assert await FakeInspectorClient().inspect("https://exemplo.com") == InspectResult()
-    assert await FakeBrandMatcherClient().match_brand("img") == BrandMatchResult()
+    assert await FakeBrandMatcherClient().match_brand("img", None, ImageSource.USER_IMAGE) == BrandMatchResult()
     assert await FakeTriageClient().triage("oi") == TriageResult(is_phishing=0.1, persuasion=Persuasion.NONE)

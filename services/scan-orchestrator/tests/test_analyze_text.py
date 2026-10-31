@@ -338,19 +338,24 @@ async def test_poorly_read_image_is_inconclusive_instead_of_safe(confidence):
 # --- Image: the clean screenshot goes to Visual RAG when a link shows the domain ---
 
 class RecordingBrandMatcher:
-    def __init__(self, spoofing: bool):
+    def __init__(self, spoofing: bool, error: Exception | None = None):
         self.spoofing = spoofing
-        self.calls: list[tuple[str, str | None]] = []
+        self.error = error
+        self.calls: list[tuple[str, str | None, str]] = []
 
-    async def match_brand(self, image_b64: str, current_domain: str | None = None):
+    async def match_brand(self, image_b64: str, current_domain: str | None, image_source):
         from contracts import BrandMatchResult
 
-        self.calls.append((image_b64, current_domain))
+        self.calls.append((image_b64, current_domain, image_source))
+        if self.error:
+            raise self.error
         return BrandMatchResult(matched_brand="Itaú Unibanco", is_spoofing=self.spoofing, similarity=0.97,
                                 official_domains=["itau.com.br"])
 
 
-async def _image_with_matcher(urls: list[str], matcher: RecordingBrandMatcher) -> ScanResponse:
+async def _image_with_matcher(
+    urls: list[str], matcher: RecordingBrandMatcher, cascade=None, triage_score: float = 0.2
+) -> ScanResponse:
     from contracts import ExtractResult
     from scan_orchestrator.domain.cascade import Cascade
     from scan_orchestrator.infrastructure.image_extractor_client import FakeImageExtractorClient
@@ -360,10 +365,10 @@ async def _image_with_matcher(urls: list[str], matcher: RecordingBrandMatcher) -
         ocr_confidence=90.0, clean_image_b64="CLEAN",
     ))
     use_case = AnalyzeTextUseCase(
-        triage_client=FakeTriageClient(result=TriageResult(is_phishing=0.2, persuasion=Persuasion.NONE)),
+        triage_client=FakeTriageClient(result=TriageResult(is_phishing=triage_score, persuasion=Persuasion.NONE)),
         repository=InMemoryScanRepository(),
         policy=ThresholdPolicy(scam=0.90, safe=0.10),
-        cascade=Cascade(stages=[], policy=ThresholdPolicy(scam=0.90, safe=0.10)),
+        cascade=cascade or Cascade(stages=[], policy=ThresholdPolicy(scam=0.90, safe=0.10)),
         image_extractor=extractor,
         brand_matcher=matcher,
     )
@@ -377,11 +382,24 @@ async def test_screenshot_imitating_a_bank_on_another_domain_is_a_scam():
 
     assert response.threat_level is ThreatLevel.SCAM
     assert response.details.deciding_stage == "image_visual_rag_brand_spoofing"
-    # Only the clean copy (no EXIF) leaves the extractor.
-    assert matcher.calls == [("CLEAN", "itau-atualiza.top")]
+    # Only the clean copy (no EXIF) leaves the extractor, marked as the person's image (never to a VLM).
+    assert matcher.calls == [("CLEAN", "itau-atualiza.top", "user_image")]
 
 
 async def test_screenshot_without_a_visible_link_is_not_compared_to_brands():
     matcher = RecordingBrandMatcher(spoofing=True)
     await _image_with_matcher([], matcher)
     assert matcher.calls == []
+
+
+async def test_screenshot_whose_visual_check_failed_is_never_safe():
+    from scan_orchestrator.domain.cascade import BrandMatchUnavailable
+
+    matcher = RecordingBrandMatcher(spoofing=False, error=BrandMatchUnavailable("ai-gateway 503"))
+    # Harmless text and a link the cascade found safe: only the failed visual check is left.
+    response = await _image_with_matcher(
+        ["https://exemplo.com.br/promo"], matcher, ScriptedCascade([_url_verdict(ThreatLevel.SAFE)]), triage_score=0.02
+    )
+
+    assert response.threat_level is ThreatLevel.INCONCLUSIVE
+    assert response.details.deciding_stage == "image_visual_rag_unavailable"

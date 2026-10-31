@@ -26,3 +26,16 @@ def test_every_migration_renders_to_sql_without_a_database(monkeypatch, capsys):
     sql = capsys.readouterr().out
     assert "CREATE TABLE analises_phishing" in sql
     assert "verdict_message" in sql
+
+
+def test_brand_references_are_768_dim_vectors_with_a_cosine_index(monkeypatch, capsys):
+    # Must match ai-gateway's EMBEDDING_DIM (SigLIP base); a mismatch breaks every similarity query.
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://user:pass@db.invalid/verifica_db")
+
+    command.upgrade(_config(), "head", sql=True)
+
+    sql = capsys.readouterr().out
+    assert "CREATE EXTENSION IF NOT EXISTS vector" in sql
+    assert "CREATE TABLE marcas_referencias" in sql
+    assert "vector(768)" in sql
+    assert "USING hnsw (logo_embedding vector_cosine_ops)" in sql

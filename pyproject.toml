@@ -25,6 +25,13 @@ scan-orchestrator = { workspace = true }
 threat-intel-sync = { workspace = true }
 url-inspector = { workspace = true }
 research-runner = { workspace = true }
+# CPU-only torch wheels: the CUDA build is several GB and the gateway embeds one image per scan.
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [dependency-groups]
 dev = [

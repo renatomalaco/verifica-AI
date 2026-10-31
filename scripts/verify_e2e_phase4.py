@@ -8,9 +8,8 @@ import httpx
 from service_wait import wait_until_healthy
 import uvicorn
 from PIL import Image
-from ai_gateway.api.main import app as gateway_app, get_visual_embedder
-from ai_gateway.domain.brand_matcher import one_hot
-from ai_gateway.domain.visual_embedder import FakeVisualEmbedder
+from ai_gateway.api.main import app as gateway_app, get_brand_catalog, get_brand_verifier, get_visual_embedder
+from ai_gateway.infrastructure.fakes import FakeBrandCatalog, FakeVisualEmbedder, one_hot
 from url_inspector.api.main import app as inspector_app, get_browser_driver
 from url_inspector.domain.browser_driver import FakeBrowserDriver
 from contracts import InspectResult
@@ -19,6 +18,8 @@ from scan_orchestrator.api.main import app as orchestrator_app
 
 # In-memory scans unless DATABASE_URL is set explicitly; the developer .env may point to a stopped Postgres.
 os.environ.setdefault("DATABASE_URL", "")
+# Visual RAG is off by default until the catalog is seeded; this script checks it with a fake catalog.
+os.environ["VISUAL_RAG_ENABLED"] = "true"
 
 
 def create_test_image_b64() -> str:
@@ -29,9 +30,11 @@ def create_test_image_b64() -> str:
 
 
 def run_gateway():
-    # Inject a vector matching the protected brand "Banco do Brasil" into the default catalog
-    bb_vector = one_hot(0, 768)  # Banco do Brasil in the default catalog
+    # Fake embedder and catalog: every image "looks like" the Banco do Brasil reference.
+    bb_vector = one_hot(0, 768)
     gateway_app.dependency_overrides[get_visual_embedder] = lambda: FakeVisualEmbedder(default_embedding=bb_vector)
+    gateway_app.dependency_overrides[get_brand_catalog] = lambda: FakeBrandCatalog({"Banco do Brasil": [bb_vector]})
+    gateway_app.dependency_overrides[get_brand_verifier] = lambda: None
     uvicorn.run(gateway_app, host="127.0.0.1", port=8001, log_level="warning")
 
 

@@ -144,9 +144,17 @@ class ExtractResult(BaseModel):
 
 
 # DTOs for Visual RAG and Brand Spoofing (Phase 4)
+class ImageSource(StrEnum):
+    # Only a page our own browser opened may go to a third-party VLM; a person's
+    # screenshot can show their chats, names and numbers.
+    PAGE_SCREENSHOT = "page_screenshot"
+    USER_IMAGE = "user_image"
+
+
 class BrandMatchRequest(BaseModel):
     image_b64: str
     current_domain: str | None = None
+    image_source: ImageSource = ImageSource.USER_IMAGE
 
 
 class BrandMatchResult(BaseModel):
@@ -154,6 +162,8 @@ class BrandMatchResult(BaseModel):
     is_spoofing: bool = False
     similarity: float = 0.0
     official_domains: list[str] = Field(default_factory=list)
+    # Resembles a brand but below the threshold and not confirmed: a signal, never a verdict.
+    possible_brand: str | None = None
 
 
 # "Me explica" DTOs (R5b). The ai-gateway request carries only the persisted
