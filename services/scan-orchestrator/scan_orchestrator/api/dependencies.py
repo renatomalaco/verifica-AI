@@ -102,7 +102,9 @@ def get_image_extractor_client(settings: Settings = Depends(get_settings)) -> Im
     return HttpImageExtractorClient(base_url=settings.IMAGE_EXTRACTOR_URL)
 
 
-def get_brand_matcher_client(settings: Settings = Depends(get_settings)) -> BrandMatcherClientProtocol:
+def get_brand_matcher_client(settings: Settings = Depends(get_settings)) -> BrandMatcherClientProtocol | None:
+    if not settings.VISUAL_RAG_ENABLED:
+        return None
     return HttpBrandMatcherClient(base_url=settings.AI_GATEWAY_URL)
 
 
@@ -125,7 +127,7 @@ def get_cascade(
     evidence_client: DomainEvidenceClient = Depends(get_domain_evidence_client),
     inspector_client: InspectorClientProtocol = Depends(get_inspector_client),
     triage_client: TriageClient = Depends(get_triage_client),
-    brand_matcher: BrandMatcherClientProtocol = Depends(get_brand_matcher_client),
+    brand_matcher: BrandMatcherClientProtocol | None = Depends(get_brand_matcher_client),
 ) -> Cascade:
     stages = [
         Stage0CacheAndFeeds(cache_client=redis_client),
@@ -146,7 +148,7 @@ def get_analyze_text_use_case(
     cascade: Cascade = Depends(get_cascade),
     image_extractor: ImageExtractorClientProtocol = Depends(get_image_extractor_client),
     redis_client: RedisCacheClientProtocol = Depends(get_redis_client),
-    brand_matcher: BrandMatcherClientProtocol = Depends(get_brand_matcher_client),
+    brand_matcher: BrandMatcherClientProtocol | None = Depends(get_brand_matcher_client),
 ) -> AnalyzeTextUseCase:
     return AnalyzeTextUseCase(
         triage_client=triage_client,
