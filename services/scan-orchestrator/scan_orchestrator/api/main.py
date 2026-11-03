@@ -17,6 +17,8 @@ from scan_orchestrator.api.dependencies import (
     get_explain_use_case,
     get_settings,
 )
+from scan_orchestrator.api.research_auth_routes import router as research_auth_router
+from scan_orchestrator.api.research_guard import require_research_reader
 from scan_orchestrator.application.analyze_text import AnalyzeTextUseCase
 from scan_orchestrator.application.explain_scan import (
     ExplainScanUseCase,
@@ -41,11 +43,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(research_auth_router)
+
 DEVICE_COOKIE = "va_device"
 DEVICE_COOKIE_MAX_AGE = 365 * 24 * 3600
 
 
-@app.get("/metrics", response_class=PlainTextResponse)
+@app.get("/metrics", response_class=PlainTextResponse, dependencies=[Depends(require_research_reader)])
 async def metrics() -> str:
     """Metrics endpoint for Prometheus scraping and P50/P95/P99 computation."""
     return latency_tracker.generate_prometheus_metrics()
