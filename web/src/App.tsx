@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { AcceptInvite } from './components/AcceptInvite'
 import { Header } from './components/Header'
 import { Home } from './components/Home'
 import { Learn } from './components/Learn'
 import { Privacy } from './components/Privacy'
-import { ResearchAblationView } from './components/ResearchAblationView'
+import { ResearchArea } from './components/ResearchArea'
 import { Settings } from './components/Settings'
 import { Tutorial } from './components/Tutorial'
 import { Welcome } from './components/Welcome'
@@ -11,12 +12,14 @@ import { CONFIG_HASH_PREFIX, hasOnboarded, markOnboarded } from './prefs/prefere
 import { PreferencesProvider } from './prefs/PreferencesProvider'
 import { m } from './paraglide/messages.js'
 
-type View = 'welcome' | 'tutorial' | 'home' | 'settings' | 'learn' | 'privacy' | 'research'
+type View = 'welcome' | 'tutorial' | 'home' | 'settings' | 'learn' | 'privacy' | 'invite' | 'research'
 
 // Screens with their own URL, so they can be opened and shared via link.
+// Matched by prefix in this order, so the invite page comes before the research area.
 const PATHS: Partial<Record<View, string>> = {
   learn: '/aprender',
   privacy: '/privacidade',
+  invite: '/pesquisa/convite',
   research: '/pesquisa',
 }
 
@@ -64,7 +67,8 @@ function Shell() {
       {view === 'welcome' && <Welcome onContinue={() => go('tutorial')} onSkip={finishTutorial} />}
       {view === 'tutorial' && <Tutorial onFinish={finishTutorial} />}
       {view === 'settings' && <Settings onClose={goHome} onReplayTutorial={() => go('tutorial')} />}
-      {view === 'research' && <ResearchAblationView onBack={goHome} />}
+      {view === 'research' && <ResearchArea onBack={goHome} />}
+      {view === 'invite' && <AcceptInvite onDone={() => go('research')} />}
       {view === 'learn' && (
         <PageWithHeader>
           <Learn onBack={goHome} initialLessonId={lessonId} />

@@ -25,5 +25,12 @@
   "privacy_device_text": "Os ajustes de leitura, o tutorial já visto e o progresso das lições ficam salvos só no seu navegador e não são enviados para ninguém.",
   "privacy_device_cleared": "Pronto. Os dados deste aparelho foram apagados.",
   "privacy_device_clear": "Apagar dados deste aparelho",
+  "privacy_research_title": "Quem faz a pesquisa",
+  "privacy_research_intro": "Quem usa o Verifica continua anônimo. Só as pessoas convidadas para a área de pesquisa do TCC (o autor e a banca) têm conta. Delas fica guardado:",
+  "privacy_research_email": "o e-mail, o papel (administrador ou pesquisador) e, se houver, a data em que o acesso termina;",
+  "privacy_research_password": "a senha, só embaralhada de um jeito que não permite recuperá-la (hash argon2);",
+  "privacy_research_sessions": "a entrada cria dois cookies protegidos no navegador; no servidor fica só um código calculado a partir do cookie de renovação, válido por até 7 dias, para poder encerrar o acesso na hora;",
+  "privacy_research_ip": "o endereço de internet de quem tenta entrar, por no máximo 15 minutos, só para barrar quem tenta adivinhar senhas.",
+  "privacy_research_retention": "Esses dados ficam guardados enquanto a conta existir. Bloquear a conta encerra o acesso na hora.",
   "privacy_lgpd": "O Verifica segue os princípios da Lei Geral de Proteção de Dados (Lei 13.709/2018): usar só o necessário, com finalidade clara, e de forma anônima."
 }

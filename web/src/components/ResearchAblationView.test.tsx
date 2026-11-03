@@ -37,7 +37,7 @@ describe('ResearchAblationView', () => {
 
   it('shows the measured numbers of the latest study, never fixed ones', async () => {
     mockFetch(200, REPORT)
-    render(<ResearchAblationView onBack={vi.fn()} />)
+    render(<ResearchAblationView onBack={vi.fn()} onSignedOut={vi.fn()} />)
 
     expect(await screen.findByText(m.research_mode_cascade())).toBeInTheDocument()
     expect(screen.getByText('0.774')).toBeInTheDocument()
@@ -48,14 +48,14 @@ describe('ResearchAblationView', () => {
 
   it('explains how to run the study when there is no report yet', async () => {
     mockFetch(404)
-    render(<ResearchAblationView onBack={vi.fn()} />)
+    render(<ResearchAblationView onBack={vi.fn()} onSignedOut={vi.fn()} />)
     expect(await screen.findByText(m.research_missing_title())).toBeInTheDocument()
   })
 
   it('calls onBack when the back button is clicked', async () => {
     mockFetch(404)
     const onBack = vi.fn()
-    render(<ResearchAblationView onBack={onBack} />)
+    render(<ResearchAblationView onBack={onBack} onSignedOut={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: m.research_back() }))
     expect(onBack).toHaveBeenCalledTimes(1)
   })

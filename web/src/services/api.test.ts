@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { explainScan, fetchResearchReport, scanDirect, scanStream } from './api'
+import { explainScan, fetchResearchReport, runStudy, scanDirect, scanStream } from './api'
 import type { ScanResponse, StageEvent } from '../types'
 
 describe('API Service', () => {
@@ -116,5 +116,16 @@ describe('API Service', () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ modes: [] }) })
     await expect(fetchResearchReport()).resolves.toEqual({ modes: [] })
     expect(global.fetch).toHaveBeenCalledWith('/pesquisa/report', expect.anything())
+  })
+
+  it('runStudy asks the research-runner to run a new study', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ modes: [] }) })
+    await runStudy()
+    expect(global.fetch).toHaveBeenCalledWith('/pesquisa/run', expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('runStudy reports a failure', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
+    await expect(runStudy()).rejects.toThrow()
   })
 })

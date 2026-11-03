@@ -7,6 +7,7 @@ import { BackIcon } from './Icons'
 
 interface Props {
   onBack: () => void
+  onSignedOut: () => void
 }
 
 const MODE_LABELS: Record<ResearchModeName, () => string> = {
@@ -28,8 +29,8 @@ const COLUMNS = [
 ]
 
 // Shows the latest measured study. It never ships numbers of its own.
-export function ResearchAblationView({ onBack }: Props) {
-  const state = useResearchReport()
+export function ResearchAblationView({ onBack, onSignedOut }: Props) {
+  const state = useResearchReport(onSignedOut)
 
   return (
     <section className="app-main" aria-labelledby="pesquisa-titulo">

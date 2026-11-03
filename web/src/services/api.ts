@@ -1,4 +1,5 @@
 import { getLocale } from '../paraglide/runtime.js'
+import { researchFetch } from './researchAuth'
 import type { ExplainResponse, ResearchReport, ScanRequest, ScanResponse, StageEvent } from '../types'
 
 const API_BASE = ''
@@ -148,10 +149,16 @@ export async function scanStream(
   }
 }
 
-// Latest ablation study; null until someone runs `python -m research_runner`.
+// Latest ablation study; null until the admin runs one. Needs a signed-in researcher (R5a).
 export async function fetchResearchReport(signal?: AbortSignal): Promise<ResearchReport | null> {
-  const response = await fetch(`${API_BASE}/pesquisa/report`, { signal })
+  const response = await researchFetch(`${API_BASE}/pesquisa/report`, { signal })
   if (response.status === 404) return null
   if (!response.ok) throw new Error(`Research report failed (${response.status})`)
   return response.json()
+}
+
+// Admin only: runs the whole ablation study on the server (heavy, and paid when Gemini is on).
+export async function runStudy(): Promise<void> {
+  const response = await researchFetch(`${API_BASE}/pesquisa/run`, { method: 'POST' })
+  if (!response.ok) throw new Error(`Research run failed (${response.status})`)
 }

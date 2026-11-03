@@ -9,7 +9,8 @@ interface PrivacyProps {
 }
 
 // Everything here must match what the backend actually does:
-// migrations/0001 and 0003 (what is stored), domain/quota.py and settings (limits and retention).
+// migrations/0001, 0003 and 0005 (what is stored), domain/quota.py, domain/research_access.py
+// and settings (limits and retention).
 export function Privacy({ onBack }: PrivacyProps) {
   const headingRef = useRef<HTMLHeadingElement>(null)
   const [cleared, setCleared] = useState(false)
@@ -78,6 +79,17 @@ export function Privacy({ onBack }: PrivacyProps) {
 
       <PrivacySection title={m.privacy_quota_title()}>
         <p>{m.privacy_quota_text()}</p>
+      </PrivacySection>
+
+      <PrivacySection title={m.privacy_research_title()}>
+        <p>{m.privacy_research_intro()}</p>
+        <ul className="bullet-list bullet-list--ok">
+          <li>{m.privacy_research_email()}</li>
+          <li>{m.privacy_research_password()}</li>
+          <li>{m.privacy_research_sessions()}</li>
+          <li>{m.privacy_research_ip()}</li>
+        </ul>
+        <p>{m.privacy_research_retention()}</p>
       </PrivacySection>
 
       <PrivacySection title={m.privacy_device_title()}>

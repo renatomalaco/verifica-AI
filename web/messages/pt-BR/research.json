@@ -6,7 +6,7 @@
   "research_intro": "Resultados medidos no conjunto de teste, que só tem amostras reais e anonimizadas. Cada modo roda o código real do sistema.",
   "research_loading": "Carregando o último estudo…",
   "research_missing_title": "Nenhum estudo foi rodado ainda",
-  "research_missing_text": "Para gerar o relatório, rode no servidor: python -m research_runner",
+  "research_missing_text": "Quem tem acesso de administrador pode rodar o estudo pelo menu ao lado (ou no servidor, com python -m research_runner).",
   "research_failed": "Não foi possível carregar o relatório do estudo.",
   "research_table_title": "Comparação dos modos de inspeção",
   "research_col_mode": "Modo",
