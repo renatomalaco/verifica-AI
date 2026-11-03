@@ -102,3 +102,12 @@ export interface ResearchReport {
   adversarial: { total: number; detected_without_sanitization: number; detected_with_sanitization: number }
   latex_table: string
 }
+
+// Research area accounts (R5a). Mirrors contracts.ResearchRole / ResearchUser.
+export type ResearchRole = 'admin' | 'researcher'
+
+export interface ResearchUser {
+  email: string
+  role: ResearchRole
+  expires_at: string | null
+}

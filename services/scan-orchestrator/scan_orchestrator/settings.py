@@ -1,4 +1,7 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Annotated
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -23,4 +26,22 @@ class Settings(BaseSettings):
     EXPLAIN_IP_WINDOW_SECONDS: int = 3600
     QUOTA_UTC_OFFSET_HOURS: int = -3  # Brasília, no daylight saving time since 2019
 
+    # Research area sign-in (R5a). Keys are base64 raw Ed25519 (`python -m scan_orchestrator.research_cli keygen`).
+    # Without them nobody signs in: protected routes answer 401 and login answers 503.
+    AUTH_JWT_PRIVATE_KEY: str = ""
+    AUTH_JWT_PUBLIC_KEY: str = ""
+    AUTH_COOKIE_SECURE: bool = True
+    AUTH_ALLOWED_ORIGINS: Annotated[list[str], NoDecode] = ["http://localhost:5173"]  # comma-separated in the env
+    LOGIN_ACCOUNT_LIMIT: int = 5
+    LOGIN_IP_LIMIT: int = 20
+    LOGIN_WINDOW_SECONDS: int = 900
+    PUBLIC_BASE_URL: str = "http://localhost:5173"  # where invite links point
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @field_validator("AUTH_ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def split_origins(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value

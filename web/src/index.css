@@ -1304,6 +1304,45 @@ details.tech > summary::-webkit-details-marker {
 
 /* ---------- Research (ablation report) ---------- */
 
+.research-layout {
+  display: grid;
+  /* minmax(0, …): the wide table scrolls inside its wrapper instead of stretching the page */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 60rem) {
+  .research-layout { grid-template-columns: 16rem minmax(0, 1fr); }
+  .research-nav { position: sticky; top: 1rem; }
+}
+
+.research-nav__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.research-nav__list a {
+  display: block;
+  border-radius: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  color: var(--color-ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.research-nav__list a:hover { background: var(--color-accent-soft); }
+.research-nav__list a[aria-current='page'] { background: var(--color-accent-soft); color: var(--color-handle); }
+
+.auth-card {
+  width: 100%;
+  max-width: 30rem;
+  align-self: center;
+}
+
 .research-table-wrap { overflow-x: auto; }
 
 .research-table {

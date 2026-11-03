@@ -3,11 +3,12 @@
 import secrets
 from functools import lru_cache
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from scan_orchestrator.application.analyze_text import AnalyzeTextUseCase
 from scan_orchestrator.application.explain_scan import ExplainScanUseCase
+from scan_orchestrator.application.research_auth import ResearchAuth
 from scan_orchestrator.domain.cascade import (
     BrandMatcherClientProtocol,
     Cascade,
@@ -21,6 +22,8 @@ from scan_orchestrator.domain.cascade import (
 )
 from scan_orchestrator.domain.decision import ThresholdPolicy
 from scan_orchestrator.domain.quota import ExplainQuota, QuotaLimits, QuotaStore
+from scan_orchestrator.domain.research_access import LoginLimits, LoginThrottle
+from scan_orchestrator.infrastructure.access_tokens import AccessTokenIssuer, AccessTokenVerifier
 from scan_orchestrator.infrastructure.brand_matcher_client import HttpBrandMatcherClient
 from scan_orchestrator.infrastructure.explainer_client import ExplainerClientProtocol, HttpExplainerClient
 from scan_orchestrator.infrastructure.image_extractor_client import (
@@ -28,7 +31,13 @@ from scan_orchestrator.infrastructure.image_extractor_client import (
     ImageExtractorClientProtocol,
 )
 from scan_orchestrator.infrastructure.inspector_client import HttpInspectorClient
+from scan_orchestrator.infrastructure.passwords import PasswordHasher
 from scan_orchestrator.infrastructure.quota_store import RedisQuotaStore
+from scan_orchestrator.infrastructure.research_account_repository import (
+    InMemoryResearchAccountRepository,
+    ResearchAccountRepository,
+    SqlResearchAccountRepository,
+)
 from scan_orchestrator.infrastructure.redis_client import RedisCacheClient
 from scan_orchestrator.infrastructure.domain_evidence_client import (
     CrtShClient,
@@ -45,6 +54,7 @@ from scan_orchestrator.infrastructure.triage_client import HttpTriageClient
 from scan_orchestrator.settings import Settings
 
 _in_memory_repo = InMemoryScanRepository()
+_in_memory_accounts = InMemoryResearchAccountRepository()
 # Without DEVICE_TOKEN_SECRET, each process picks a random one and device cookies are invalidated on every restart.
 _ephemeral_device_secret = secrets.token_bytes(32)
 
@@ -69,16 +79,16 @@ def get_triage_client(settings: Settings = Depends(get_settings)) -> TriageClien
 
 
 @lru_cache
-def _sql_repository(database_url: str) -> SqlScanRepository:
+def _session_factory(database_url: str) -> async_sessionmaker:
     # One engine (and connection pool) per process, not per request.
     engine = create_async_engine(database_url, pool_pre_ping=True)
-    return SqlScanRepository(async_sessionmaker(engine, expire_on_commit=False))
+    return async_sessionmaker(engine, expire_on_commit=False)
 
 
 def get_scan_repository(settings: Settings = Depends(get_settings)) -> ScanRepository:
     if not settings.DATABASE_URL:
         return _in_memory_repo
-    return _sql_repository(settings.DATABASE_URL)
+    return SqlScanRepository(_session_factory(settings.DATABASE_URL))
 
 
 def get_redis_client(settings: Settings = Depends(get_settings)) -> RedisCacheClientProtocol:
@@ -178,3 +188,49 @@ def get_explain_use_case(
         utc_offset_hours=settings.QUOTA_UTC_OFFSET_HOURS,
     )
     return ExplainScanUseCase(repository=repository, explainer=explainer, quota=quota)
+
+
+# --- Research area sign-in (R5a) ---
+
+@lru_cache
+def _password_hasher() -> PasswordHasher:
+    return PasswordHasher()
+
+
+@lru_cache
+def _access_verifier(public_key: str) -> AccessTokenVerifier:
+    return AccessTokenVerifier(public_key)
+
+
+def get_access_verifier(settings: Settings = Depends(get_settings)) -> AccessTokenVerifier:
+    return _access_verifier(settings.AUTH_JWT_PUBLIC_KEY)
+
+
+def get_research_account_repository(settings: Settings = Depends(get_settings)) -> ResearchAccountRepository:
+    if not settings.DATABASE_URL:
+        return _in_memory_accounts
+    return SqlResearchAccountRepository(_session_factory(settings.DATABASE_URL))
+
+
+def get_login_store(settings: Settings = Depends(get_settings)) -> QuotaStore:
+    return _redis_quota_store(settings.REDIS_URL)
+
+
+def get_research_auth(
+    settings: Settings = Depends(get_settings),
+    repository: ResearchAccountRepository = Depends(get_research_account_repository),
+    store: QuotaStore = Depends(get_login_store),
+) -> ResearchAuth:
+    if not settings.AUTH_JWT_PRIVATE_KEY:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="auth_not_configured")
+    limits = LoginLimits(
+        per_account=settings.LOGIN_ACCOUNT_LIMIT,
+        per_ip=settings.LOGIN_IP_LIMIT,
+        window_seconds=settings.LOGIN_WINDOW_SECONDS,
+    )
+    return ResearchAuth(
+        repository=repository,
+        hasher=_password_hasher(),
+        issuer=AccessTokenIssuer(settings.AUTH_JWT_PRIVATE_KEY),
+        throttle=LoginThrottle(store, limits),
+    )

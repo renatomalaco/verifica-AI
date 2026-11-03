@@ -39,3 +39,15 @@ def test_brand_references_are_768_dim_vectors_with_a_cosine_index(monkeypatch, c
     assert "CREATE TABLE marcas_referencias" in sql
     assert "vector(768)" in sql
     assert "USING hnsw (logo_embedding vector_cosine_ops)" in sql
+
+
+def test_research_accounts_store_only_hashes(monkeypatch, capsys):
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://user:pass@db.invalid/verifica_db")
+
+    command.upgrade(_config(), "head", sql=True)
+
+    sql = capsys.readouterr().out
+    assert "CREATE TABLE contas_pesquisa" in sql
+    assert "CREATE TABLE sessoes_pesquisa" in sql
+    assert "password_hash" in sql and "token_hash" in sql
+    assert " password " not in sql and "refresh_token " not in sql

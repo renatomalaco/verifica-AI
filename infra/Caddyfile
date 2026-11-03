@@ -15,7 +15,7 @@ verifica.ai, localhost {
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
     }
 
-    # Public metrics route (for the internal Prometheus scraper)
+    # Metrics: only signed-in researchers (the orchestrator checks the access cookie)
     handle /metrics {
         reverse_proxy scan-orchestrator:8000
     }
@@ -28,8 +28,10 @@ verifica.ai, localhost {
         }
     }
 
-    # Internal research API and ablation benchmarks
-    handle /pesquisa/run* {
+    # Research API: the research-runner checks the access cookie and the role.
+    # Other /pesquisa paths (/pesquisa, /pesquisa/convite) are pages of the SPA.
+    @research_api path /pesquisa/report* /pesquisa/run*
+    handle @research_api {
         reverse_proxy research-runner:8004
     }
 

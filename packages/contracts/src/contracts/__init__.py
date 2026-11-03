@@ -202,3 +202,32 @@ class ExplainResponse(BaseModel):
 
 class QuotaExceeded(BaseModel):
     retry_at: datetime
+
+
+# --- Research area accounts (R5a). End users stay anonymous; only researchers sign in. ---
+
+class ResearchRole(StrEnum):
+    ADMIN = "admin"  # runs the study (heavy and, with Gemini, paid) and sends invites
+    RESEARCHER = "researcher"  # reads the report and the metrics
+
+
+def _normalized_email(value: object) -> object:
+    return value.strip().lower() if isinstance(value, str) else value
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=1024)
+
+    _normalize_email = field_validator("email", mode="before")(_normalized_email)
+
+
+class AcceptInviteRequest(BaseModel):
+    token: str = Field(min_length=1, max_length=256)
+    password: str = Field(min_length=1, max_length=1024)
+
+
+class ResearchUser(BaseModel):
+    email: str
+    role: ResearchRole
+    expires_at: datetime | None = None

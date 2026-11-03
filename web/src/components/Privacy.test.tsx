@@ -17,6 +17,14 @@ describe('Privacy', () => {
     expect(screen.getByText(m.privacy_quota_text())).toBeInTheDocument()
   })
 
+  it('separates the anonymous users from the invited researchers, who have accounts', () => {
+    render(<Privacy onBack={() => {}} />)
+    expect(screen.getByRole('heading', { name: m.privacy_research_title() })).toBeInTheDocument()
+    expect(screen.getByText(m.privacy_research_email())).toBeInTheDocument()
+    expect(screen.getByText(m.privacy_research_password())).toBeInTheDocument()
+    expect(screen.getByText(m.privacy_research_ip())).toBeInTheDocument()
+  })
+
   it('erases what the Verifica saved on this device', () => {
     localStorage.setItem('vf.onboarded', '1')
     localStorage.setItem('vf.lessons', '["falso-parente"]')
