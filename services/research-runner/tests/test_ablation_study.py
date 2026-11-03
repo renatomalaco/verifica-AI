@@ -83,11 +83,14 @@ def reports_dir(tmp_path, monkeypatch):
 
 async def test_api_serves_the_latest_report_or_404(reports_dir):
     from research_runner.api.main import app
+    from scan_orchestrator.api.research_guard import require_research_reader
 
+    app.dependency_overrides[require_research_reader] = lambda: None  # access rules: test_api_access.py
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         missing = await client.get("/pesquisa/report")
         (reports_dir / "latest.json").write_text(json.dumps({"modes": [], "meta": {}}), encoding="utf-8")
         found = await client.get("/pesquisa/report")
+    app.dependency_overrides.pop(require_research_reader)
 
     assert missing.status_code == 404
     assert found.status_code == 200
