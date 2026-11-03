@@ -15,4 +15,5 @@ RUN uv pip install --system -e ./packages/contracts -e ./services/scan-orchestra
 
 EXPOSE 8000
 
-CMD ["uvicorn", "scan_orchestrator.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Caddy is the only way in and overwrites X-Forwarded-For, so the real client IP can be trusted.
+CMD ["uvicorn", "scan_orchestrator.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
