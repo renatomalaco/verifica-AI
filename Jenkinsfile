@@ -68,8 +68,12 @@ pipeline {
             }
             steps {
                 echo '=== Compilando imagens Docker para producao ==='
-                // Compose requires POSTGRES_PASSWORD; it comes from the Jenkins credential, never from the repo.
-                withCredentials([string(credentialsId: 'verifica-postgres-password', variable: 'POSTGRES_PASSWORD')]) {
+                // Compose requires these secrets; they come from Jenkins credentials, never from the repo.
+                withCredentials([
+                    string(credentialsId: 'verifica-postgres-password', variable: 'POSTGRES_PASSWORD'),
+                    string(credentialsId: 'verifica-auth-jwt-private-key', variable: 'AUTH_JWT_PRIVATE_KEY'),
+                    string(credentialsId: 'verifica-auth-jwt-public-key', variable: 'AUTH_JWT_PUBLIC_KEY'),
+                ]) {
                     sh 'docker compose -f infra/docker-compose.prod.yml build'
                 }
             }

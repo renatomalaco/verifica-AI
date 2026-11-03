@@ -39,6 +39,11 @@ services:
       - IMAGE_EXTRACTOR_URL=http://image-extractor:8003
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql+asyncpg://verifica:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/verifica_db
+      # Research area sign-in: only the orchestrator holds the private key (it issues the tokens).
+      - AUTH_JWT_PRIVATE_KEY=${AUTH_JWT_PRIVATE_KEY:?defina AUTH_JWT_PRIVATE_KEY no .env}
+      - AUTH_JWT_PUBLIC_KEY=${AUTH_JWT_PUBLIC_KEY:?defina AUTH_JWT_PUBLIC_KEY no .env}
+      - AUTH_ALLOWED_ORIGINS=https://verifica.ai
+      - PUBLIC_BASE_URL=https://verifica.ai
     networks:
       - public
       - internal
@@ -138,6 +143,10 @@ services:
       dockerfile: services/research-runner/Dockerfile
     container_name: verifica-research-runner
     restart: unless-stopped
+    environment:
+      # Public key only: the research-runner checks tokens but can never issue one.
+      - AUTH_JWT_PUBLIC_KEY=${AUTH_JWT_PUBLIC_KEY:?defina AUTH_JWT_PUBLIC_KEY no .env}
+      - AUTH_ALLOWED_ORIGINS=https://verifica.ai
     networks:
       - public
       - internal
