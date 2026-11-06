@@ -19,7 +19,7 @@ describe('API Service', () => {
       },
     }
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       json: async () => mockResponse,
@@ -28,7 +28,7 @@ describe('API Service', () => {
     const result = await scanDirect({ content: 'Urgente: atualize sua conta bb' })
     expect(result.threat_level).toBe('GOLPE')
     expect(result.verdict_message).toBe('scam_financial_threat')
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       '/api/v1/scans',
       expect.objectContaining({
         method: 'POST',
@@ -38,7 +38,7 @@ describe('API Service', () => {
   })
 
   it('scanDirect throws on server error', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 500,
       text: async () => 'Internal Server Error',
@@ -65,7 +65,7 @@ describe('API Service', () => {
       },
     })
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       body: stream,
@@ -93,7 +93,7 @@ describe('API Service', () => {
   })
 
   it('explainScan asks for the explanation in the current locale', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       json: async () => ({ lines: ['a'], remaining_today: 2 }),
@@ -101,31 +101,31 @@ describe('API Service', () => {
 
     await explainScan('scan-1')
 
-    const [url, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+    const [url, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
     expect(url).toBe('/api/v1/scans/scan-1/explain')
     expect(init.headers).toEqual({ 'Content-Type': 'application/json' })
     expect(JSON.parse(init.body)).toEqual({ locale: 'pt-BR' })
   })
 
   it('fetchResearchReport returns null while no study has been run', async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) })
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) })
     await expect(fetchResearchReport()).resolves.toBeNull()
   })
 
   it('fetchResearchReport returns the latest report', async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ modes: [] }) })
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ modes: [] }) })
     await expect(fetchResearchReport()).resolves.toEqual({ modes: [] })
-    expect(global.fetch).toHaveBeenCalledWith('/pesquisa/report', expect.anything())
+    expect(globalThis.fetch).toHaveBeenCalledWith('/pesquisa/report', expect.anything())
   })
 
   it('runStudy asks the research-runner to run a new study', async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ modes: [] }) })
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ modes: [] }) })
     await runStudy()
-    expect(global.fetch).toHaveBeenCalledWith('/pesquisa/run', expect.objectContaining({ method: 'POST' }))
+    expect(globalThis.fetch).toHaveBeenCalledWith('/pesquisa/run', expect.objectContaining({ method: 'POST' }))
   })
 
   it('runStudy reports a failure', async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
     await expect(runStudy()).rejects.toThrow()
   })
 })
