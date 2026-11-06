@@ -64,11 +64,31 @@ function Shell() {
     <div className={view === 'research' ? 'app app--wide' : 'app'}>
       {configApplied && <ConfigAppliedBanner onClose={() => setConfigApplied(false)} />}
 
-      {view === 'welcome' && <Welcome onContinue={() => go('tutorial')} onSkip={finishTutorial} />}
-      {view === 'tutorial' && <Tutorial onFinish={finishTutorial} />}
-      {view === 'settings' && <Settings onClose={goHome} onReplayTutorial={() => go('tutorial')} />}
-      {view === 'research' && <ResearchArea onBack={goHome} />}
-      {view === 'invite' && <AcceptInvite onDone={() => go('research')} />}
+      {view === 'welcome' && (
+        <MainContent>
+          <Welcome onContinue={() => go('tutorial')} onSkip={finishTutorial} />
+        </MainContent>
+      )}
+      {view === 'tutorial' && (
+        <MainContent>
+          <Tutorial onFinish={finishTutorial} />
+        </MainContent>
+      )}
+      {view === 'settings' && (
+        <MainContent>
+          <Settings onClose={goHome} onReplayTutorial={() => go('tutorial')} />
+        </MainContent>
+      )}
+      {view === 'research' && (
+        <MainContent>
+          <ResearchArea onBack={goHome} />
+        </MainContent>
+      )}
+      {view === 'invite' && (
+        <MainContent>
+          <AcceptInvite onDone={() => go('research')} />
+        </MainContent>
+      )}
       {view === 'learn' && (
         <PageWithHeader>
           <Learn onBack={goHome} initialLessonId={lessonId} />
@@ -99,11 +119,16 @@ function Shell() {
   )
 }
 
+// Every screen sits in <main>, so screen readers can jump straight to the content.
+function MainContent({ children }: { children: ReactNode }) {
+  return <main className="app-main">{children}</main>
+}
+
 function PageWithHeader({ children }: { children: ReactNode }) {
   return (
     <>
       <Header />
-      {children}
+      <MainContent>{children}</MainContent>
     </>
   )
 }
