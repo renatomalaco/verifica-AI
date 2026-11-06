@@ -14,6 +14,7 @@ if (!('speechSynthesis' in window)) {
       pending: false,
     },
     writable: true,
+    configurable: true,
   })
 }
 
@@ -21,7 +22,10 @@ if (!('SpeechSynthesisUtterance' in window)) {
   Object.defineProperty(window, 'SpeechSynthesisUtterance', {
     value: class {
       text: string
-      lang: string = 'pt-BR'
+      lang: string = ''
+      voice: SpeechSynthesisVoice | null = null
+      rate = 1
+      pitch = 1
       onend: (() => void) | null = null
       onerror: (() => void) | null = null
       constructor(text: string) {

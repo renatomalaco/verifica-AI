@@ -10,7 +10,7 @@ interface PrivacyProps {
 
 // Everything here must match what the backend actually does:
 // migrations/0001, 0003 and 0005 (what is stored), domain/quota.py, domain/research_access.py
-// and settings (limits and retention).
+// and settings (limits and retention), and utils/speech.ts (what is read aloud).
 export function Privacy({ onBack }: PrivacyProps) {
   const headingRef = useRef<HTMLHeadingElement>(null)
   const [cleared, setCleared] = useState(false)
@@ -79,6 +79,11 @@ export function Privacy({ onBack }: PrivacyProps) {
 
       <PrivacySection title={m.privacy_quota_title()}>
         <p>{m.privacy_quota_text()}</p>
+      </PrivacySection>
+
+      <PrivacySection title={m.privacy_voice_title()}>
+        <p>{m.privacy_voice_text()}</p>
+        <p>{m.privacy_voice_scope()}</p>
       </PrivacySection>
 
       <PrivacySection title={m.privacy_research_title()}>

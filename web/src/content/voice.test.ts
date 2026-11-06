@@ -1,3 +1,5 @@
+// This test reads the message files from disk, so it needs Node types the browser app does not.
+/// <reference types="node" />
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'

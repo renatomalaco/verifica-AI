@@ -19,7 +19,7 @@ function reply(status: number, body: unknown = {}, headers: Record<string, strin
 function mockFetch(...replies: ReturnType<typeof reply>[]) {
   const fn = vi.fn()
   replies.forEach((r) => fn.mockResolvedValueOnce(r))
-  global.fetch = fn
+  globalThis.fetch = fn
   return fn
 }
 
@@ -57,7 +57,7 @@ describe('research sign-in service', () => {
       }
       return reply(renewed ? 200 : 401)
     })
-    global.fetch = fetchMock as unknown as typeof fetch
+    globalThis.fetch = fetchMock as unknown as typeof fetch
 
     await Promise.all([researchFetch('/pesquisa/report'), researchFetch('/pesquisa/report')])
 

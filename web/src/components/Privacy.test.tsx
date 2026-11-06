@@ -25,6 +25,13 @@ describe('Privacy', () => {
     expect(screen.getByText(m.privacy_research_ip())).toBeInTheDocument()
   })
 
+  it('warns that natural voices may run online and read only the app texts', () => {
+    render(<Privacy onBack={() => {}} />)
+    expect(screen.getByRole('heading', { name: m.privacy_voice_title() })).toBeInTheDocument()
+    expect(screen.getByText(m.privacy_voice_text())).toBeInTheDocument()
+    expect(screen.getByText(m.privacy_voice_scope())).toBeInTheDocument()
+  })
+
   it('erases what the Verifica saved on this device', () => {
     localStorage.setItem('vf.onboarded', '1')
     localStorage.setItem('vf.lessons', '["falso-parente"]')

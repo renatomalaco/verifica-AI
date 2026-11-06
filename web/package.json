@@ -10,7 +10,8 @@
     "test": "npm run i18n && vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "i18n": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --strategy baseLocale --emit-ts-declarations --silent"
+    "i18n": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --strategy baseLocale --emit-ts-declarations --silent",
+    "test:e2e": "npm run i18n && playwright test"
   },
   "dependencies": {
     "@inlang/paraglide-js": "2.25.4",
@@ -18,16 +19,19 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "axe-core": "4.14.0",
     "jsdom": "^26.0.0",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
-    "vitest": "^3.0.7"
+    "vitest": "4.1.12"
   }
 }
