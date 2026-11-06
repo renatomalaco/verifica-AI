@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import { configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { paraglideVitePlugin } from '@inlang/paraglide-js'
 
@@ -35,10 +36,11 @@ export default defineConfig({
       },
     },
   },
-  // @ts-expect-error Vitest configuration
   test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/setupTests.ts',
+    // e2e/ holds Playwright specs: they run in a real browser with `npm run test:e2e`.
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
 })

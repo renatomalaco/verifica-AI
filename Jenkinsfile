@@ -47,9 +47,11 @@ pipeline {
         stage('Testes do Frontend & Acessibilidade') {
             steps {
                 dir('web') {
-                    echo '=== Compilando frontend e rodando testes vitest (WCAG 2.2 AA) ==='
+                    echo '=== Testes do frontend: vitest (markup acessivel) e Playwright (WCAG 2.2 AA no navegador) ==='
                     sh 'npm test -- --run'
                     sh 'npm run build'
+                    sh 'npx playwright install --with-deps chromium'
+                    sh 'CI=1 npm run test:e2e'
                 }
             }
         }
