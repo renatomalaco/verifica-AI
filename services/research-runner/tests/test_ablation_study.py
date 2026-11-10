@@ -6,6 +6,7 @@ from httpx import ASGITransport, AsyncClient
 from research_runner.__main__ import main
 from research_runner.application.ablation_study import StudyConfig, run_study
 from research_runner.domain.dataset import Sample
+from research_runner.infrastructure.llm_providers import providers_from_settings
 
 
 def sample(id: str, content: str, label: str, origin: str = "real", channel: str = "texto") -> Sample:
@@ -26,6 +27,7 @@ async def test_study_evaluates_every_mode_on_the_test_split_only():
     assert report["meta"]["split"]["test"] == 6
     assert modes["cascade"]["metrics"]["total_samples"] == 6
     assert modes["pure_vlm"]["status"] == "not_executed"
+    assert "GEMINI_API_KEY" in modes["pure_vlm"]["note"]
     assert "metrics" not in modes["pure_vlm"]
 
 
@@ -51,6 +53,44 @@ async def test_without_real_samples_the_report_warns_instead_of_inventing_number
     report = await run_study(synthetic, CONFIG)
     assert report["meta"]["split"]["test"] == 0
     assert any("real" in w for w in report["meta"]["warnings"])
+
+
+async def test_with_gemini_configured_mode_2_measures_the_model_and_names_model_and_price(make_settings, gemini_env, gemini):
+    gemini.answers(0.97)
+    report = await run_study(REAL, CONFIG, providers_from_settings(make_settings(**gemini_env)))
+
+    pure_vlm = next(m for m in report["modes"] if m["mode"] == "pure_vlm")
+    assert pure_vlm["status"] == "executed"
+    assert pure_vlm["metrics"]["total_samples"] == 6
+    assert pure_vlm["metrics"]["recall"] == 1.0
+    assert pure_vlm["metrics"]["cost_per_1k_usd"] == pytest.approx(1.3)
+    assert report["meta"]["llm"]["pure_vlm"]["model"] == "gemini-x"
+    assert report["meta"]["llm"]["pure_vlm"]["price_date"] == "2026-11-01"
+    # Mode 2 is real but the cascade triage is still local: the report must not hide the mismatch.
+    assert "local" in report["meta"]["triage"]
+    assert any("AI_PROVIDER" in w for w in report["meta"]["warnings"])
+
+
+async def test_with_ai_provider_gemini_the_cascade_triage_is_the_real_model(make_settings, gemini_env, gemini):
+    gemini.answers(0.97)
+    providers = providers_from_settings(make_settings(**gemini_env, AI_PROVIDER="gemini"))
+    report = await run_study(REAL, CONFIG, providers)
+
+    cascade = next(m for m in report["modes"] if m["mode"] == "cascade")
+    assert "ai-gateway" in report["meta"]["triage"]
+    assert report["meta"]["llm"]["triage"]["model"] == "gemini-x"
+    assert cascade["metrics"]["cost_per_1k_usd"] > 0
+    assert not any("AI_PROVIDER" in w for w in report["meta"]["warnings"])
+
+
+async def test_model_failures_are_counted_and_reported_never_scored_as_safe(make_settings, gemini_env, gemini):
+    gemini.fails_with(status_code=503)
+    report = await run_study(REAL, CONFIG, providers_from_settings(make_settings(**gemini_env)))
+
+    pure_vlm = next(m for m in report["modes"] if m["mode"] == "pure_vlm")
+    assert pure_vlm["stage_breakdown"] == {"provider_failure": 6}
+    assert pure_vlm["metrics"]["confusion_matrix"]["tp"] == 0
+    assert any("pure_vlm" in w and "6" in w for w in report["meta"]["warnings"])
 
 
 def write_dataset(tmp_path, samples):
@@ -96,3 +136,12 @@ async def test_api_serves_the_latest_report_or_404(reports_dir):
     assert found.status_code == 200
     assert found.json()["modes"] == []
     assert found.json()["latex_table"].startswith(r"\begin{table}")
+
+
+def test_cli_reads_the_providers_from_the_environment(tmp_path, monkeypatch, gemini_env, gemini):
+    gemini.answers(0.97)
+    for name, value in gemini_env.items():
+        monkeypatch.setenv(name, str(value))
+    assert main(["--dataset", str(write_dataset(tmp_path, REAL)), "--output-dir", str(tmp_path)]) == 0
+    report = json.loads((tmp_path / "latest.json").read_text(encoding="utf-8"))
+    assert next(m for m in report["modes"] if m["mode"] == "pure_vlm")["status"] == "executed"

@@ -1,8 +1,9 @@
 """Runs one ablation mode over a set of samples, measuring every prediction."""
 
+import asyncio
 import time
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -30,11 +31,17 @@ async def run_mode(
     samples: list[Sample],
     clock: Callable[[], float] = time.perf_counter,
     not_executed_reason: str = "",
+    pause_seconds: float = 0.0,
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> ModeEvaluation:
     if evaluator is None:
         return ModeEvaluation(mode=mode, metrics=calculate_metrics([]), status="not_executed", note=not_executed_reason)
 
-    predictions = [await _predict(evaluator, sample, clock) for sample in samples]
+    predictions = []
+    for index, sample in enumerate(samples):
+        if index and pause_seconds:
+            await sleep(pause_seconds)  # outside the clock: a rate-limit pause is not model latency
+        predictions.append(await _predict(evaluator, sample, clock))
     return ModeEvaluation(
         mode=mode,
         metrics=calculate_metrics(predictions),

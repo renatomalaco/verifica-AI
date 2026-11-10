@@ -7,6 +7,7 @@ from research_runner.infrastructure.evaluators import (
     CascadeEvaluator,
     ClassicalNlpEvaluator,
     HeuristicEvaluator,
+    LocalTriageClient,
     train_classifier,
 )
 
@@ -51,6 +52,20 @@ async def test_confidence_is_the_probability_of_the_predicted_label():
     assert abs(result.predictions[0].confidence - 0.8) < 1e-9
 
 
+async def test_the_pause_between_model_calls_stays_outside_the_measured_latency():
+    pauses = []
+
+    async def sleep(seconds: float) -> None:
+        pauses.append(seconds)
+
+    evaluator = FixedEvaluator(Outcome(predicted="GOLPE", scam_probability=0.9, deciding_stage="x"))
+    samples = [sample("a", "oi"), sample("b", "oi"), sample("c", "oi")]
+    result = await run_mode(AblationMode.PURE_VLM, evaluator, samples, clock=fake_clock(0.01), pause_seconds=6.0, sleep=sleep)
+
+    assert pauses == [6.0, 6.0]
+    assert [p.latency_ms for p in result.predictions] == [10.0, 10.0, 10.0]
+
+
 async def test_a_mode_without_a_provider_is_reported_as_not_executed():
     # Never fall back to copying the expected label (the old Mode 2 did exactly that).
     result = await run_mode(AblationMode.PURE_VLM, None, [sample("a", "oi")], not_executed_reason="no LLM provider")
@@ -86,7 +101,7 @@ async def test_heuristic_mode_flags_a_link_found_in_the_feed_snapshot():
 
 
 async def test_cascade_mode_runs_the_real_orchestrator_use_case():
-    evaluator = CascadeEvaluator.build(train_classifier(TRAIN, TRAIN_SPLITS), feed_urls=["https://golpe.example/pix"])
+    evaluator = CascadeEvaluator.build(LocalTriageClient(train_classifier(TRAIN, TRAIN_SPLITS)), feed_urls=["https://golpe.example/pix"])
 
     linked = await evaluator.evaluate(sample("q1", "Olha que legal https://golpe.example/pix", "GOLPE"))
     plain = await evaluator.evaluate(sample("q2", "manda um pix urgente mae troquei de numero"))
@@ -95,3 +110,9 @@ async def test_cascade_mode_runs_the_real_orchestrator_use_case():
     assert linked.deciding_stage.startswith("embedded_url")
     assert 0.0 <= plain.scam_probability <= 1.0
     assert plain.deciding_stage == "triage"
+
+
+async def test_the_local_triage_costs_nothing():
+    evaluator = CascadeEvaluator.build(LocalTriageClient(train_classifier(TRAIN, TRAIN_SPLITS)), feed_urls=[])
+    outcome = await evaluator.evaluate(sample("q", "manda um pix urgente mae"))
+    assert outcome.cost_usd == 0.0

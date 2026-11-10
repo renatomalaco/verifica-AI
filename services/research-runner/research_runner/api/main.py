@@ -6,7 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from research_runner.application.ablation_study import StudyConfig, run_study
 from research_runner.domain.report_generator import generate_latex_table
 from research_runner.infrastructure.dataset_file import load_samples
+from research_runner.infrastructure.llm_providers import providers_from_settings
 from research_runner.infrastructure.report_files import read_report, reports_dir, write_report
+from research_runner.settings import ResearchSettings
 from scan_orchestrator.api.research_guard import require_research_reader, require_study_runner
 
 app = FastAPI(
@@ -40,6 +42,6 @@ async def latest_report() -> dict[str, Any]:
 # Admin only: the study is heavy and, with Gemini, paid.
 @app.post("/pesquisa/run", dependencies=[Depends(require_study_runner)])
 async def run_pesquisa() -> dict[str, Any]:
-    report = await run_study(load_samples(), StudyConfig())
+    report = await run_study(load_samples(), StudyConfig(), providers_from_settings(ResearchSettings()))
     write_report(report, reports_dir())
     return report

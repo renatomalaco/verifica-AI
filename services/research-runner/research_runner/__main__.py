@@ -6,7 +6,9 @@ from pathlib import Path
 from research_runner.application.ablation_study import StudyConfig, run_study
 from research_runner.domain.report_generator import generate_latex_table, generate_markdown_table
 from research_runner.infrastructure.dataset_file import load_samples
+from research_runner.infrastructure.llm_providers import providers_from_settings
 from research_runner.infrastructure.report_files import reports_dir, write_report
+from research_runner.settings import ResearchSettings
 
 GATE_PASSED = 0
 GATE_FAILED = 1
@@ -22,7 +24,7 @@ def main(argv: list[str] | None = None) -> int:
         feed_urls=tuple(feed_urls),
         feed_snapshot=args.feed_snapshot,
     )
-    report = asyncio.run(run_study(load_samples(args.dataset), config))
+    report = asyncio.run(run_study(load_samples(args.dataset), config, providers_from_settings(ResearchSettings())))
     out_dir = Path(args.output_dir) if args.output_dir else reports_dir()
     write_report(report, out_dir)
 

@@ -25,7 +25,7 @@ async def client(monkeypatch, tmp_path):
     monkeypatch.setattr(main, "reports_dir", lambda: tmp_path)
     monkeypatch.setattr(main, "load_samples", lambda: [])
 
-    async def fake_study(samples, config):
+    async def fake_study(samples, config, providers):
         return REPORT
 
     monkeypatch.setattr(main, "run_study", fake_study)
