@@ -1,10 +1,10 @@
 import json
 
-import httpx
 from pydantic import ValidationError
 
 from contracts import ExplainRequest, ExplainResult, ThreatLevel
 from ai_gateway.domain.explanation import build_explain_prompt, explain_system_prompt
+from ai_gateway.infrastructure.gemini_http import generate_content
 
 _OPENING = {
     ThreatLevel.SCAM: "Isto tem cara de golpe. Veja por quê.",
@@ -56,7 +56,7 @@ class GeminiExplanationProvider:
     """Gemini client (generateContent) with JSON Schema structured output."""
 
     def __init__(self, base_url: str, api_key: str, model: str, timeout_seconds: float = 8.0):
-        self._base_url = base_url.rstrip("/")
+        self._base_url = base_url
         self._api_key = api_key
         self._model = model
         self._timeout_seconds = timeout_seconds
@@ -71,22 +71,7 @@ class GeminiExplanationProvider:
                 "responseSchema": _RESPONSE_SCHEMA,
             },
         }
-        # The key goes in the header, never the URL, so it does not leak into access logs.
-        headers = {"x-goog-api-key": self._api_key, "Content-Type": "application/json"}
-
-        try:
-            async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
-                response = await client.post(
-                    f"{self._base_url}/v1beta/models/{self._model}:generateContent",
-                    json=payload,
-                    headers=headers,
-                )
-                response.raise_for_status()
-                data = response.json()
-        except httpx.TimeoutException as exc:
-            raise RuntimeError(f"Gemini request timed out ({self._timeout_seconds}s)") from exc
-        except httpx.HTTPError as exc:
-            raise RuntimeError(f"Gemini HTTP error: {exc}") from exc
+        data = await generate_content(self._base_url, self._api_key, self._model, self._timeout_seconds, payload)
 
         try:
             text = data["candidates"][0]["content"]["parts"][0]["text"]
