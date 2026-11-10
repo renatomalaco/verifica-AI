@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 from contracts import InspectRequest, InspectResult
 from url_inspector.api.main import app, get_browser_driver
-from url_inspector.domain.browser_driver import FakeBrowserDriver
+from url_inspector.infrastructure.fakes import FakeBrowserDriver
 
 
 @pytest.fixture

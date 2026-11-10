@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import App from './App'
+import { MAX_IMAGE_BYTES } from './domain/image'
 import * as api from './services/api'
 import { buildConfigLink, DEFAULT_PREFERENCES } from './prefs/preferences'
 import type { ScanResponse } from './types'
@@ -131,6 +132,45 @@ describe('App', () => {
     window.history.pushState({}, '', '/?url=https%3A%2F%2Fgolpe.example')
     render(<App />)
     expect(screen.getByLabelText(m.home_url_label())).toHaveValue('https://golpe.example')
+  })
+
+  describe('with a screenshot shared from another app', () => {
+    // What the service worker stored when the share arrived (public/sw.js).
+    function shareInbox(file: File) {
+      const form = new FormData()
+      form.append('image', file)
+      const stored = { formData: async () => form }
+      const cache = { match: vi.fn(async () => stored), delete: vi.fn(async () => true) }
+      vi.stubGlobal('caches', { open: async () => cache })
+      window.history.pushState({}, '', '/?compartilhado=1')
+      return cache
+    }
+
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('opens it in the photo tab, ready to check', async () => {
+      skipOnboarding()
+      const cache = shareInbox(new File([new Uint8Array(8)], 'print.png', { type: 'image/png' }))
+      render(<App />)
+
+      expect(await screen.findByAltText(m.home_image_preview_alt())).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: m.home_tab_image() })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByRole('button', { name: m.home_check_now() })).toBeEnabled()
+      expect(cache.delete).toHaveBeenCalled()
+      expect(window.location.search).toBe('')
+    })
+
+    it('explains why a photo that is too big cannot be checked', async () => {
+      skipOnboarding()
+      shareInbox(new File([new Uint8Array(MAX_IMAGE_BYTES + 1)], 'foto.jpg', { type: 'image/jpeg' }))
+      render(<App />)
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(m.home_image_error_size())
+      expect(screen.getByRole('tab', { name: m.home_tab_image() })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByRole('button', { name: m.home_check_now() })).toBeDisabled()
+    })
   })
 
   it('keeps the research area out of the public header', () => {

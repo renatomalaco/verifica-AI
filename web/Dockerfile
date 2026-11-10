@@ -24,6 +24,11 @@ server {
         try_files \$uri \$uri/ /index.html;
     }
 
+    # Shares are handled by the service worker; without it (first visit), just open the app.
+    location = /share-target {
+        return 303 /;
+    }
+
     # Static asset caching
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
         root /usr/share/nginx/html;

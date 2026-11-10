@@ -23,6 +23,7 @@
   "privacy_quota_text": "Para contar quantas explicações já foram pedidas, o navegador guarda um código aleatório, que não diz quem você é. Os contadores se apagam sozinhos: o do dia em até 2 dias, o do mês em até 32 dias. O endereço de internet é usado só para evitar abuso e fica guardado por no máximo 1 hora.",
   "privacy_device_title": "Neste aparelho",
   "privacy_device_text": "Os ajustes de leitura, o tutorial já visto e o progresso das lições ficam salvos só no seu navegador e não são enviados para ninguém.",
+  "privacy_device_shared": "Quando você compartilha um print, uma mensagem ou um link de outro aplicativo para o Verifica, ele fica guardado no aparelho só até a tela do Verifica abrir, e é apagado em seguida.",
   "privacy_device_cleared": "Pronto. Os dados deste aparelho foram apagados.",
   "privacy_device_clear": "Apagar dados deste aparelho",
   "privacy_voice_title": "Ao ouvir em voz alta",

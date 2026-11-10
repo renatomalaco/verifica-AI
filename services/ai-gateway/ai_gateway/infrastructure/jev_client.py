@@ -1,6 +1,8 @@
 from typing import Protocol
+
 import httpx
-from contracts import TriageResult, Persuasion
+from contracts import Persuasion, TriageResult
+from pydantic import ValidationError
 
 
 class JevClient(Protocol):
@@ -114,18 +116,20 @@ class HttpJevClient:
         except httpx.HTTPError as exc:
             raise RuntimeError(f"Erro HTTP na consulta ao modelo Jev: {exc}") from exc
 
-        answers = data.get("answers", {})
-        is_phishing = float(answers.get("is_phishing", {}).get("probability", 0.5))
-        requires_visual = float(answers.get("requires_visual_inspection", {}).get("probability", 0.0))
-        persuasion_str = answers.get("persuasion", {}).get("selected", "nenhuma")
-
         try:
-            persuasion = Persuasion(persuasion_str)
-        except ValueError:
-            persuasion = Persuasion.NONE
+            answers = data["answers"]
+            return TriageResult(
+                is_phishing=answers["is_phishing"]["probability"],
+                requires_visual_inspection=answers.get("requires_visual_inspection", {}).get("probability", 0.0),
+                persuasion=_persuasion(answers.get("persuasion", {}).get("selected")),
+            )
+        except (KeyError, TypeError, AttributeError, ValidationError) as exc:
+            # A missing probability is a failure, never a made-up 0.5.
+            raise RuntimeError("Jev answer is not in the expected format") from exc
 
-        return TriageResult(
-            is_phishing=is_phishing,
-            requires_visual_inspection=requires_visual,
-            persuasion=persuasion,
-        )
+
+def _persuasion(selected: object) -> Persuasion:
+    try:
+        return Persuasion(selected)
+    except ValueError:
+        return Persuasion.NONE

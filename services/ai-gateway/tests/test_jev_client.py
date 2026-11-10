@@ -51,3 +51,22 @@ async def test_http_jev_client_timeout_raises_runtime_error():
         with pytest.raises(RuntimeError) as exc_info:
             await client.classify("<untrusted_inspection_data>qualquer</untrusted_inspection_data>")
         assert "Timeout na consulta ao modelo Jev" in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        {"answers": {}},
+        {"answers": "sim"},
+        {"answers": {"is_phishing": {"probability": "alta"}}},
+        {"answers": {"is_phishing": {"probability": 1.7}}},
+        [],
+    ],
+)
+async def test_http_jev_client_malformed_answer_raises_instead_of_guessing(reply):
+    # A missing probability used to become 0.5: a number the model never gave.
+    client = HttpJevClient(base_url="https://mock-jev.api", api_key="test-key")
+    async with respx.mock(base_url="https://mock-jev.api") as mock:
+        mock.post("/v1/systemone").respond(json=reply)
+        with pytest.raises(RuntimeError):
+            await client.classify("<untrusted_inspection_data>qualquer</untrusted_inspection_data>")
