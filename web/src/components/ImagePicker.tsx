@@ -1,26 +1,16 @@
 import { useRef, useState, type DragEvent } from 'react'
 import { m } from '../paraglide/messages.js'
-import { ACCEPTED_IMAGE_TYPES, imageProblem, MAX_IMAGE_MB } from '../domain/image'
+import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_MB } from '../domain/image'
+import type { ImageInput } from '../hooks/useImageInput'
 import { ImageIcon } from './Icons'
 
-interface ImagePickerProps {
-  imageB64: string | null
-  onImageChange: (imageB64: string | null) => void
-}
-
-export function ImagePicker({ imageB64, onImageChange }: ImagePickerProps) {
+export function ImagePicker({ image }: { image: ImageInput }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
+  const { imageB64, error } = image
 
   const pick = (file: File | undefined) => {
-    if (!file) return
-    const problem = imageProblem(file)
-    setError(problem)
-    if (problem) return
-    const reader = new FileReader()
-    reader.onload = () => onImageChange(reader.result as string)
-    reader.readAsDataURL(file)
+    if (file) image.pick(file)
   }
 
   const drop = (e: DragEvent) => {
@@ -46,7 +36,7 @@ export function ImagePicker({ imageB64, onImageChange }: ImagePickerProps) {
       {imageB64 ? (
         <>
           <img src={imageB64} alt={m.home_image_preview_alt()} className="image-preview" />
-          <button type="button" className="btn btn-ghost align-start" onClick={() => onImageChange(null)}>
+          <button type="button" className="btn btn-ghost align-start" onClick={image.clear}>
             {m.home_image_change()}
           </button>
         </>

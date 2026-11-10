@@ -99,6 +99,7 @@ export function Privacy({ onBack }: PrivacyProps) {
 
       <PrivacySection title={m.privacy_device_title()}>
         <p>{m.privacy_device_text()}</p>
+        <p>{m.privacy_device_shared()}</p>
         {cleared ? (
           <p className="note" role="status">
             {m.privacy_device_cleared()}

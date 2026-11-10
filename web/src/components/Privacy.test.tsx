@@ -32,6 +32,11 @@ describe('Privacy', () => {
     expect(screen.getByText(m.privacy_voice_scope())).toBeInTheDocument()
   })
 
+  it('says that a share from another app stays on the device only until the app opens it', () => {
+    render(<Privacy onBack={() => {}} />)
+    expect(screen.getByText(m.privacy_device_shared())).toBeInTheDocument()
+  })
+
   it('erases what the Verifica saved on this device', () => {
     localStorage.setItem('vf.onboarded', '1')
     localStorage.setItem('vf.lessons', '["falso-parente"]')

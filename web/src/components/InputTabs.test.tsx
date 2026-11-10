@@ -2,21 +2,27 @@ import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { InputTabs } from './InputTabs'
 import { MAX_IMAGE_BYTES } from '../domain/image'
+import { useImageInput } from '../hooks/useImageInput'
 import { m } from '../paraglide/messages.js'
 import type { InputTab } from '../types'
 
-function setup(overrides: Partial<Parameters<typeof InputTabs>[0]> = {}) {
+type Props = Omit<Parameters<typeof InputTabs>[0], 'image'>
+
+// The photo tab works with the real image input, as on the home screen.
+function WithImageInput(props: Props) {
+  return <InputTabs {...props} image={useImageInput()} />
+}
+
+function setup(overrides: Partial<Props> = {}) {
   const props = {
     tab: 'text' as InputTab,
     onTabChange: vi.fn(),
     content: '',
     onContentChange: vi.fn(),
-    imageB64: null,
-    onImageChange: vi.fn(),
     onScan: vi.fn(),
     ...overrides,
   }
-  render(<InputTabs {...props} />)
+  render(<WithImageInput {...props} />)
   return props
 }
 
@@ -48,13 +54,14 @@ describe('InputTabs', () => {
   })
 
   it('rejects images that are too large with a friendly message', () => {
-    const props = setup({ tab: 'image' })
+    setup({ tab: 'image' })
     const input = screen.getByLabelText(m.home_image_label()) as HTMLInputElement
     const big = new File(['x'], 'print.png', { type: 'image/png' })
     Object.defineProperty(big, 'size', { value: MAX_IMAGE_BYTES + 1 })
     fireEvent.change(input, { target: { files: [big] } })
     expect(screen.getByRole('alert')).toHaveTextContent(m.home_image_error_size())
-    expect(props.onImageChange).not.toHaveBeenCalled()
+    expect(screen.queryByAltText(m.home_image_preview_alt())).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: m.home_check_now() })).toBeDisabled()
   })
 
   it('rejects files that are not images', () => {

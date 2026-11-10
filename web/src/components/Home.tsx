@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { m } from '../paraglide/messages.js'
 import { buildEvidence } from '../domain/investigation'
+import { sharedContent, type SharedContent } from '../domain/share'
+import { useImageInput } from '../hooks/useImageInput'
 import { useInvestigation } from '../hooks/useInvestigation'
+import { useSharedInbox } from '../hooks/useSharedInbox'
 import { usePreferences } from '../prefs/context'
 import type { InputTab } from '../types'
 import { ErrorView } from './ErrorView'
@@ -16,23 +19,26 @@ interface HomeProps {
   onPrivacy: () => void
 }
 
-// Web Share Target / deep links: shared content arrives prefilled.
-function readSharedContent(): { tab: InputTab; content: string } {
-  const params = new URLSearchParams(window.location.search)
-  const sharedUrl = params.get('url')
-  const sharedText = params.get('text') || params.get('title')
-  if (sharedUrl) return { tab: 'url', content: sharedUrl }
-  if (sharedText) return { tab: 'text', content: sharedText }
-  return { tab: 'text', content: '' }
+// Deep links (?url=, ?text=) arrive prefilled; a photo can only come through the share inbox.
+function readDeepLink(): { tab: InputTab; content: string } {
+  const shared = sharedContent(new URLSearchParams(window.location.search))
+  return shared && shared.tab !== 'image' ? shared : { tab: 'text', content: '' }
 }
 
 export function Home({ onLearn, onPrivacy }: HomeProps) {
   const { prefs } = usePreferences()
-  const [shared] = useState(readSharedContent)
-  const [tab, setTab] = useState<InputTab>(shared.tab)
-  const [content, setContent] = useState(shared.content)
-  const [imageB64, setImageB64] = useState<string | null>(null)
+  const [deepLink] = useState(readDeepLink)
+  const [tab, setTab] = useState<InputTab>(deepLink.tab)
+  const [content, setContent] = useState(deepLink.content)
+  const image = useImageInput()
   const { state, start, reset } = useInvestigation()
+
+  // Shared from another app: lands in its tab, so the person only taps "check now".
+  useSharedInbox((shared: SharedContent) => {
+    setTab(shared.tab)
+    if (shared.tab === 'image') image.pick(shared.file)
+    else setContent(shared.content)
+  })
 
   // Switching between photo and text clears the field: content from one doesn't fit the other.
   const changeTab = (next: InputTab) => {
@@ -41,14 +47,14 @@ export function Home({ onLearn, onPrivacy }: HomeProps) {
   }
 
   const investigate = () => {
-    const evidence = buildEvidence(tab, content, imageB64)
+    const evidence = buildEvidence(tab, content, image.imageB64)
     if (evidence) start(evidence)
   }
 
   const startOver = () => {
     reset()
     setContent('')
-    setImageB64(null)
+    image.clear()
   }
 
   if (state.status === 'scanning') {
@@ -75,8 +81,7 @@ export function Home({ onLearn, onPrivacy }: HomeProps) {
         onTabChange={changeTab}
         content={content}
         onContentChange={setContent}
-        imageB64={imageB64}
-        onImageChange={setImageB64}
+        image={image}
         onScan={investigate}
         onPrivacy={onPrivacy}
       />

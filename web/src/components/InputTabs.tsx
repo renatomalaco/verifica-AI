@@ -1,5 +1,6 @@
 import { useRef, type KeyboardEvent } from 'react'
 import { m } from '../paraglide/messages.js'
+import type { ImageInput } from '../hooks/useImageInput'
 import type { InputTab } from '../types'
 import { ClipboardIcon } from './Icons'
 import { ImagePicker } from './ImagePicker'
@@ -10,8 +11,7 @@ interface InputTabsProps {
   onTabChange: (tab: InputTab) => void
   content: string
   onContentChange: (content: string) => void
-  imageB64: string | null
-  onImageChange: (imageB64: string | null) => void
+  image: ImageInput
   onScan: () => void
   onPrivacy?: () => void
 }
@@ -22,10 +22,10 @@ const TABS: { id: InputTab; label: () => string }[] = [
   { id: 'image', label: m.home_tab_image },
 ]
 
-export function InputTabs({ tab, onTabChange, content, onContentChange, imageB64, onImageChange, onScan, onPrivacy }: InputTabsProps) {
+export function InputTabs({ tab, onTabChange, content, onContentChange, image, onScan, onPrivacy }: InputTabsProps) {
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
-  const canSubmit = tab === 'image' ? !!imageB64 : content.trim().length > 0
+  const canSubmit = tab === 'image' ? !!image.imageB64 : content.trim().length > 0
 
   const handlePaste = async () => {
     try {
@@ -111,7 +111,7 @@ export function InputTabs({ tab, onTabChange, content, onContentChange, imageB64
           </>
         )}
 
-        {tab === 'image' && <ImagePicker imageB64={imageB64} onImageChange={onImageChange} />}
+        {tab === 'image' && <ImagePicker image={image} />}
       </div>
 
       <button type="button" className="btn btn-primary" onClick={onScan} disabled={!canSubmit}>
