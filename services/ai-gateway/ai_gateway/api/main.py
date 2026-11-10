@@ -3,15 +3,14 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import create_async_engine
 from contracts import TriageRequest, TriageResult, BrandMatchRequest, BrandMatchResult, ExplainRequest, ExplainResult
 from ai_gateway.settings import Settings
-from ai_gateway.domain.sanitizer import sanitize_text
-from ai_gateway.domain.data_masker import mask_pii
-from ai_gateway.domain.envelope import build_envelope
+from ai_gateway.domain.envelope import guard_for_model
 from ai_gateway.domain.brand_matcher import MatchPolicy
 from ai_gateway.application.match_brand import BrandCatalog, BrandVerifier, MatchBrandUseCase, VisualEmbedder
 from ai_gateway.infrastructure.pgvector_catalog import PgvectorBrandCatalog
 from ai_gateway.infrastructure.siglip_embedder import SiglipEmbedder
 from ai_gateway.infrastructure.gemini_brand_verifier import GeminiBrandVerifier
 from ai_gateway.infrastructure.jev_client import JevClient, FakeJevClient, HttpJevClient
+from ai_gateway.infrastructure.gemini_triage_client import GeminiTriageClient
 from ai_gateway.domain.explanation import ExplanationProvider
 from ai_gateway.infrastructure.explanation_provider import FakeExplanationProvider, GeminiExplanationProvider
 
@@ -77,6 +76,13 @@ def get_jev_client(settings: Settings = Depends(get_settings)) -> JevClient:
             api_key=settings.JEV_API_KEY,
             timeout_seconds=settings.JEV_TIMEOUT_SECONDS,
         )
+    if settings.AI_PROVIDER.lower() == "gemini" and settings.GEMINI_API_KEY:
+        return GeminiTriageClient(
+            base_url=settings.GEMINI_BASE_URL,
+            api_key=settings.GEMINI_API_KEY,
+            model=settings.GEMINI_MODEL,
+            timeout_seconds=settings.GEMINI_TIMEOUT_SECONDS,
+        )
     return FakeJevClient()
 
 
@@ -102,8 +108,7 @@ async def triage(
     jev_client: JevClient = Depends(get_jev_client),
 ):
     # PII is masked (LGPD) and the text wrapped in the anti-prompt-injection envelope before reaching the model.
-    envelope = build_envelope(mask_pii(sanitize_text(request.text)))
-    return await jev_client.classify(envelope)
+    return await jev_client.classify(guard_for_model(request.text))
 
 
 @app.post("/v1/brand-match", response_model=BrandMatchResult)

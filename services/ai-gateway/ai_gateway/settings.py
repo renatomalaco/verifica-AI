@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    AI_PROVIDER: str = "fake"  # 'fake' or 'jev'
+    AI_PROVIDER: str = "fake"  # triage model: 'fake', 'jev' or 'gemini' (reuses the GEMINI_* settings)
     JEV_BASE_URL: str = "https://api.typesafe.ai"
     JEV_API_KEY: str = ""
     JEV_TIMEOUT_SECONDS: float = 1.5

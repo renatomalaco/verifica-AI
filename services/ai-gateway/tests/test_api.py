@@ -114,3 +114,16 @@ def test_the_vlm_is_off_without_a_gemini_key():
     assert get_brand_verifier(Settings(_env_file=None, VLM_PROVIDER="gemini", GEMINI_API_KEY="")) is None
     assert get_brand_verifier(Settings(_env_file=None, VLM_PROVIDER="none", GEMINI_API_KEY="k")) is None
     assert get_brand_verifier(Settings(_env_file=None, VLM_PROVIDER="gemini", GEMINI_API_KEY="k")) is not None
+
+
+def test_triage_provider_follows_ai_provider():
+    from ai_gateway.infrastructure.gemini_triage_client import GeminiTriageClient
+    from ai_gateway.infrastructure.jev_client import FakeJevClient, HttpJevClient
+
+    gemini = Settings(_env_file=None, AI_PROVIDER="gemini", GEMINI_API_KEY="k")
+    jev = Settings(_env_file=None, AI_PROVIDER="jev", JEV_API_KEY="k")
+    keyless = Settings(_env_file=None, AI_PROVIDER="gemini", GEMINI_API_KEY="")
+
+    assert isinstance(get_jev_client(gemini), GeminiTriageClient)
+    assert isinstance(get_jev_client(jev), HttpJevClient)
+    assert isinstance(get_jev_client(keyless), FakeJevClient)
