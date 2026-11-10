@@ -11,7 +11,7 @@ from PIL import Image
 from ai_gateway.api.main import app as gateway_app, get_brand_catalog, get_brand_verifier, get_visual_embedder
 from ai_gateway.infrastructure.fakes import FakeBrandCatalog, FakeVisualEmbedder, one_hot
 from url_inspector.api.main import app as inspector_app, get_browser_driver
-from url_inspector.domain.browser_driver import FakeBrowserDriver
+from url_inspector.infrastructure.fakes import FakeBrowserDriver
 from contracts import InspectResult
 from image_extractor.api.main import app as image_app
 from scan_orchestrator.api.main import app as orchestrator_app
