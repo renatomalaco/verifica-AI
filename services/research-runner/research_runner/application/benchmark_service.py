@@ -35,7 +35,12 @@ async def run_mode(
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> ModeEvaluation:
     if evaluator is None:
-        return ModeEvaluation(mode=mode, metrics=calculate_metrics([]), status="not_executed", note=not_executed_reason)
+        return ModeEvaluation(
+            mode=mode,
+            metrics=calculate_metrics([]),
+            status="not_executed",
+            note=not_executed_reason,
+        )
 
     predictions = []
     for index, sample in enumerate(samples):
@@ -50,7 +55,9 @@ async def run_mode(
     )
 
 
-async def _predict(evaluator: Evaluator, sample: Sample, clock: Callable[[], float]) -> SamplePrediction:
+async def _predict(
+    evaluator: Evaluator, sample: Sample, clock: Callable[[], float]
+) -> SamplePrediction:
     started = clock()
     outcome = await evaluator.evaluate(sample)
     latency_ms = (clock() - started) * 1000.0

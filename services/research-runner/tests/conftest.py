@@ -15,7 +15,13 @@ GEMINI = dict(
     GEMINI_PRICE_OUTPUT_USD_PER_1M=2.50,
     GEMINI_PRICE_DATE="2026-11-01",
 )
-JEV = dict(AI_PROVIDER="jev", JEV_API_KEY="k", JEV_BASE_URL=JEV_BASE, JEV_PRICE_USD_PER_1K_CALLS=2.0, JEV_PRICE_DATE="2026-11-01")
+JEV = dict(
+    AI_PROVIDER="jev",
+    JEV_API_KEY="k",
+    JEV_BASE_URL=JEV_BASE,
+    JEV_PRICE_USD_PER_1K_CALLS=2.0,
+    JEV_PRICE_DATE="2026-11-01",
+)
 GEMINI_CALL_USD = 0.0013  # 1000 input and 400 billed output tokens at the GEMINI prices above
 JEV_CALL_USD = 0.002
 
@@ -53,15 +59,28 @@ class ModelStub:
 
 
 def _gemini_reply(scam_probability: float) -> dict:
-    answer = {"is_phishing": scam_probability, "requires_visual_inspection": 0.0, "persuasion": "urgencia"}
+    answer = {
+        "is_phishing": scam_probability,
+        "requires_visual_inspection": 0.0,
+        "persuasion": "urgencia",
+    }
     return {
         "candidates": [{"content": {"parts": [{"text": json.dumps(answer)}]}}],
-        "usageMetadata": {"promptTokenCount": 1000, "candidatesTokenCount": 100, "thoughtsTokenCount": 300},
+        "usageMetadata": {
+            "promptTokenCount": 1000,
+            "candidatesTokenCount": 100,
+            "thoughtsTokenCount": 300,
+        },
     }
 
 
 def _jev_reply(scam_probability: float) -> dict:
-    return {"answers": {"is_phishing": {"probability": scam_probability}, "persuasion": {"selected": "urgencia"}}}
+    return {
+        "answers": {
+            "is_phishing": {"probability": scam_probability},
+            "persuasion": {"selected": "urgencia"},
+        }
+    }
 
 
 @pytest.fixture

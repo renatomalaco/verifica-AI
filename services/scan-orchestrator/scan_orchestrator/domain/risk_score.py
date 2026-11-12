@@ -13,5 +13,6 @@ class RiskScore:
     def __post_init__(self):
         if not (0.0 <= self.value <= 1.0):
             raise ValueError(
-                f"Invariante violada: RiskScore deve estar normalizado entre 0.0 e 1.0. Valor recebido: {self.value}"
+                "Invariante violada: RiskScore deve estar normalizado entre 0.0 e 1.0. "
+                f"Valor recebido: {self.value}"
             )

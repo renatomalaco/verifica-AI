@@ -29,7 +29,9 @@ class MatchPolicy:
 
     def __post_init__(self) -> None:
         if self.gray_floor > self.threshold:
-            raise ValueError(f"gray_floor {self.gray_floor} is above the threshold {self.threshold}")
+            raise ValueError(
+                f"gray_floor {self.gray_floor} is above the threshold {self.threshold}"
+            )
 
     def zone(self, similarity: float) -> MatchZone:
         if similarity >= self.threshold:
@@ -59,4 +61,6 @@ def _belongs_to(site: tldextract.ExtractResult, entry: str) -> bool:
 
 def ensure_dimension(embedding: list[float], expected: int) -> None:
     if len(embedding) != expected:
-        raise ValueError(f"Embedding dimension {len(embedding)} does not match the catalog dimension {expected}")
+        raise ValueError(
+            f"Embedding dimension {len(embedding)} does not match the catalog dimension {expected}"
+        )

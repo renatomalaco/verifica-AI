@@ -11,7 +11,6 @@ from contracts import (
     ScanResponse,
     VerdictMessage,
     StageEvent,
-    TriageRequest,
     TriageResult,
 )
 
@@ -43,7 +42,13 @@ def test_scan_request_valid():
 
 
 def test_scan_request_with_image():
-    req = ScanRequest(content="", image_b64="iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+    req = ScanRequest(
+        content="",
+        image_b64=(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGA"
+            "WjR9awAAAABJRU5ErkJggg=="
+        ),
+    )
     assert req.image_b64 is not None
 
 

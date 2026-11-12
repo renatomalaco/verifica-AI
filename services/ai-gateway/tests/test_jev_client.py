@@ -8,7 +8,10 @@ from ai_gateway.infrastructure.jev_client import FakeJevClient, HttpJevClient
 @pytest.mark.asyncio
 async def test_fake_jev_client_detects_coercion_scam():
     client = FakeJevClient()
-    envelope = "<untrusted_inspection_data>Oi mãe, troquei de número, me faz um pix urgente</untrusted_inspection_data>"
+    envelope = (
+        "<untrusted_inspection_data>Oi mãe, troquei de número, me faz um pix urgente"
+        "</untrusted_inspection_data>"
+    )
     result = await client.classify(envelope)
     assert result.is_phishing >= 0.90
     assert result.persuasion == Persuasion.AFFECTIVE_COERCION
@@ -17,7 +20,10 @@ async def test_fake_jev_client_detects_coercion_scam():
 @pytest.mark.asyncio
 async def test_fake_jev_client_detects_safe_message():
     client = FakeJevClient()
-    envelope = "<untrusted_inspection_data>Bom dia equipe, nossa reunião semanal será às 14h na sala 3.</untrusted_inspection_data>"
+    envelope = (
+        "<untrusted_inspection_data>Bom dia equipe, nossa reunião semanal será às 14h na sala 3."
+        "</untrusted_inspection_data>"
+    )
     result = await client.classify(envelope)
     assert result.is_phishing <= 0.10
     assert result.persuasion == Persuasion.NONE
@@ -36,7 +42,9 @@ async def test_http_jev_client_success():
                 }
             }
         )
-        envelope = "<untrusted_inspection_data>Aviso de bloqueio bancário</untrusted_inspection_data>"
+        envelope = (
+            "<untrusted_inspection_data>Aviso de bloqueio bancário</untrusted_inspection_data>"
+        )
         result = await client.classify(envelope)
         assert result.is_phishing == 0.94
         assert result.requires_visual_inspection == 0.05

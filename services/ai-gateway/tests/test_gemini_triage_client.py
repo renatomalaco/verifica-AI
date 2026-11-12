@@ -10,7 +10,12 @@ from ai_gateway.infrastructure.gemini_triage_client import GeminiTriageClient
 GEMINI_BASE = "https://gemini.test"
 ROUTE = "/v1beta/models/gemini-x:generateContent"
 ENVELOPE = "<untrusted_inspection_data>Oi mãe, me faz um pix urgente</untrusted_inspection_data>"
-USAGE = {"promptTokenCount": 120, "candidatesTokenCount": 30, "thoughtsTokenCount": 50, "totalTokenCount": 200}
+USAGE = {
+    "promptTokenCount": 120,
+    "candidatesTokenCount": 30,
+    "thoughtsTokenCount": 50,
+    "totalTokenCount": 200,
+}
 ANSWER = {"is_phishing": 0.97, "requires_visual_inspection": 0.1, "persuasion": "coercao_afetiva"}
 
 

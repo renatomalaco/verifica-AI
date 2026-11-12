@@ -42,4 +42,8 @@ def test_popular_old_domain_is_reputable_but_never_safe_by_itself():
 
 def test_evidence_becomes_readable_signals():
     assert YOUNG.as_signals() == {"domain_age_days": "5"}
-    assert OLD.as_signals() == {"domain_age_days": "4000", "certificate_age_days": "900", "tranco_rank": "500"}
+    assert OLD.as_signals() == {
+        "domain_age_days": "4000",
+        "certificate_age_days": "900",
+        "tranco_rank": "500",
+    }

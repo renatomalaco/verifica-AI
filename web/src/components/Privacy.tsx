@@ -75,6 +75,7 @@ export function Privacy({ onBack }: PrivacyProps) {
         <ul className="bullet-list bullet-list--ok">
           <li>{m.privacy_during_masking()}</li>
           <li>{m.privacy_during_isolated_browser()}</li>
+          <li>{m.privacy_during_rate_limit()}</li>
         </ul>
       </PrivacySection>
 

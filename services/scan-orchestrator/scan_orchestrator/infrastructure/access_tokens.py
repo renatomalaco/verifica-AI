@@ -26,11 +26,17 @@ def generate_key_pair() -> tuple[str, str]:
     private = Ed25519PrivateKey.generate()
     public_raw = private.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
     private_raw = private.private_bytes_raw()
-    return base64.b64encode(private_raw).decode("ascii"), base64.b64encode(public_raw).decode("ascii")
+    return base64.b64encode(private_raw).decode("ascii"), base64.b64encode(public_raw).decode(
+        "ascii"
+    )
 
 
 class AccessTokenIssuer:
-    def __init__(self, private_key_b64: str, clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)) -> None:
+    def __init__(
+        self,
+        private_key_b64: str,
+        clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+    ) -> None:
         if not private_key_b64:
             raise ValueError("AUTH_JWT_PRIVATE_KEY is not set")
         self._key = Ed25519PrivateKey.from_private_bytes(base64.b64decode(private_key_b64))
@@ -38,13 +44,23 @@ class AccessTokenIssuer:
 
     def issue(self, account_id: UUID, role: ResearchRole) -> str:
         now = self._clock()
-        claims = {"sub": str(account_id), "role": role.value, "iss": ISSUER, "iat": now, "exp": now + ACCESS_TOKEN_TTL}
+        claims = {
+            "sub": str(account_id),
+            "role": role.value,
+            "iss": ISSUER,
+            "iat": now,
+            "exp": now + ACCESS_TOKEN_TTL,
+        }
         return jwt.encode(claims, self._key, algorithm=ALGORITHM)
 
 
 class AccessTokenVerifier:
     def __init__(self, public_key_b64: str) -> None:
-        self._key = Ed25519PublicKey.from_public_bytes(base64.b64decode(public_key_b64)) if public_key_b64 else None
+        self._key = (
+            Ed25519PublicKey.from_public_bytes(base64.b64decode(public_key_b64))
+            if public_key_b64
+            else None
+        )
 
     def verify(self, token: str | None) -> Principal | None:
         """The caller behind a valid token, or None for anything missing, forged or expired."""
@@ -52,7 +68,11 @@ class AccessTokenVerifier:
             return None
         try:
             claims = jwt.decode(
-                token, self._key, algorithms=[ALGORITHM], issuer=ISSUER, options={"require": ["sub", "exp", "role"]}
+                token,
+                self._key,
+                algorithms=[ALGORITHM],
+                issuer=ISSUER,
+                options={"require": ["sub", "exp", "role"]},
             )
             return Principal(account_id=UUID(claims["sub"]), role=ResearchRole(claims["role"]))
         except (jwt.InvalidTokenError, ValueError):

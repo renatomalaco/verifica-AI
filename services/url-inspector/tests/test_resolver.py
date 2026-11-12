@@ -25,3 +25,18 @@ async def test_resolve_safe_ip_rejects_mixed_dns_response():
         ]
         with pytest.raises(SsrfBlockedException):
             await resolve_safe_ip("adversarial-rebinding.com")
+
+
+@pytest.mark.asyncio
+async def test_resolve_safe_ip_reports_a_dns_failure():
+    # The egress proxy turns this into a 403: an unresolvable host is never fetched.
+    with patch("socket.getaddrinfo", side_effect=socket.gaierror("Name or service not known")):
+        with pytest.raises(RuntimeError, match="DNS resolution failed"):
+            await resolve_safe_ip("nao-existe.invalid")
+
+
+@pytest.mark.asyncio
+async def test_resolve_safe_ip_reports_an_empty_answer():
+    with patch("socket.getaddrinfo", return_value=[]):
+        with pytest.raises(RuntimeError, match="No IP address"):
+            await resolve_safe_ip("vazio.example")

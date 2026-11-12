@@ -1,0 +1,5 @@
+[flake8]
+max-line-length = 100
+# E203 and W503 contradict the black/ruff formatting style (slices and line breaks before operators).
+extend-ignore = E203,W503
+exclude = .venv,__pycache__

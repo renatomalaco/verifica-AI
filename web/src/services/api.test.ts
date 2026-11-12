@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { explainScan, fetchResearchReport, runStudy, scanDirect, scanStream } from './api'
+import { ScanRateLimitedError } from '../domain/investigation'
 import type { ScanResponse, StageEvent } from '../types'
 
 describe('API Service', () => {
@@ -45,6 +46,34 @@ describe('API Service', () => {
     })
 
     await expect(scanDirect({ content: 'teste' })).rejects.toThrow('Scan failed')
+  })
+
+  it('scanDirect turns the flood guard 429 into a rate-limit error with the retry time', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(rateLimitedResponse())
+
+    const error = await scanDirect({ content: 'teste' }).catch((e) => e)
+    expect(error).toBeInstanceOf(ScanRateLimitedError)
+    expect(error.retryAt).toBe('2026-11-10T17:32:00Z')
+  })
+
+  it('scanStream reports the flood guard 429 as a rate-limit error', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(rateLimitedResponse())
+    const onError = vi.fn()
+
+    await scanStream({ content: 'teste' }, vi.fn(), vi.fn(), onError)
+
+    const error = onError.mock.calls[0][0]
+    expect(error).toBeInstanceOf(ScanRateLimitedError)
+    expect(error.retryAt).toBe('2026-11-10T17:32:00Z')
+  })
+
+  it('scanStream treats any other 429 as a generic failure', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 429, json: async () => ({}), text: async () => '' })
+    const onError = vi.fn()
+
+    await scanStream({ content: 'teste' }, vi.fn(), vi.fn(), onError)
+
+    expect(onError.mock.calls[0][0]).not.toBeInstanceOf(ScanRateLimitedError)
   })
 
   it('scanStream processes SSE stage events and verdict event', async () => {
@@ -129,3 +158,8 @@ describe('API Service', () => {
     await expect(runStudy()).rejects.toThrow()
   })
 })
+
+function rateLimitedResponse() {
+  const body = { code: 'scan_rate_limited', retry_at: '2026-11-10T17:32:00Z' }
+  return { ok: false, status: 429, json: async () => body, text: async () => JSON.stringify(body) }
+}

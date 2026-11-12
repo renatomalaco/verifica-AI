@@ -59,3 +59,23 @@ test('the tabs follow the ARIA keyboard pattern', async ({ page }) => {
   await expect(page.getByRole('tab', { name: m.home_tab_url() })).toBeFocused()
   await expect(page.getByRole('tab', { name: m.home_tab_url() })).toHaveAttribute('aria-selected', 'true')
 })
+
+test('too many scans in a row: the person is told about the short pause and can retry', async ({ page }) => {
+  await page.route('**/api/v1/scans/stream', (route) =>
+    route.fulfill({
+      status: 429,
+      contentType: 'application/json',
+      headers: { 'Retry-After': '30' },
+      body: JSON.stringify({ code: 'scan_rate_limited', retry_at: '2026-11-10T17:32:00Z' }),
+    })
+  )
+  await page.goto('/')
+
+  await page.getByLabel(m.home_text_label()).fill('Oi mãe, troquei de número. Me manda um pix?')
+  await page.getByRole('button', { name: m.home_check_now() }).click()
+
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText('Foram muitas verificações seguidas nesta conexão')
+  await expect(alert).toContainText(/Tente de novo a partir das \d{2}:\d{2}/)
+  await expect(page.getByRole('button', { name: m.common_retry() })).toBeVisible()
+})

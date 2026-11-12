@@ -13,7 +13,8 @@ class PasswordHasher:
 
     def verify(self, password: str, password_hash: str | None) -> bool:
         if password_hash is None:
-            # Pay the same cost as a real check, so the response time does not reveal unknown accounts.
+            # Pay the same cost as a real check, so the response time does not reveal
+            # unknown accounts.
             self._hash.verify(password, self._dummy_hash)
             return False
         return self._hash.verify(password, password_hash)

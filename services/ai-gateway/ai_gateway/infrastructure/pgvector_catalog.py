@@ -8,7 +8,8 @@ from ai_gateway.domain.brand_matcher import BrandCandidate
 # The vector goes as text and is cast in SQL, so asyncpg needs no pgvector codec.
 _NEAREST = text(
     """
-    SELECT m.brand_name, 1 - (r.logo_embedding <=> CAST(CAST(:query AS TEXT) AS vector)) AS similarity
+    SELECT m.brand_name, 1 - (r.logo_embedding <=> CAST(CAST(:query AS TEXT) AS vector))"""
+    """ AS similarity
     FROM marcas_referencias r
     JOIN marcas_protegidas m ON m.id = r.brand_id
     ORDER BY r.logo_embedding <=> CAST(CAST(:query AS TEXT) AS vector)
@@ -34,7 +35,8 @@ _UPSERT_REFERENCE = text(
 
 
 class PgvectorBrandCatalog:
-    """Protected brand references in Postgres, searched by cosine distance (<=>) on an HNSW index."""
+    """Protected brand references in Postgres, searched by cosine distance (<=>)
+    on an HNSW index."""
 
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
@@ -48,10 +50,17 @@ class PgvectorBrandCatalog:
 
     async def save_reference(self, brand: str, source: str, embedding: list[float]) -> None:
         async with self._engine.begin() as conn:
-            brand_id = (await conn.execute(_UPSERT_BRAND, {"id": uuid4(), "name": brand})).scalar_one()
+            brand_id = (
+                await conn.execute(_UPSERT_BRAND, {"id": uuid4(), "name": brand})
+            ).scalar_one()
             await conn.execute(
                 _UPSERT_REFERENCE,
-                {"id": uuid4(), "brand_id": brand_id, "source": source, "embedding": _vector_literal(embedding)},
+                {
+                    "id": uuid4(),
+                    "brand_id": brand_id,
+                    "source": source,
+                    "embedding": _vector_literal(embedding),
+                },
             )
 
 

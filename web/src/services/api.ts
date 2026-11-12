@@ -1,4 +1,5 @@
 import { getLocale } from '../paraglide/runtime.js'
+import { ScanRateLimitedError } from '../domain/investigation'
 import { researchFetch } from './researchAuth'
 import type { ExplainResponse, ResearchReport, ScanRequest, ScanResponse, StageEvent } from '../types'
 
@@ -62,12 +63,21 @@ export async function scanDirect(
     signal,
   })
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Erro desconhecido')
-    throw new Error(`Scan failed (${response.status}): ${errorText}`)
-  }
+  if (!response.ok) await throwScanFailure(response, 'Scan failed')
 
   return response.json()
+}
+
+// The flood guard answers 429 with a code; anything else stays a generic failure.
+async function throwScanFailure(response: Response, label: string): Promise<never> {
+  if (response.status === 429) {
+    const body = await response.json().catch(() => ({}))
+    if (body?.code === 'scan_rate_limited') {
+      throw new ScanRateLimitedError(typeof body.retry_at === 'string' ? body.retry_at : null)
+    }
+  }
+  const detail = await response.text().catch(() => '')
+  throw new Error(`${label} (${response.status}): ${detail}`)
 }
 
 export async function scanStream(
@@ -88,10 +98,7 @@ export async function scanStream(
       signal,
     })
 
-    if (!response.ok) {
-      const err = await response.text().catch(() => 'Server response failed')
-      throw new Error(`Scanner connection error (${response.status}): ${err}`)
-    }
+    if (!response.ok) await throwScanFailure(response, 'Scanner connection error')
 
     if (!response.body) {
       // Fallback to direct scan if ReadableStream is not available

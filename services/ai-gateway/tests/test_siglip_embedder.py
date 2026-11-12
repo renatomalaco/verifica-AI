@@ -1,6 +1,8 @@
 import base64
 import io
 import math
+import sys
+import types
 
 import pytest
 from PIL import Image
@@ -39,10 +41,36 @@ def test_decode_image_rejects_what_is_not_an_image():
         decode_image(base64.b64encode(b"not an image").decode())
 
 
+def test_the_model_is_downloaded_at_a_pinned_revision(monkeypatch):
+    # Supply chain: a moved Hugging Face branch must not swap the weights under us.
+    calls = []
+
+    class Recorder:
+        @classmethod
+        def from_pretrained(cls, name, revision=None):
+            calls.append((name, revision))
+            return cls()
+
+        def eval(self):
+            return self
+
+    fake = types.SimpleNamespace(AutoImageProcessor=Recorder, SiglipModel=Recorder)
+    monkeypatch.setitem(sys.modules, "transformers", fake)
+    embedder = SiglipEmbedder(model_name="google/siglip", revision="abc123", dimension=768)
+
+    embedder._load()
+
+    assert calls == [("google/siglip", "abc123"), ("google/siglip", "abc123")]
+
+
 @pytest.mark.integration
 async def test_real_siglip_gives_768_unit_vectors_robust_to_recompression():
     pytest.importorskip("transformers", reason="install the ai-gateway 'siglip' extra")
-    embedder = SiglipEmbedder(model_name="google/siglip-base-patch16-224", dimension=768)
+    embedder = SiglipEmbedder(
+        model_name="google/siglip-base-patch16-224",
+        revision="7fd15f0689c79d79e38b1c2e2e2370a7bf2761ed",
+        dimension=768,
+    )
 
     original = await embedder.embed_image(_jpeg_b64((10, 80, 120)))
     recompressed = await embedder.embed_image(_jpeg_b64((10, 80, 120), quality=60))

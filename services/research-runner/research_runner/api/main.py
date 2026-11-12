@@ -37,13 +37,17 @@ async def health() -> dict[str, str]:
 async def latest_report() -> dict[str, Any]:
     report = read_report(reports_dir())
     if report is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No study has been run yet.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No study has been run yet."
+        )
     return {**report, "latex_table": generate_latex_table(report["modes"])}
 
 
 # Admin only: the study is heavy and, with Gemini, paid.
 @app.post("/pesquisa/run", dependencies=[Depends(require_study_runner)])
 async def run_pesquisa() -> dict[str, Any]:
-    report = await run_study(load_samples(), StudyConfig(), providers_from_settings(ResearchSettings()))
+    report = await run_study(
+        load_samples(), StudyConfig(), providers_from_settings(ResearchSettings())
+    )
     write_report(report, reports_dir())
     return report

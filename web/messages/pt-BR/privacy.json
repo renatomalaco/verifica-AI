@@ -24,6 +24,7 @@
   "privacy_traces_kept": "quais serviços e etapas foram usados, quanto tempo cada um levou, se deu erro e o resultado (golpe, cuidado, seguro ou sem certeza).",
   "privacy_traces_never": "Ele nunca guarda o texto, o link ou o print que você colou, o endereço do site investigado, o texto lido do print nem o seu endereço de internet (IP).",
   "privacy_traces_retention": "O registro de cada análise se apaga sozinho em 7 dias. Os tempos somados de todas as análises, que não mostram nenhuma delas isolada, ficam por 30 dias. Só o autor do TCC vê esses registros, no próprio servidor.",
+  "privacy_during_rate_limit": "Para evitar abuso, o endereço de internet de quem pede uma verificação fica guardado por no máximo 1 minuto, separado da análise, só para contar quantas verificações seguidas foram feitas.",
   "privacy_quota_title": "O limite do “Me explica”",
   "privacy_quota_text": "Para contar quantas explicações já foram pedidas, o navegador guarda um código aleatório, que não diz quem você é. Os contadores se apagam sozinhos: o do dia em até 2 dias, o do mês em até 32 dias. O endereço de internet é usado só para evitar abuso e fica guardado por no máximo 1 hora.",
   "privacy_device_title": "Neste aparelho",

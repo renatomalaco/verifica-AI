@@ -51,7 +51,9 @@ def _decode_idn(host: str) -> str:
     labels = []
     for label in host.split("."):
         try:
-            labels.append(label.encode("ascii").decode("idna") if label.startswith("xn--") else label)
+            labels.append(
+                label.encode("ascii").decode("idna") if label.startswith("xn--") else label
+            )
         except UnicodeError:
             labels.append(label)
     return ".".join(labels)

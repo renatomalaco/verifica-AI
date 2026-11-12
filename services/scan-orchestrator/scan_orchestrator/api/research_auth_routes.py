@@ -1,4 +1,6 @@
-"""Sign-in endpoints of the research area (R5a). Error bodies carry codes; the front end words them."""
+"""Sign-in endpoints of the research area (R5a).
+
+Error bodies carry codes; the front end words them."""
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -19,7 +21,12 @@ from scan_orchestrator.application.research_auth import (
     SessionRejectedError,
     SignedIn,
 )
-from scan_orchestrator.domain.research_access import Account, Principal, TooManyAttemptsError, WeakPasswordError
+from scan_orchestrator.domain.research_access import (
+    Account,
+    Principal,
+    TooManyAttemptsError,
+    WeakPasswordError,
+)
 from scan_orchestrator.infrastructure.access_tokens import ACCESS_TOKEN_TTL
 from scan_orchestrator.settings import Settings
 
@@ -36,11 +43,19 @@ def _signed_in_response(signed_in: SignedIn, settings: Settings) -> JSONResponse
     response = JSONResponse(_user(signed_in.account).model_dump(mode="json"))
     cookie = {"httponly": True, "secure": settings.AUTH_COOKIE_SECURE, "samesite": "strict"}
     response.set_cookie(
-        ACCESS_COOKIE, signed_in.access_token, max_age=int(ACCESS_TOKEN_TTL.total_seconds()), path="/", **cookie
+        ACCESS_COOKIE,
+        signed_in.access_token,
+        max_age=int(ACCESS_TOKEN_TTL.total_seconds()),
+        path="/",
+        **cookie,
     )
     # The refresh token only travels to the refresh endpoint, never to the rest of the API.
     response.set_cookie(
-        REFRESH_COOKIE, signed_in.refresh_token, max_age=int(REFRESH_TTL.total_seconds()), path=REFRESH_PATH, **cookie
+        REFRESH_COOKIE,
+        signed_in.refresh_token,
+        max_age=int(REFRESH_TTL.total_seconds()),
+        path=REFRESH_PATH,
+        **cookie,
     )
     return response
 
@@ -81,7 +96,9 @@ async def refresh(
     try:
         signed_in = await auth.refresh(request.cookies.get(REFRESH_COOKIE, ""))
     except SessionRejectedError:
-        response = JSONResponse({"detail": "session_expired"}, status_code=status.HTTP_401_UNAUTHORIZED)
+        response = JSONResponse(
+            {"detail": "session_expired"}, status_code=status.HTTP_401_UNAUTHORIZED
+        )
         _clear_cookies(response, settings)
         return response
     return _signed_in_response(signed_in, settings)
@@ -111,11 +128,15 @@ async def me(
 
 
 @router.post("/invites/accept", status_code=status.HTTP_204_NO_CONTENT)
-async def accept_invite(body: AcceptInviteRequest, auth: ResearchAuth = Depends(get_research_auth)) -> Response:
+async def accept_invite(
+    body: AcceptInviteRequest, auth: ResearchAuth = Depends(get_research_auth)
+) -> Response:
     try:
         await auth.accept_invite(body.token, body.password)
     except InviteInvalidError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invite_invalid")
     except WeakPasswordError:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="password_too_short")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="password_too_short"
+        )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -23,21 +23,30 @@ def rdap_body(registered: str) -> dict:
 
 async def test_rdap_uses_registro_br_for_br_domains_and_counts_days():
     async with respx.mock() as mock:
-        mock.get("https://rdap.registro.br/domain/golpe.com.br").respond(json=rdap_body("2026-10-25T10:00:00Z"))
+        mock.get("https://rdap.registro.br/domain/golpe.com.br").respond(
+            json=rdap_body("2026-10-25T10:00:00Z")
+        )
         assert await RdapClient(today=lambda: TODAY).age_days("www.golpe.com.br") == 3
 
 
 async def test_rdap_uses_the_generic_bootstrap_for_other_domains():
     async with respx.mock() as mock:
-        mock.get("https://rdap.org/domain/exemplo.com").respond(json=rdap_body("2016-10-28T00:00:00Z"))
+        mock.get("https://rdap.org/domain/exemplo.com").respond(
+            json=rdap_body("2016-10-28T00:00:00Z")
+        )
         assert await RdapClient(today=lambda: TODAY).age_days("exemplo.com") == 3652
 
 
-@pytest.mark.parametrize("reply", [httpx.Response(404), httpx.Response(200, json={"events": []}), httpx.ConnectTimeout("lento")])
+@pytest.mark.parametrize(
+    "reply",
+    [httpx.Response(404), httpx.Response(200, json={"events": []}), httpx.ConnectTimeout("lento")],
+)
 async def test_rdap_failure_means_unknown(reply):
     async with respx.mock() as mock:
         route = mock.get("https://rdap.org/domain/exemplo.com")
-        route.mock(side_effect=reply) if isinstance(reply, Exception) else route.mock(return_value=reply)
+        route.mock(side_effect=reply) if isinstance(reply, Exception) else route.mock(
+            return_value=reply
+        )
         assert await RdapClient(today=lambda: TODAY).age_days("exemplo.com") is None
 
 
@@ -83,9 +92,13 @@ class Broken:
 
 async def test_client_combines_the_three_sources():
     client = HttpDomainEvidenceClient(rdap=Fixed(10), crtsh=Fixed(8), tranco=Fixed(None))
-    assert await client.lookup("x.com") == DomainEvidence(age_days=10, certificate_age_days=8, tranco_rank=None)
+    assert await client.lookup("x.com") == DomainEvidence(
+        age_days=10, certificate_age_days=8, tranco_rank=None
+    )
 
 
 async def test_one_broken_source_does_not_hide_the_others():
     client = HttpDomainEvidenceClient(rdap=Broken(), crtsh=Fixed(8), tranco=Fixed(42))
-    assert await client.lookup("x.com") == DomainEvidence(age_days=None, certificate_age_days=8, tranco_rank=42)
+    assert await client.lookup("x.com") == DomainEvidence(
+        age_days=None, certificate_age_days=8, tranco_rank=42
+    )

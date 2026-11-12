@@ -15,7 +15,9 @@ def test_login_request_trims_and_lowercases_the_email():
     assert LoginRequest(email="  Banca@Exemplo.com ", password="x").email == "banca@exemplo.com"
 
 
-@pytest.mark.parametrize("payload", [{"email": "", "password": "x"}, {"email": "a@b.c", "password": ""}])
+@pytest.mark.parametrize(
+    "payload", [{"email": "", "password": "x"}, {"email": "a@b.c", "password": ""}]
+)
 def test_login_request_rejects_empty_fields(payload):
     with pytest.raises(ValidationError):
         LoginRequest.model_validate(payload)

@@ -54,7 +54,9 @@ def stage_events(items) -> list[tuple[str, str]]:
 
 async def test_cascade_reports_each_stage_it_runs():
     seen: list[tuple[str, str]] = []
-    ctx = StageContext(raw_url="https://loja-legitima.com.br", on_stage=lambda s, st: seen.append((s.value, st)))
+    ctx = StageContext(
+        raw_url="https://loja-legitima.com.br", on_stage=lambda s, st: seen.append((s.value, st))
+    )
 
     await build_cascade().run(ctx)
 
@@ -72,7 +74,9 @@ async def test_cascade_marks_remaining_stages_as_skipped_after_short_circuit():
     redis = FakeRedisCacheClient()
     redis.add_to_blacklist("https://phish.com/login")
     seen: list[tuple[str, str]] = []
-    ctx = StageContext(raw_url="https://phish.com/login", on_stage=lambda s, st: seen.append((s.value, st)))
+    ctx = StageContext(
+        raw_url="https://phish.com/login", on_stage=lambda s, st: seen.append((s.value, st))
+    )
 
     await build_cascade(redis=redis).run(ctx)
 
@@ -88,7 +92,9 @@ async def test_stage2_reports_visual_rag_when_comparing_logos():
     url = "https://bb-seguro.xyz/entrar"
     inspector = FakeInspectorClient()
     inspector.set_result(url, InspectResult(dom_text="Entre", final_url=url, screenshot_b64="png"))
-    matcher = FakeBrandMatcherClient(BrandMatchResult(matched_brand="BB", is_spoofing=True, similarity=0.9))
+    matcher = FakeBrandMatcherClient(
+        BrandMatchResult(matched_brand="BB", is_spoofing=True, similarity=0.9)
+    )
     seen: list[tuple[str, str]] = []
     ctx = StageContext(raw_url=url, on_stage=lambda s, st: seen.append((s.value, st)))
 
@@ -113,7 +119,10 @@ def test_stage_progress_merges_parallel_runs_of_the_same_stage():
     out += progress.update(StageName.STAGE_0_CACHE, "started")
     out += progress.update(StageName.STAGE_0_CACHE, "done")
     out += progress.update(StageName.STAGE_0_CACHE, "done")
-    assert [(e.stage.value, e.status) for e in out] == [("stage_0_cache", "started"), ("stage_0_cache", "done")]
+    assert [(e.stage.value, e.status) for e in out] == [
+        ("stage_0_cache", "started"),
+        ("stage_0_cache", "done"),
+    ]
 
 
 def test_stage_progress_does_not_mark_skipped_a_stage_another_link_ran():
@@ -162,7 +171,12 @@ async def test_text_with_links_streams_triage_and_cascade_stages():
         cascade=build_cascade(),
     )
 
-    items = [i async for i in use_case.execute(ScanInput(content="Olha https://a.com.br e https://b.com.br"))]
+    items = [
+        i
+        async for i in use_case.execute(
+            ScanInput(content="Olha https://a.com.br e https://b.com.br")
+        )
+    ]
     events = stage_events(items)
 
     assert events[0] == ("triage", "started")

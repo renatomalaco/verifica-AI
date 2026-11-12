@@ -1,6 +1,9 @@
 from scan_orchestrator.api.dependencies import get_brand_matcher_client, get_scan_repository
 from scan_orchestrator.infrastructure.brand_matcher_client import HttpBrandMatcherClient
-from scan_orchestrator.infrastructure.scan_repository import InMemoryScanRepository, SqlScanRepository
+from scan_orchestrator.infrastructure.scan_repository import (
+    InMemoryScanRepository,
+    SqlScanRepository,
+)
 from scan_orchestrator.settings import Settings
 
 

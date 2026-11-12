@@ -16,7 +16,13 @@ def policy() -> MatchPolicy:
 
 @pytest.mark.parametrize(
     ("similarity", "zone"),
-    [(0.95, MatchZone.CONFIRMED), (0.82, MatchZone.CONFIRMED), (0.81, MatchZone.GRAY), (0.70, MatchZone.GRAY), (0.69, MatchZone.NONE)],
+    [
+        (0.95, MatchZone.CONFIRMED),
+        (0.82, MatchZone.CONFIRMED),
+        (0.81, MatchZone.GRAY),
+        (0.70, MatchZone.GRAY),
+        (0.69, MatchZone.NONE),
+    ],
 )
 def test_similarity_falls_into_its_zone(policy, similarity, zone):
     assert policy.zone(similarity) is zone
@@ -29,7 +35,13 @@ def test_a_gray_floor_above_the_threshold_is_rejected():
 
 @pytest.mark.parametrize(
     "host",
-    ["bb.com.br", "www2.bancodobrasil.com.br", "BB.COM.BR.", "internetbanking.caixa.gov.br", "www.gov.br"],
+    [
+        "bb.com.br",
+        "www2.bancodobrasil.com.br",
+        "BB.COM.BR.",
+        "internetbanking.caixa.gov.br",
+        "www.gov.br",
+    ],
 )
 def test_official_hosts_and_their_subdomains_are_recognized(host):
     official = ["bb.com.br", "bancodobrasil.com.br", "caixa.gov.br", "gov.br"]

@@ -3,7 +3,10 @@ from enum import StrEnum
 from typing import Literal
 from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
-from contracts.url_utils import normalize_url, extract_domain
+from contracts.url_utils import extract_domain, normalize_url
+
+# Re-exported: the services import these straight from `contracts`.
+__all__ = ["extract_domain", "normalize_url"]
 
 
 class ThreatLevel(StrEnum):
@@ -95,7 +98,10 @@ class ScanResponse(BaseModel):
 
 
 class StageName(StrEnum):
-    """Single contract for the stages emitted over SSE. The front end translates them in web/src/utils/stages.ts."""
+    """Single contract for the stages emitted over SSE.
+
+    The front end translates them in web/src/utils/stages.ts.
+    """
 
     TRIAGE = "triage"
     IMAGE_EXTRACTION = "image_extraction"
@@ -201,6 +207,13 @@ class ExplainResponse(BaseModel):
 
 
 class QuotaExceeded(BaseModel):
+    retry_at: datetime
+
+
+class ScanRateLimited(BaseModel):
+    """429 body of the scan endpoints: a code the front turns into words, and when to retry."""
+
+    code: Literal["scan_rate_limited"] = "scan_rate_limited"
     retry_at: datetime
 
 

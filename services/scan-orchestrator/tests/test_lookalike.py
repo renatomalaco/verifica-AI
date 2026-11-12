@@ -2,12 +2,26 @@ import pytest
 
 from scan_orchestrator.domain.lookalike import find_imitated_domain
 
-PROTECTED = ["bb.com.br", "bancodobrasil.com.br", "itau.com.br", "nubank.com.br", "caixa.gov.br", "mercadolivre.com.br"]
+PROTECTED = [
+    "bb.com.br",
+    "bancodobrasil.com.br",
+    "itau.com.br",
+    "nubank.com.br",
+    "caixa.gov.br",
+    "mercadolivre.com.br",
+]
 
 
 @pytest.mark.parametrize(
     "domain",
-    ["bb.com.br", "www.bb.com.br", "internetbanking.caixa.gov.br", "nubank.com.br", "google.com", "padariadobairro.com.br"],
+    [
+        "bb.com.br",
+        "www.bb.com.br",
+        "internetbanking.caixa.gov.br",
+        "nubank.com.br",
+        "google.com",
+        "padariadobairro.com.br",
+    ],
 )
 def test_official_and_unrelated_domains_are_not_lookalikes(domain):
     assert find_imitated_domain(domain, PROTECTED) is None

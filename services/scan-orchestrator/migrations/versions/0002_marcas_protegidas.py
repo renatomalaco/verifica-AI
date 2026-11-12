@@ -23,7 +23,12 @@ def upgrade() -> None:
         sa.Column("brand_name", sa.String(length=100), nullable=False, unique=True),
         sa.Column("official_domains", JSON(), nullable=False),
         sa.Column("logo_embedding", JSON(), nullable=False),  # Stores a normalized 512-dim vector
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
     )
     op.create_index("ix_marcas_protegidas_brand_name", "marcas_protegidas", ["brand_name"])
 

@@ -191,7 +191,10 @@ async def test_stage2_visual_rag_brand_spoofing_short_circuit(
 
 async def test_url_nobody_scored_is_inconclusive_never_safe(policy, fake_redis, fake_reputation):
     # Without page inspection no stage produces a score; 0.0 used to read as SEGURO.
-    cascade = Cascade(stages=[Stage0CacheAndFeeds(fake_redis), Stage1ReputationAndSignals(fake_reputation)], policy=policy)
+    cascade = Cascade(
+        stages=[Stage0CacheAndFeeds(fake_redis), Stage1ReputationAndSignals(fake_reputation)],
+        policy=policy,
+    )
 
     result = await cascade.run(StageContext(raw_url="https://desconhecido.example/promo"))
 
@@ -199,13 +202,14 @@ async def test_url_nobody_scored_is_inconclusive_never_safe(policy, fake_redis, 
     assert result.details.deciding_stage == "no_stage_scored"
 
 
-
 # --- Stage 1: domain evidence and typosquatting (R2) ---
 
 from scan_orchestrator.domain.domain_risk import DomainEvidence  # noqa: E402
 
 
-async def test_young_domain_imitating_a_bank_is_a_scam_without_opening_the_page(cascade, fake_reputation, fake_inspector):
+async def test_young_domain_imitating_a_bank_is_a_scam_without_opening_the_page(
+    cascade, fake_reputation, fake_inspector
+):
     fake_reputation.set_evidence("itau-seguranca.com", DomainEvidence(age_days=3))
 
     res = await cascade.run(StageContext(raw_url="https://itau-seguranca.com/login"))
@@ -216,7 +220,9 @@ async def test_young_domain_imitating_a_bank_is_a_scam_without_opening_the_page(
     assert fake_inspector.calls == []
 
 
-async def test_page_inspection_cannot_clear_a_stage_1_suspicion(cascade, fake_reputation, fake_triage):
+async def test_page_inspection_cannot_clear_a_stage_1_suspicion(
+    cascade, fake_reputation, fake_triage
+):
     fake_reputation.set_evidence("mercadolivre.com", DomainEvidence(age_days=3000))
     fake_triage.set_result(TriageResult(is_phishing=0.05, persuasion=Persuasion.NONE))
 
@@ -227,33 +233,53 @@ async def test_page_inspection_cannot_clear_a_stage_1_suspicion(cascade, fake_re
 
 
 async def test_popular_old_domain_is_marked_reputable(cascade, fake_reputation):
-    fake_reputation.set_evidence("minha-loja-legitima.com.br", DomainEvidence(age_days=4000, tranco_rank=900))
+    fake_reputation.set_evidence(
+        "minha-loja-legitima.com.br", DomainEvidence(age_days=4000, tranco_rank=900)
+    )
     res = await cascade.run(StageContext(raw_url="https://minha-loja-legitima.com.br"))
     assert res.details.domain_signals["reputation"] == "high"
 
 
 # --- Visual RAG: failures count as unverified, gray zone is a signal (R4) ---
 
-async def _cascade_with_matcher(matcher, fake_redis, fake_reputation, fake_inspector, fake_triage, policy):
+async def _cascade_with_matcher(
+    matcher, fake_redis, fake_reputation, fake_inspector, fake_triage, policy
+):
     target_url = "https://bb-seguro-atualizacao.xyz/entrar"
     fake_inspector.set_result(
         target_url,
-        InspectResult(dom_text="Acesse sua conta", final_url=target_url, screenshot_b64="SHOT", is_blocked=False),
+        InspectResult(
+            dom_text="Acesse sua conta",
+            final_url=target_url,
+            screenshot_b64="SHOT",
+            is_blocked=False,
+        ),
     )
     fake_triage.set_result(TriageResult(is_phishing=0.02, persuasion=Persuasion.NONE))
-    stage2 = Stage2RemoteInspection(inspector_client=fake_inspector, triage_client=fake_triage, brand_matcher=matcher)
+    stage2 = Stage2RemoteInspection(
+        inspector_client=fake_inspector, triage_client=fake_triage, brand_matcher=matcher
+    )
     cascade = Cascade(
-        stages=[Stage0CacheAndFeeds(fake_redis), Stage1ReputationAndSignals(fake_reputation), stage2], policy=policy
+        stages=[
+            Stage0CacheAndFeeds(fake_redis),
+            Stage1ReputationAndSignals(fake_reputation),
+            stage2,
+        ],
+        policy=policy,
     )
     return await cascade.run(StageContext(raw_url=target_url))
 
 
-async def test_page_screenshot_is_sent_as_such(fake_redis, fake_reputation, fake_inspector, fake_triage, policy):
+async def test_page_screenshot_is_sent_as_such(
+    fake_redis, fake_reputation, fake_inspector, fake_triage, policy
+):
     from contracts import ImageSource
     from scan_orchestrator.infrastructure.fakes import FakeBrandMatcherClient
 
     matcher = FakeBrandMatcherClient()
-    await _cascade_with_matcher(matcher, fake_redis, fake_reputation, fake_inspector, fake_triage, policy)
+    await _cascade_with_matcher(
+        matcher, fake_redis, fake_reputation, fake_inspector, fake_triage, policy
+    )
 
     assert matcher.calls == [("SHOT", "bb-seguro-atualizacao.xyz", ImageSource.PAGE_SCREENSHOT)]
 
@@ -265,7 +291,9 @@ async def test_unavailable_visual_rag_never_lets_the_page_be_safe(
     from scan_orchestrator.infrastructure.fakes import FakeBrandMatcherClient
 
     matcher = FakeBrandMatcherClient(error=BrandMatchUnavailable("ai-gateway 503"))
-    result = await _cascade_with_matcher(matcher, fake_redis, fake_reputation, fake_inspector, fake_triage, policy)
+    result = await _cascade_with_matcher(
+        matcher, fake_redis, fake_reputation, fake_inspector, fake_triage, policy
+    )
 
     assert result.threat_level is ThreatLevel.CAUTION
     assert result.details.links_not_inspected is True
@@ -277,8 +305,12 @@ async def test_gray_zone_brand_shows_up_as_a_signal_only(
     from contracts import BrandMatchResult
     from scan_orchestrator.infrastructure.fakes import FakeBrandMatcherClient
 
-    matcher = FakeBrandMatcherClient(BrandMatchResult(possible_brand="Banco do Brasil", similarity=0.75))
-    result = await _cascade_with_matcher(matcher, fake_redis, fake_reputation, fake_inspector, fake_triage, policy)
+    matcher = FakeBrandMatcherClient(
+        BrandMatchResult(possible_brand="Banco do Brasil", similarity=0.75)
+    )
+    result = await _cascade_with_matcher(
+        matcher, fake_redis, fake_reputation, fake_inspector, fake_triage, policy
+    )
 
     assert result.threat_level is not ThreatLevel.SCAM
     assert result.details.domain_signals["possible_brand"] == "Banco do Brasil"

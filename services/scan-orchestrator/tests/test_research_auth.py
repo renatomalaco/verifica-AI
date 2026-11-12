@@ -15,10 +15,16 @@ from scan_orchestrator.domain.research_access import (
     TooManyAttemptsError,
     WeakPasswordError,
 )
-from scan_orchestrator.infrastructure.access_tokens import AccessTokenIssuer, AccessTokenVerifier, generate_key_pair
+from scan_orchestrator.infrastructure.access_tokens import (
+    AccessTokenIssuer,
+    AccessTokenVerifier,
+    generate_key_pair,
+)
 from scan_orchestrator.infrastructure.passwords import PasswordHasher
 from scan_orchestrator.infrastructure.quota_store import InMemoryQuotaStore
-from scan_orchestrator.infrastructure.research_account_repository import InMemoryResearchAccountRepository
+from scan_orchestrator.infrastructure.research_account_repository import (
+    InMemoryResearchAccountRepository,
+)
 
 PRIVATE_KEY, PUBLIC_KEY = generate_key_pair()
 PASSWORD = "senha-da-banca-2026"
@@ -46,7 +52,10 @@ def build_auth(clock: Clock, per_account: int = 100) -> ResearchAuth:
         repository=InMemoryResearchAccountRepository(),
         hasher=HASHER,
         issuer=AccessTokenIssuer(PRIVATE_KEY, clock=clock),
-        throttle=LoginThrottle(InMemoryQuotaStore(), LoginLimits(per_account=per_account, per_ip=100, window_seconds=900)),
+        throttle=LoginThrottle(
+            InMemoryQuotaStore(),
+            LoginLimits(per_account=per_account, per_ip=100, window_seconds=900),
+        ),
         clock=clock,
     )
 
@@ -101,7 +110,10 @@ async def test_a_short_password_is_refused_and_the_invite_stays_valid(auth):
     await auth.accept_invite(token, PASSWORD)
 
 
-@pytest.mark.parametrize("email, password", [("banca@exemplo.com", "senha-errada-qualquer"), ("ninguem@exemplo.com", PASSWORD)])
+@pytest.mark.parametrize(
+    "email, password",
+    [("banca@exemplo.com", "senha-errada-qualquer"), ("ninguem@exemplo.com", PASSWORD)],
+)
 async def test_wrong_password_and_unknown_email_fail_the_same_way(auth, email, password):
     await researcher(auth)
 
@@ -135,7 +147,9 @@ async def test_refresh_rotates_the_token(auth):
     second = await auth.refresh(first.refresh_token)
 
     assert second.refresh_token != first.refresh_token
-    assert AccessTokenVerifier(PUBLIC_KEY).verify(second.access_token).account_id == first.account.id
+    assert (
+        AccessTokenVerifier(PUBLIC_KEY).verify(second.access_token).account_id == first.account.id
+    )
 
 
 async def test_reusing_an_old_refresh_revokes_the_whole_sign_in(auth):
@@ -216,4 +230,6 @@ async def test_invite_normalizes_the_email(auth):
     token = await auth.invite("  Banca@Exemplo.com ", ResearchRole.RESEARCHER)
     await auth.accept_invite(token, PASSWORD)
 
-    assert (await auth.login("banca@exemplo.com", PASSWORD, ip="10.0.0.1")).account.email == "banca@exemplo.com"
+    assert (
+        await auth.login("banca@exemplo.com", PASSWORD, ip="10.0.0.1")
+    ).account.email == "banca@exemplo.com"

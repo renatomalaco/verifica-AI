@@ -65,13 +65,20 @@ class MatchBrandUseCase:
         official = official_domains_of(candidate.name)
         if request.current_domain and is_official_domain(request.current_domain, official):
             matched = candidate.name if zone is MatchZone.CONFIRMED else None
-            return BrandMatchResult(matched_brand=matched, similarity=similarity, official_domains=official)
+            return BrandMatchResult(
+                matched_brand=matched, similarity=similarity, official_domains=official
+            )
 
         if zone is MatchZone.CONFIRMED or await self._vlm_confirms(request, candidate.name):
             return BrandMatchResult(
-                matched_brand=candidate.name, is_spoofing=True, similarity=similarity, official_domains=official
+                matched_brand=candidate.name,
+                is_spoofing=True,
+                similarity=similarity,
+                official_domains=official,
             )
-        return BrandMatchResult(possible_brand=candidate.name, similarity=similarity, official_domains=official)
+        return BrandMatchResult(
+            possible_brand=candidate.name, similarity=similarity, official_domains=official
+        )
 
     async def _vlm_confirms(self, request: BrandMatchRequest, brand: str) -> bool:
         if self._verifier is None or request.image_source is not ImageSource.PAGE_SCREENSHOT:

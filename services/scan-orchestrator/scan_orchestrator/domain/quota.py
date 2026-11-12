@@ -14,7 +14,9 @@ class QuotaStore(Protocol):
     async def decrement(self, key: str) -> None:
         ...
 
-    async def window_add(self, key: str, member: str, now: float, window_seconds: int) -> tuple[int, float]:
+    async def window_add(
+        self, key: str, member: str, now: float, window_seconds: int
+    ) -> tuple[int, float]:
         """Records `member` in the sliding window and returns (total in window, oldest instant)."""
         ...
 
@@ -97,14 +99,17 @@ class ExplainQuota:
     def _retry_at(
         self, local: datetime, day_count: int, month_count: int, ip_count: int, ip_oldest: float
     ) -> datetime | None:
-        """When the quota resets: the latest among the exceeded limits (None if none was exceeded)."""
+        """When the quota resets: the latest among the exceeded limits
+        (None if none was exceeded)."""
         candidates: list[datetime] = []
         if day_count > self._limits.daily:
             candidates.append(self._next_local_midnight(local))
         if month_count > self._limits.monthly:
             candidates.append(self._next_local_month(local))
         if ip_count > self._limits.ip_per_window:
-            candidates.append(datetime.fromtimestamp(ip_oldest + self._limits.ip_window_seconds, tz=timezone.utc))
+            candidates.append(
+                datetime.fromtimestamp(ip_oldest + self._limits.ip_window_seconds, tz=timezone.utc)
+            )
         return max(candidates, default=None)
 
     def _next_local_midnight(self, local: datetime) -> datetime:

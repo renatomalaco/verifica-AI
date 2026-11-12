@@ -8,7 +8,9 @@ import tldextract
 URL_ONLY_PATTERN = re.compile(r"^\s*(?:https?://|www\.)\S+\s*$", re.IGNORECASE)
 EXPLICIT_LINK_PATTERN = re.compile(r"(?:https?://|www\.)[^\s/$.?#][^\s]*", re.IGNORECASE)
 # Not preceded by "@" (emails) nor glued to another word; the suffix is checked by tldextract.
-BARE_DOMAIN_CANDIDATE = re.compile(r"(?<![@\w.-])(?:[a-z0-9-]+\.)+[a-z0-9-]{2,}(?![\w@-])", re.IGNORECASE)
+BARE_DOMAIN_CANDIDATE = re.compile(
+    r"(?<![@\w.-])(?:[a-z0-9-]+\.)+[a-z0-9-]{2,}(?![\w@-])", re.IGNORECASE
+)
 ZERO_WIDTH_PATTERN = re.compile(r"[\u200B-\u200D\uFEFF\u2060\u180E]")
 TRAILING_PUNCTUATION = ".,;!?:)"
 
@@ -56,7 +58,11 @@ class ScanInput:
 
     @property
     def is_image(self) -> bool:
-        return bool(self.image_b64 and self.image_b64.strip() and not (self.content and self.content.strip()))
+        return bool(
+            self.image_b64
+            and self.image_b64.strip()
+            and not (self.content and self.content.strip())
+        )
 
     @property
     def is_url_only(self) -> bool:

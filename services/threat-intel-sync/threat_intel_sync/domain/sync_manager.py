@@ -28,7 +28,9 @@ class SyncManager:
         self._storage = storage
 
     async def sync_feeds(self) -> dict[str, int]:
-        results = await asyncio.gather(*(source.fetch_urls() for source in self._feed_sources), return_exceptions=True)
+        results = await asyncio.gather(
+            *(source.fetch_urls() for source in self._feed_sources), return_exceptions=True
+        )
 
         normalized_urls: set[str] = set()
         for urls in results:

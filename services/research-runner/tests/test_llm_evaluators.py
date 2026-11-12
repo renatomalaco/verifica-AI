@@ -20,7 +20,9 @@ FAILURES = [
 
 
 def sample(content: str, label: str = "GOLPE", channel: str = "texto") -> Sample:
-    return Sample(id="q", channel=channel, content=content, label=label, origin="real", source="teste")
+    return Sample(
+        id="q", channel=channel, content=content, label=label, origin="real", source="teste"
+    )
 
 
 @pytest.fixture
@@ -58,7 +60,9 @@ async def test_pure_vlm_failures_count_as_inconclusive_never_safe(gemini, gemini
     assert outcome.cost_usd == 0.0
 
 
-async def test_cascade_triage_goes_through_the_gateway_path_and_meters_its_cost(gemini, gemini_call):
+async def test_cascade_triage_goes_through_the_gateway_path_and_meters_its_cost(
+    gemini, gemini_call
+):
     gemini.answers(0.97)
     evaluator = CascadeEvaluator.build(GatewayTriageClient(gemini_call), feed_urls=[])
 
@@ -72,7 +76,9 @@ async def test_cascade_triage_goes_through_the_gateway_path_and_meters_its_cost(
 
 async def test_a_link_decided_by_the_feed_never_pays_for_the_model(gemini, gemini_call):
     gemini.answers(0.1)
-    evaluator = CascadeEvaluator.build(GatewayTriageClient(gemini_call), feed_urls=["https://golpe.example/pix"])
+    evaluator = CascadeEvaluator.build(
+        GatewayTriageClient(gemini_call), feed_urls=["https://golpe.example/pix"]
+    )
 
     outcome = await evaluator.evaluate(sample("https://golpe.example/pix", channel="url"))
 
@@ -82,7 +88,9 @@ async def test_a_link_decided_by_the_feed_never_pays_for_the_model(gemini, gemin
 
 
 @pytest.mark.parametrize("failure", FAILURES)
-async def test_cascade_triage_failures_count_as_inconclusive_never_safe(gemini, gemini_call, failure):
+async def test_cascade_triage_failures_count_as_inconclusive_never_safe(
+    gemini, gemini_call, failure
+):
     gemini.fails_with(**failure)
     evaluator = CascadeEvaluator.build(GatewayTriageClient(gemini_call), feed_urls=[])
 
@@ -93,8 +101,12 @@ async def test_cascade_triage_failures_count_as_inconclusive_never_safe(gemini, 
     assert outcome.cost_usd == 0.0
 
 
-@pytest.mark.parametrize("failure", [{"side_effect": httpx.ReadTimeout("lento")}, {"json": {"answers": {}}}])
-async def test_cascade_with_jev_meters_the_price_per_call_and_fails_closed(make_settings, jev_env, jev, failure):
+@pytest.mark.parametrize(
+    "failure", [{"side_effect": httpx.ReadTimeout("lento")}, {"json": {"answers": {}}}]
+)
+async def test_cascade_with_jev_meters_the_price_per_call_and_fails_closed(
+    make_settings, jev_env, jev, failure
+):
     triage = GatewayTriageClient(providers_from_settings(make_settings(**jev_env)).triage.call)
     evaluator = CascadeEvaluator.build(triage, feed_urls=[])
 

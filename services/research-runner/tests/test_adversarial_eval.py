@@ -5,7 +5,15 @@ INVISIBLE = "​"
 
 
 def adversarial(id: str, content: str, label: str = "GOLPE") -> Sample:
-    return Sample(id=id, channel="texto", content=content, label=label, origin="real", source="t", adversarial=True)
+    return Sample(
+        id=id,
+        channel="texto",
+        content=content,
+        label=label,
+        origin="real",
+        source="t",
+        adversarial=True,
+    )
 
 
 def detects_only_clean_pix(text: str) -> float:
@@ -23,7 +31,9 @@ def test_reports_detection_with_and_without_sanitization():
         adversarial("a2", "me manda um pix urgente"),
     ]
 
-    result = evaluate_adversarial(samples, scam_probability=detects_only_clean_pix, sanitize=strip_invisible)
+    result = evaluate_adversarial(
+        samples, scam_probability=detects_only_clean_pix, sanitize=strip_invisible
+    )
 
     assert result.total == 2
     assert result.detected_without_sanitization == 1
@@ -35,5 +45,7 @@ def test_only_adversarial_scams_are_counted():
         adversarial("a1", "pix", label="SEGURO"),
         Sample(id="n1", channel="texto", content="pix", label="GOLPE", origin="real", source="t"),
     ]
-    result = evaluate_adversarial(samples, scam_probability=detects_only_clean_pix, sanitize=strip_invisible)
+    result = evaluate_adversarial(
+        samples, scam_probability=detects_only_clean_pix, sanitize=strip_invisible
+    )
     assert result.total == 0

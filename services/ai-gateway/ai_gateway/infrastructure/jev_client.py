@@ -19,7 +19,10 @@ class FakeJevClient:
     async def classify(self, envelope: str) -> TriageResult:
         lowered = envelope.lower()
 
-        has_new_number = any(w in lowered for w in ["troquei de número", "troquei de numero", "novo número", "novo numero"])
+        has_new_number = any(
+            w in lowered
+            for w in ["troquei de número", "troquei de numero", "novo número", "novo numero"]
+        )
         has_relative = any(w in lowered for w in ["mãe", "mae", "pai", "filho", "filha", "pix"])
 
         # Fake relative scam / emotional coercion
@@ -51,7 +54,21 @@ class FakeJevClient:
             )
 
         # Corporate content or safe small talk
-        if any(w in lowered for w in ["reunião", "reuniao", "bom dia", "boa tarde", "sala", "anexo", "abraço", "abraco", "almoço", "almoco"]):
+        if any(
+            w in lowered
+            for w in [
+                "reunião",
+                "reuniao",
+                "bom dia",
+                "boa tarde",
+                "sala",
+                "anexo",
+                "abraço",
+                "abraco",
+                "almoço",
+                "almoco",
+            ]
+        ):
             return TriageResult(
                 is_phishing=0.03,
                 requires_visual_inspection=0.0,
@@ -84,11 +101,16 @@ class HttpJevClient:
             "questions": {
                 "is_phishing": {
                     "type": "noul",
-                    "prompt": "Does this content attempt a scam, banking fraud or social engineering?",
+                    "prompt": (
+                        "Does this content attempt a scam, banking fraud or social engineering?"
+                    ),
                 },
                 "requires_visual_inspection": {
                     "type": "noul",
-                    "prompt": "Does a conclusive risk decision depend on visual appearance, logo or layout?",
+                    "prompt": (
+                        "Does a conclusive risk decision depend on visual appearance, "
+                        "logo or layout?"
+                    ),
                 },
                 "persuasion": {
                     "type": "choice",
@@ -112,7 +134,9 @@ class HttpJevClient:
                 response.raise_for_status()
                 data = response.json()
         except httpx.TimeoutException as exc:
-            raise RuntimeError(f"Timeout na consulta ao modelo Jev ({self._timeout_seconds}s)") from exc
+            raise RuntimeError(
+                f"Timeout na consulta ao modelo Jev ({self._timeout_seconds}s)"
+            ) from exc
         except httpx.HTTPError as exc:
             raise RuntimeError(f"Erro HTTP na consulta ao modelo Jev: {exc}") from exc
 
@@ -120,7 +144,9 @@ class HttpJevClient:
             answers = data["answers"]
             return TriageResult(
                 is_phishing=answers["is_phishing"]["probability"],
-                requires_visual_inspection=answers.get("requires_visual_inspection", {}).get("probability", 0.0),
+                requires_visual_inspection=answers.get("requires_visual_inspection", {}).get(
+                    "probability", 0.0
+                ),
                 persuasion=_persuasion(answers.get("persuasion", {}).get("selected")),
             )
         except (KeyError, TypeError, AttributeError, ValidationError) as exc:

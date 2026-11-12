@@ -20,7 +20,9 @@ def test_a_signed_access_token_carries_the_account_and_role():
     account_id = uuid4()
     token = AccessTokenIssuer(PRIVATE_KEY).issue(account_id, ResearchRole.ADMIN)
 
-    assert AccessTokenVerifier(PUBLIC_KEY).verify(token) == Principal(account_id, ResearchRole.ADMIN)
+    assert AccessTokenVerifier(PUBLIC_KEY).verify(token) == Principal(
+        account_id, ResearchRole.ADMIN
+    )
 
 
 def test_the_access_token_lasts_fifteen_minutes():

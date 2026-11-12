@@ -52,7 +52,10 @@ def test_mask_email():
 
 
 def test_mask_password_and_token():
-    text = "Sua senha: SuperSecret123 e o token é eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozG66."
+    text = (
+        "Sua senha: SuperSecret123 e o token é "
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozG66."
+    )
     masked = mask_pii(text)
     assert "[CHAVE_SENSIVEL]" in masked
     assert "SuperSecret123" not in masked
@@ -68,7 +71,9 @@ def test_preserve_currency_and_dates():
 
 def test_email_with_digits_is_masked_whole_before_cpf_and_phone():
     # Phone and CPF patterns used to eat the digits and corrupt the address.
-    assert mask_pii("Fale com joao.11987654321@exemplo.com hoje") == "Fale com [EMAIL_MASCARADO] hoje"
+    assert (
+        mask_pii("Fale com joao.11987654321@exemplo.com hoje") == "Fale com [EMAIL_MASCARADO] hoje"
+    )
     assert mask_pii("12345678901@gmail.com") == "[EMAIL_MASCARADO]"
 
 

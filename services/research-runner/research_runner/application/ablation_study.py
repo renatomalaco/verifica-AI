@@ -27,14 +27,22 @@ from research_runner.infrastructure.evaluators import (
 from research_runner.infrastructure.llm_providers import StudyProviders
 
 DISABLED_STAGES = [
-    "stage_1_registry_lookups",  # RDAP, crt.sh and Tranco need the network; the benchmark runs offline
+    # RDAP, crt.sh and Tranco need the network; the benchmark runs offline
+    "stage_1_registry_lookups",
     "stage_2_inspection",
     "visual_rag",  # needs the R4 Visual RAG
 ]
-LOCAL_TRIAGE = "local classical classifier (TF-IDF + LogReg) trained on the train split; no LLM configured"
-REAL_TRIAGE = "ai-gateway triage path (PII masking + untrusted-content envelope) calling {provider} {model}"
+LOCAL_TRIAGE = (
+    "local classical classifier (TF-IDF + LogReg) trained on the train split; no LLM configured"
+)
+REAL_TRIAGE = (
+    "ai-gateway triage path (PII masking + untrusted-content envelope) calling {provider} {model}"
+)
 # deciding_stage of a sample whose model call failed, per mode (the cascade answers INCONCLUSIVO).
-FAILURE_STAGES = {AblationMode.PURE_VLM.value: PROVIDER_FAILURE, AblationMode.CASCADE.value: "contingency_fallback"}
+FAILURE_STAGES = {
+    AblationMode.PURE_VLM.value: PROVIDER_FAILURE,
+    AblationMode.CASCADE.value: "contingency_fallback",
+}
 
 
 @dataclass(frozen=True)
@@ -48,17 +56,24 @@ class StudyConfig:
 async def run_study(
     samples: list[Sample], config: StudyConfig, providers: StudyProviders = StudyProviders()
 ) -> dict[str, Any]:
-    """Without providers no model is called: Mode 2 is not executed and the cascade triage stays local."""
+    """Without providers no model is called: Mode 2 is not executed and the cascade triage
+    stays local."""
     splits = assign_splits(samples, test_ratio=config.test_ratio, seed=config.seed)
     test = [s for s in samples if splits[s.id] is Split.TEST]
     classifier = train_classifier(samples, splits)
     feeds = list(config.feed_urls)
-    triage = GatewayTriageClient(providers.triage.call) if providers.triage else LocalTriageClient(classifier)
+    triage = (
+        GatewayTriageClient(providers.triage.call)
+        if providers.triage
+        else LocalTriageClient(classifier)
+    )
 
     evaluators = {
         AblationMode.HEURISTIC: HeuristicEvaluator.with_feed(feeds),
         AblationMode.CLASSICAL_NLP: ClassicalNlpEvaluator(classifier),
-        AblationMode.PURE_VLM: PureVlmEvaluator(providers.pure_vlm.call) if providers.pure_vlm else None,
+        AblationMode.PURE_VLM: PureVlmEvaluator(providers.pure_vlm.call)
+        if providers.pure_vlm
+        else None,
         AblationMode.CASCADE: CascadeEvaluator.build(triage, feeds),
     }
     calls_model = {AblationMode.PURE_VLM: True, AblationMode.CASCADE: providers.triage is not None}
@@ -66,7 +81,9 @@ async def run_study(
         await _evaluate(mode, evaluator, test, providers, calls_model.get(mode, False))
         for mode, evaluator in evaluators.items()
     ]
-    adversarial = evaluate_adversarial(test, scam_probability=classifier.scam_probability, sanitize=sanitize_text)
+    adversarial = evaluate_adversarial(
+        test, scam_probability=classifier.scam_probability, sanitize=sanitize_text
+    )
     modes = [_mode_entry(e) for e in evaluations]
 
     return {
@@ -80,10 +97,14 @@ async def _evaluate(
     mode: AblationMode, evaluator, test: list[Sample], providers: StudyProviders, calls_model: bool
 ) -> ModeEvaluation:
     if not test:
-        return await run_mode(mode, None, test, not_executed_reason="no real samples in the test split")
+        return await run_mode(
+            mode, None, test, not_executed_reason="no real samples in the test split"
+        )
     pause = providers.pause_seconds if calls_model else 0.0
     # Only Mode 2 can lack an evaluator, so its reason is the only one ever shown.
-    return await run_mode(mode, evaluator, test, not_executed_reason=providers.pure_vlm_missing, pause_seconds=pause)
+    return await run_mode(
+        mode, evaluator, test, not_executed_reason=providers.pure_vlm_missing, pause_seconds=pause
+    )
 
 
 def _mode_entry(evaluation: ModeEvaluation) -> dict[str, Any]:
@@ -117,7 +138,9 @@ def _meta(
             "test_by_channel_and_label": dict(Counter(f"{s.channel}/{s.label}" for s in test)),
             "origin": dict(Counter(s.origin for s in samples)),
         },
-        "triage": REAL_TRIAGE.format(**providers.triage.description) if providers.triage else LOCAL_TRIAGE,
+        "triage": REAL_TRIAGE.format(**providers.triage.description)
+        if providers.triage
+        else LOCAL_TRIAGE,
         "llm": {
             "pure_vlm": providers.pure_vlm.description if providers.pure_vlm else None,
             "triage": providers.triage.description if providers.triage else None,
@@ -132,12 +155,15 @@ def _meta(
 def _warnings(test: list[Sample], config: StudyConfig, providers: StudyProviders) -> list[str]:
     warnings = []
     if not test:
-        warnings.append("test split is empty: collect real, anonymized samples before reporting any number")
+        warnings.append(
+            "test split is empty: collect real, anonymized samples before reporting any number"
+        )
     if not config.feed_urls:
         warnings.append("no feed snapshot loaded: stage 0 cannot match any URL")
     if providers.pure_vlm and not providers.triage:
         warnings.append(
-            f"Mode 2 calls a real model but the cascade triage is the local classifier ({providers.triage_missing}): "
+            "Mode 2 calls a real model but the cascade triage is the local classifier "
+            f"({providers.triage_missing}): "
             "set AI_PROVIDER=gemini or jev before comparing them"
         )
     return warnings
@@ -149,12 +175,15 @@ def _failure_warnings(modes: list[dict[str, Any]]) -> list[str]:
         failed = mode.get("stage_breakdown", {}).get(FAILURE_STAGES.get(mode["mode"], ""), 0)
         if failed:
             warnings.append(
-                f"{mode['mode']}: {failed} samples where the model call failed (timeout, rate limit or malformed "
+                f"{mode['mode']}: {failed} samples where the model call failed "
+                "(timeout, rate limit or malformed "
                 "answer), counted as INCONCLUSIVO"
             )
     return warnings
 
 
 def _dataset_hash(samples: list[Sample]) -> str:
-    canonical = json.dumps([asdict(s) for s in sorted(samples, key=lambda s: s.id)], ensure_ascii=False, sort_keys=True)
+    canonical = json.dumps(
+        [asdict(s) for s in sorted(samples, key=lambda s: s.id)], ensure_ascii=False, sort_keys=True
+    )
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

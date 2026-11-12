@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import App from './App'
 import { MAX_IMAGE_BYTES } from './domain/image'
+import { ScanRateLimitedError } from './domain/investigation'
 import * as api from './services/api'
 import { buildConfigLink, DEFAULT_PREFERENCES } from './prefs/preferences'
 import type { ScanResponse } from './types'
@@ -112,6 +113,21 @@ describe('App', () => {
     expect(screen.queryByText(/Traceback/)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: m.common_back() }))
     expect(screen.getByLabelText(m.home_text_label())).toHaveValue('teste')
+  })
+
+  it('tells the person about the pause when there were too many scans, and lets them retry', async () => {
+    skipOnboarding()
+    vi.spyOn(api, 'scanStream').mockImplementation(async (_req, _s, _v, onError) => {
+      onError(new ScanRateLimitedError(null))
+    })
+
+    render(<App />)
+    fireEvent.change(screen.getByLabelText(m.home_text_label()), { target: { value: 'teste' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Conferir agora' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(m.home_error_rate_limited_soon())
+    expect(screen.getByRole('button', { name: m.common_retry() })).toBeInTheDocument()
   })
 
   it('cancels an investigation and goes back to the input', async () => {

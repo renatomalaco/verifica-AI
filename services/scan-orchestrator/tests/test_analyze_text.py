@@ -1,5 +1,13 @@
 import pytest
-from contracts import ThreatLevel, Channel, Persuasion, StageEvent, ScanResponse, TriageResult, VerdictMessage
+from contracts import (
+    ThreatLevel,
+    Channel,
+    Persuasion,
+    StageEvent,
+    ScanResponse,
+    TriageResult,
+    VerdictMessage,
+)
 from scan_orchestrator.domain.scan_input import ScanInput
 from scan_orchestrator.domain.decision import ThresholdPolicy
 from scan_orchestrator.infrastructure.scan_repository import InMemoryScanRepository
@@ -127,14 +135,19 @@ async def test_analyze_text_with_embedded_phishing_link_marks_scam():
         cascade=cascade,
     )
 
-    scan_input = ScanInput(content="Veja as novidades da loja no link https://phish.com/premio agora")
+    scan_input = ScanInput(
+        content="Veja as novidades da loja no link https://phish.com/premio agora"
+    )
     events = [item async for item in use_case.execute(scan_input)]
 
     response = events[-1]
     assert isinstance(response, ScanResponse)
     assert response.threat_level == ThreatLevel.SCAM
     assert response.details.channel == Channel.TEXT
-    assert "https://phish.com/premio" in str(response.details.domain_signals or "") or response.details.scores.get("embedded_link_is_scam") == 1.0
+    assert (
+        "https://phish.com/premio" in str(response.details.domain_signals or "")
+        or response.details.scores.get("embedded_link_is_scam") == 1.0
+    )
 
 
 @pytest.mark.asyncio
@@ -258,7 +271,9 @@ class ScriptedCascade:
 
 async def _verdict_for(text: str, cascade: ScriptedCascade) -> ScanResponse:
     use_case = AnalyzeTextUseCase(
-        triage_client=FakeTriageClient(result=TriageResult(is_phishing=0.02, persuasion=Persuasion.NONE)),
+        triage_client=FakeTriageClient(
+            result=TriageResult(is_phishing=0.02, persuasion=Persuasion.NONE)
+        ),
         repository=InMemoryScanRepository(),
         policy=ThresholdPolicy(scam=0.90, safe=0.10),
         cascade=cascade,
@@ -311,11 +326,16 @@ async def _image_verdict(ocr_confidence: float | None) -> ScanResponse:
 
     extractor = FakeImageExtractorClient(
         default_result=ExtractResult(
-            sha256="s", phash="0123456789abcdef", extracted_text="bom dia, tudo certo", ocr_confidence=ocr_confidence
+            sha256="s",
+            phash="0123456789abcdef",
+            extracted_text="bom dia, tudo certo",
+            ocr_confidence=ocr_confidence,
         )
     )
     use_case = AnalyzeTextUseCase(
-        triage_client=FakeTriageClient(result=TriageResult(is_phishing=0.02, persuasion=Persuasion.NONE)),
+        triage_client=FakeTriageClient(
+            result=TriageResult(is_phishing=0.02, persuasion=Persuasion.NONE)
+        ),
         repository=InMemoryScanRepository(),
         policy=ThresholdPolicy(scam=0.90, safe=0.10),
         image_extractor=extractor,
@@ -349,8 +369,12 @@ class RecordingBrandMatcher:
         self.calls.append((image_b64, current_domain, image_source))
         if self.error:
             raise self.error
-        return BrandMatchResult(matched_brand="Itaú Unibanco", is_spoofing=self.spoofing, similarity=0.97,
-                                official_domains=["itau.com.br"])
+        return BrandMatchResult(
+            matched_brand="Itaú Unibanco",
+            is_spoofing=self.spoofing,
+            similarity=0.97,
+            official_domains=["itau.com.br"],
+        )
 
 
 async def _image_with_matcher(
@@ -360,12 +384,20 @@ async def _image_with_matcher(
     from scan_orchestrator.domain.cascade import Cascade
     from scan_orchestrator.infrastructure.image_extractor_client import FakeImageExtractorClient
 
-    extractor = FakeImageExtractorClient(default_result=ExtractResult(
-        sha256="s", phash="0123456789abcdef", extracted_text="Atualize seu cadastro", urls_found=urls,
-        ocr_confidence=90.0, clean_image_b64="CLEAN",
-    ))
+    extractor = FakeImageExtractorClient(
+        default_result=ExtractResult(
+            sha256="s",
+            phash="0123456789abcdef",
+            extracted_text="Atualize seu cadastro",
+            urls_found=urls,
+            ocr_confidence=90.0,
+            clean_image_b64="CLEAN",
+        )
+    )
     use_case = AnalyzeTextUseCase(
-        triage_client=FakeTriageClient(result=TriageResult(is_phishing=triage_score, persuasion=Persuasion.NONE)),
+        triage_client=FakeTriageClient(
+            result=TriageResult(is_phishing=triage_score, persuasion=Persuasion.NONE)
+        ),
         repository=InMemoryScanRepository(),
         policy=ThresholdPolicy(scam=0.90, safe=0.10),
         cascade=cascade or Cascade(stages=[], policy=ThresholdPolicy(scam=0.90, safe=0.10)),
@@ -382,7 +414,8 @@ async def test_screenshot_imitating_a_bank_on_another_domain_is_a_scam():
 
     assert response.threat_level is ThreatLevel.SCAM
     assert response.details.deciding_stage == "image_visual_rag_brand_spoofing"
-    # Only the clean copy (no EXIF) leaves the extractor, marked as the person's image (never to a VLM).
+    # Only the clean copy (no EXIF) leaves the extractor, marked as the person's image
+    # (never to a VLM).
     assert matcher.calls == [("CLEAN", "itau-atualiza.top", "user_image")]
 
 
@@ -398,7 +431,10 @@ async def test_screenshot_whose_visual_check_failed_is_never_safe():
     matcher = RecordingBrandMatcher(spoofing=False, error=BrandMatchUnavailable("ai-gateway 503"))
     # Harmless text and a link the cascade found safe: only the failed visual check is left.
     response = await _image_with_matcher(
-        ["https://exemplo.com.br/promo"], matcher, ScriptedCascade([_url_verdict(ThreatLevel.SAFE)]), triage_score=0.02
+        ["https://exemplo.com.br/promo"],
+        matcher,
+        ScriptedCascade([_url_verdict(ThreatLevel.SAFE)]),
+        triage_score=0.02,
     )
 
     assert response.threat_level is ThreatLevel.INCONCLUSIVE

@@ -18,7 +18,9 @@ class InMemoryQuotaStore(QuotaStore):
         if self.counters.get(key, 0) > 0:
             self.counters[key] -= 1
 
-    async def window_add(self, key: str, member: str, now: float, window_seconds: int) -> tuple[int, float]:
+    async def window_add(
+        self, key: str, member: str, now: float, window_seconds: int
+    ) -> tuple[int, float]:
         window = self.windows.setdefault(key, {})
         for old_member, ts in list(window.items()):
             if ts <= now - window_seconds:
@@ -31,9 +33,12 @@ class InMemoryQuotaStore(QuotaStore):
 
 
 class RedisQuotaStore(QuotaStore):
-    """Counters `quota:{device}:{yyyymmdd}` / `quota:{device}:{yyyymm}` and a per-IP window in a sorted set."""
+    """Counters `quota:{device}:{yyyymmdd}` / `quota:{device}:{yyyymm}` and a per-IP window
+    in a sorted set."""
 
-    def __init__(self, redis_url: str = "redis://localhost:6379/0", client: aioredis.Redis | None = None) -> None:
+    def __init__(
+        self, redis_url: str = "redis://localhost:6379/0", client: aioredis.Redis | None = None
+    ) -> None:
         self._redis_url = redis_url
         self._client = client
 
@@ -54,7 +59,9 @@ class RedisQuotaStore(QuotaStore):
         if int(await client.decr(key)) < 0:
             await client.set(key, 0, keepttl=True)
 
-    async def window_add(self, key: str, member: str, now: float, window_seconds: int) -> tuple[int, float]:
+    async def window_add(
+        self, key: str, member: str, now: float, window_seconds: int
+    ) -> tuple[int, float]:
         client = self._get_client()
         async with client.pipeline(transaction=True) as pipe:
             pipe.zremrangebyscore(key, 0, now - window_seconds)

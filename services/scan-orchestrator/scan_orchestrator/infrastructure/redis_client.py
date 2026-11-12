@@ -44,7 +44,9 @@ class RedisCacheClient(RedisCacheClientProtocol):
         except Exception:
             return None
 
-    async def set_cached_scan(self, sha256_hash: str, response: ScanResponse, ttl: int = 3600) -> None:
+    async def set_cached_scan(
+        self, sha256_hash: str, response: ScanResponse, ttl: int = 3600
+    ) -> None:
         try:
             client = await self._get_client()
             await client.set(f"scan:{sha256_hash}", response.model_dump_json(), ex=ttl)

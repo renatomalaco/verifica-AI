@@ -1,7 +1,7 @@
 """create analises_phishing table
 
 Revision ID: 0001_analises_phishing
-Revises: 
+Revises:
 Create Date: 2026-10-12
 
 """
@@ -31,7 +31,12 @@ def upgrade() -> None:
         sa.Column("verdict_plain", sa.Text(), nullable=False),
         sa.Column("action_advice", sa.Text(), nullable=False),
         sa.Column("latency_breakdown", JSON(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
     )
     op.create_index("ix_analises_phishing_input_hash", "analises_phishing", ["input_hash"])
 

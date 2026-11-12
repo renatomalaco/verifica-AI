@@ -19,7 +19,9 @@ def test_a_key_without_prices_does_not_run_because_the_cost_would_be_unmeasured(
     assert "GEMINI_PRICE_DATE" in providers.pure_vlm_missing
 
 
-def test_gemini_with_prices_runs_mode_2_and_describes_model_and_price_date(make_settings, gemini_env):
+def test_gemini_with_prices_runs_mode_2_and_describes_model_and_price_date(
+    make_settings, gemini_env
+):
     providers = providers_from_settings(make_settings(**gemini_env))
     assert providers.pure_vlm.description == {
         "provider": "gemini",
@@ -53,12 +55,18 @@ def test_jev_needs_its_key_and_a_price_per_call(make_settings, jev_env):
 
 
 def test_pause_between_model_calls_is_configurable(make_settings):
-    assert providers_from_settings(make_settings(RESEARCH_LLM_PAUSE_SECONDS=6.5)).pause_seconds == 6.5
+    assert (
+        providers_from_settings(make_settings(RESEARCH_LLM_PAUSE_SECONDS=6.5)).pause_seconds == 6.5
+    )
 
 
-async def test_a_gemini_call_returns_the_answer_and_its_measured_cost(make_settings, gemini_env, gemini):
+async def test_a_gemini_call_returns_the_answer_and_its_measured_cost(
+    make_settings, gemini_env, gemini
+):
     gemini.answers(0.97)
-    answer, cost = await providers_from_settings(make_settings(**gemini_env)).pure_vlm.call(ENVELOPE)
+    answer, cost = await providers_from_settings(make_settings(**gemini_env)).pure_vlm.call(
+        ENVELOPE
+    )
     assert answer.is_phishing == 0.97
     assert cost == pytest.approx(0.0013)  # 1000 input and 400 output tokens
 
@@ -72,6 +80,8 @@ async def test_a_jev_call_costs_its_price_per_call(make_settings, jev_env, jev):
 
 def test_empty_price_lines_copied_from_env_example_mean_not_set(make_settings):
     providers = providers_from_settings(
-        make_settings(GEMINI_API_KEY="k", GEMINI_PRICE_INPUT_USD_PER_1M="", JEV_PRICE_USD_PER_1K_CALLS="")
+        make_settings(
+            GEMINI_API_KEY="k", GEMINI_PRICE_INPUT_USD_PER_1M="", JEV_PRICE_USD_PER_1K_CALLS=""
+        )
     )
     assert "GEMINI_PRICE_INPUT_USD_PER_1M" in providers.pure_vlm_missing

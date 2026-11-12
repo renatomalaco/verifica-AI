@@ -42,4 +42,6 @@ class HttpExplainerClient:
                 response.raise_for_status()
                 return ExplainResult.model_validate(response.json())
         except (httpx.HTTPError, ValueError) as exc:
-            raise RuntimeError(f"Failed to request an explanation from the ai-gateway: {exc}") from exc
+            raise RuntimeError(
+                f"Failed to request an explanation from the ai-gateway: {exc}"
+            ) from exc

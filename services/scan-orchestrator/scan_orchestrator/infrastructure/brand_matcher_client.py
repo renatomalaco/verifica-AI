@@ -23,13 +23,16 @@ class HttpBrandMatcherClient(BrandMatcherClientProtocol):
     async def match_brand(
         self, image_b64: str, current_domain: str | None, image_source: ImageSource
     ) -> BrandMatchResult:
-        payload = BrandMatchRequest(image_b64=image_b64, current_domain=current_domain, image_source=image_source)
+        payload = BrandMatchRequest(
+            image_b64=image_b64, current_domain=current_domain, image_source=image_source
+        )
         try:
             resp = await self._post(payload.model_dump(mode="json"))
             resp.raise_for_status()
             return BrandMatchResult.model_validate(resp.json())
         except (httpx.HTTPError, ValueError) as exc:
-            # An empty result here would read as "checked, no brand"; the caller must know it failed.
+            # An empty result here would read as "checked, no brand"; the caller must know
+            # it failed.
             logger.warning("visual RAG unavailable: %r", exc)
             raise BrandMatchUnavailable(str(exc)) from exc
 

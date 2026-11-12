@@ -1,4 +1,5 @@
-"""Stage 1 evidence from public sources: RDAP (registration), crt.sh (first certificate), Tranco (popularity)."""
+"""Stage 1 evidence from public sources: RDAP (registration), crt.sh (first certificate),
+Tranco (popularity)."""
 
 import asyncio
 from collections.abc import Callable
@@ -39,7 +40,9 @@ class RdapClient:
                 events = response.json().get("events", [])
         except (httpx.HTTPError, ValueError):
             return None
-        registered = next((e["eventDate"] for e in events if e.get("eventAction") == "registration"), None)
+        registered = next(
+            (e["eventDate"] for e in events if e.get("eventAction") == "registration"), None
+        )
         return _days_since(registered, self._today()) if registered else None
 
 
@@ -51,7 +54,9 @@ class CrtShClient:
     async def certificate_age_days(self, domain: str) -> int | None:
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.get("https://crt.sh/", params={"q": registrable(domain), "output": "json"})
+                response = await client.get(
+                    "https://crt.sh/", params={"q": registrable(domain), "output": "json"}
+                )
                 response.raise_for_status()
                 certificates = response.json()
         except (httpx.HTTPError, ValueError):
@@ -92,7 +97,9 @@ class HttpDomainEvidenceClient:
             return_exceptions=True,
         )
         # A source that crashed is unknown evidence, never a reason to trust the domain.
-        return DomainEvidence(age_days=_known(age), certificate_age_days=_known(certificate), tranco_rank=_known(rank))
+        return DomainEvidence(
+            age_days=_known(age), certificate_age_days=_known(certificate), tranco_rank=_known(rank)
+        )
 
 
 def _known(value: object) -> int | None:

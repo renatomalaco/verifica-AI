@@ -57,7 +57,8 @@ def _open_within_pixel_limit(raw: bytes, fmt: str) -> Image.Image:
 
 
 def _normalized(img: Image.Image) -> Image.Image:
-    """Phone photos keep their rotation in EXIF; apply it, then drop every metadata field (GPS included)."""
+    """Phone photos keep their rotation in EXIF; apply it, then drop every metadata field
+    (GPS included)."""
     upright = ImageOps.exif_transpose(img).convert("RGB")
     clean = Image.new("RGB", upright.size)
     clean.paste(upright)

@@ -28,5 +28,6 @@ def build_envelope(masked_text: str) -> str:
 
 
 def guard_for_model(text: str) -> str:
-    """What any model receives: normalized text, PII masked (LGPD), inside the untrusted envelope."""
+    """What any model receives: normalized text, PII masked (LGPD), inside the untrusted
+    envelope."""
     return build_envelope(mask_pii(sanitize_text(text)))

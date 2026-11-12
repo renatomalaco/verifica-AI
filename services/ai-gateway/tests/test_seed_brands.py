@@ -29,7 +29,10 @@ async def test_each_image_becomes_one_reference_of_its_brand(tmp_path):
     saved = await seed_references(tmp_path, FakeVisualEmbedder(dimension=768), catalog)
 
     assert saved == 2
-    assert sorted(catalog.saved) == [("Nubank", "nubank/login.JPG", 768), ("Nubank", "nubank/logo.png", 768)]
+    assert sorted(catalog.saved) == [
+        ("Nubank", "nubank/login.JPG", 768),
+        ("Nubank", "nubank/logo.png", 768),
+    ]
 
 
 async def test_a_folder_that_is_not_a_protected_brand_stops_the_seed(tmp_path):

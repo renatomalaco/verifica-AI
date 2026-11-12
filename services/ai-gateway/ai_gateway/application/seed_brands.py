@@ -30,7 +30,9 @@ async def seed_references(root: Path, embedder: VisualEmbedder, store: Reference
     saved = 0
     for image in sorted(p for p in root.glob("*/*") if p.suffix.lower() in IMAGE_SUFFIXES):
         embedding = await embedder.embed_image(base64.b64encode(image.read_bytes()).decode())
-        await store.save_reference(folders[image.parent.name], f"{image.parent.name}/{image.name}", embedding)
+        await store.save_reference(
+            folders[image.parent.name], f"{image.parent.name}/{image.name}", embedding
+        )
         saved += 1
     return saved
 

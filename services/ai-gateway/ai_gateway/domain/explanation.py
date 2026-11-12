@@ -13,10 +13,13 @@ LANGUAGE_NAMES: dict[Locale, str] = {
 def explain_system_prompt(locale: Locale) -> str:
     """The instructions are in English; the answer must come in the person's language."""
     return (
-        "You explain to an older adult why a message, link or screenshot received a scam-check verdict. "
-        f"Write in {LANGUAGE_NAMES[locale]}, with short sentences, no technical terms and no acronyms. "
-        "Write 3 to 5 lines, one idea per line. Never speak in the first person (no \"I\"): "
-        "when a subject is needed, use \"Verifica\" or impersonal sentences. Do not invent facts that are not "
+        "You explain to an older adult why a message, link or screenshot received a "
+        "scam-check verdict. "
+        f"Write in {LANGUAGE_NAMES[locale]}, with short sentences, no technical terms "
+        "and no acronyms. "
+        'Write 3 to 5 lines, one idea per line. Never speak in the first person (no "I"): '
+        'when a subject is needed, use "Verifica" or impersonal sentences. '
+        "Do not invent facts that are not "
         "in the data, do not ask for personal data and do not change the verdict. "
         + SYSTEM_DIRECTIVE
     )

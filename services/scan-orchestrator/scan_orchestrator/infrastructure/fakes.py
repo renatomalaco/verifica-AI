@@ -1,4 +1,12 @@
-from contracts import BrandMatchResult, ImageSource, InspectResult, Persuasion, ScanResponse, TriageResult, normalize_url
+from contracts import (
+    BrandMatchResult,
+    ImageSource,
+    InspectResult,
+    Persuasion,
+    ScanResponse,
+    TriageResult,
+    normalize_url,
+)
 from scan_orchestrator.domain.domain_risk import DomainEvidence
 from scan_orchestrator.domain.perceptual_hash import nearest
 
@@ -18,7 +26,9 @@ class FakeRedisCacheClient:
     async def get_cached_scan(self, sha256_hash: str) -> ScanResponse | None:
         return self._cache.get(sha256_hash)
 
-    async def set_cached_scan(self, sha256_hash: str, response: ScanResponse, ttl: int = 3600) -> None:
+    async def set_cached_scan(
+        self, sha256_hash: str, response: ScanResponse, ttl: int = 3600
+    ) -> None:
         self._cache[sha256_hash] = response
 
     async def get_cached_phash(self, phash: str) -> ScanResponse | None:
@@ -57,7 +67,9 @@ class FakeInspectorClient:
 
 
 class FakeBrandMatcherClient:
-    def __init__(self, default_result: BrandMatchResult | None = None, error: Exception | None = None) -> None:
+    def __init__(
+        self, default_result: BrandMatchResult | None = None, error: Exception | None = None
+    ) -> None:
         self._default = default_result or BrandMatchResult()
         self._error = error
         self.calls: list[tuple[str, str | None, ImageSource]] = []

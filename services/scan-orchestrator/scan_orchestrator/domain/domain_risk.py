@@ -19,7 +19,11 @@ class DomainEvidence:
     tranco_rank: int | None = None
 
     def as_signals(self) -> dict[str, str]:
-        names = {"age_days": "domain_age_days", "certificate_age_days": "certificate_age_days", "tranco_rank": "tranco_rank"}
+        names = {
+            "age_days": "domain_age_days",
+            "certificate_age_days": "certificate_age_days",
+            "tranco_rank": "tranco_rank",
+        }
         return {names[k]: str(v) for k, v in asdict(self).items() if v is not None}
 
 

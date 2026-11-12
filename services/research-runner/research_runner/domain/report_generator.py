@@ -1,4 +1,6 @@
-"""Thesis tables (Markdown and LaTeX) built from the study report. The text is in Portuguese for the monograph."""
+"""Thesis tables (Markdown and LaTeX) built from the study report.
+
+The text is in Portuguese for the monograph."""
 
 from typing import Any
 
@@ -32,7 +34,8 @@ def generate_markdown_table(modes: list[dict[str, Any]]) -> str:
         m = mode["metrics"]
         lines.append(
             f"| {label} | {m['accuracy'] * 100:.1f}% | {m['precision']:.3f} | {m['recall']:.3f} | "
-            f"{m['f1_score']:.3f} | {m['f2_score']:.3f} | {m['ece']:.3f} | {m['p95_latency_ms']:.1f} | "
+            f"{m['f1_score']:.3f} | {m['f2_score']:.3f} | {m['ece']:.3f} | "
+            f"{m['p95_latency_ms']:.1f} | "
             f"${m['cost_per_1k_usd']:.3f} |"
         )
     return "\n".join(lines)
@@ -40,21 +43,24 @@ def generate_markdown_table(modes: list[dict[str, Any]]) -> str:
 
 def generate_latex_table(modes: list[dict[str, Any]]) -> str:
     rows = [_latex_row(mode) for mode in modes]
-    return "\n".join([
-        "\\begin{table}[htbp]",
-        "\\centering",
-        "\\caption{Resultados do Estudo de Ablação no conjunto de teste (amostras reais)}",
-        "\\label{tab:ablation_results}",
-        "\\begin{tabular}{lcccccccc}",
-        "\\toprule",
-        "\\textbf{Modo} & \\textbf{Acc.} & \\textbf{Prec.} & \\textbf{Rec.} & \\textbf{F1} & \\textbf{F2} & "
-        "\\textbf{ECE} & \\textbf{P95 (ms)} & \\textbf{Custo/1k (USD)} \\\\",
-        "\\midrule",
-        *rows,
-        "\\bottomrule",
-        "\\end{tabular}",
-        "\\end{table}",
-    ])
+    return "\n".join(
+        [
+            "\\begin{table}[htbp]",
+            "\\centering",
+            "\\caption{Resultados do Estudo de Ablação no conjunto de teste (amostras reais)}",
+            "\\label{tab:ablation_results}",
+            "\\begin{tabular}{lcccccccc}",
+            "\\toprule",
+            "\\textbf{Modo} & \\textbf{Acc.} & \\textbf{Prec.} & \\textbf{Rec.} & "
+            "\\textbf{F1} & \\textbf{F2} & "
+            "\\textbf{ECE} & \\textbf{P95 (ms)} & \\textbf{Custo/1k (USD)} \\\\",
+            "\\midrule",
+            *rows,
+            "\\bottomrule",
+            "\\end{tabular}",
+            "\\end{table}",
+        ]
+    )
 
 
 def _latex_row(mode: dict[str, Any]) -> str:

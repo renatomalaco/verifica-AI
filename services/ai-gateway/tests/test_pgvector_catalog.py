@@ -17,11 +17,15 @@ TEST_BRAND = "Marca de Teste R4"
 @pytest.fixture
 async def catalog():
     if not DATABASE_URL:
-        pytest.skip("TEST_DATABASE_URL not set (needs the migrated Postgres from infra/docker-compose.yml)")
+        pytest.skip(
+            "TEST_DATABASE_URL not set (needs the migrated Postgres from infra/docker-compose.yml)"
+        )
     engine = create_async_engine(DATABASE_URL)
     yield PgvectorBrandCatalog(engine)
     async with engine.begin() as conn:
-        await conn.execute(text("DELETE FROM marcas_protegidas WHERE brand_name = :name"), {"name": TEST_BRAND})
+        await conn.execute(
+            text("DELETE FROM marcas_protegidas WHERE brand_name = :name"), {"name": TEST_BRAND}
+        )
     await engine.dispose()
 
 

@@ -33,9 +33,16 @@ class EgressProxy:
 
     async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
-            target = parse_request_head(await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), TIMEOUT_SECONDS))
+            target = parse_request_head(
+                await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), TIMEOUT_SECONDS)
+            )
             ip = await self._authorize(target)
-        except (ValueError, asyncio.LimitOverrunError, asyncio.IncompleteReadError, asyncio.TimeoutError):
+        except (
+            ValueError,
+            asyncio.LimitOverrunError,
+            asyncio.IncompleteReadError,
+            asyncio.TimeoutError,
+        ):
             await _reply_and_close(writer, BAD_REQUEST)
             return
         except (SsrfBlockedException, RuntimeError) as exc:
@@ -51,7 +58,9 @@ class EgressProxy:
 
     async def _relay(self, reader, writer, target: ProxyTarget, ip: str) -> None:
         try:
-            up_reader, up_writer = await asyncio.wait_for(asyncio.open_connection(ip, target.port), TIMEOUT_SECONDS)
+            up_reader, up_writer = await asyncio.wait_for(
+                asyncio.open_connection(ip, target.port), TIMEOUT_SECONDS
+            )
         except (OSError, asyncio.TimeoutError):
             await _reply_and_close(writer, FORBIDDEN)
             return
@@ -81,7 +90,9 @@ async def _reply_and_close(writer: asyncio.StreamWriter, response: bytes) -> Non
         writer.close()
 
 
-async def serve(host: str = "0.0.0.0", port: int = 3128) -> None:
+# All interfaces on purpose: the inspector reaches this container over the isolated Docker
+# network, and the proxy is never published on the host.
+async def serve(host: str = "0.0.0.0", port: int = 3128) -> None:  # nosec B104
     server = await asyncio.start_server(EgressProxy().handle, host, port, limit=HEAD_LIMIT)
     async with server:
         await server.serve_forever()

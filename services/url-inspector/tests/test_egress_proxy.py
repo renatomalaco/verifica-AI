@@ -10,12 +10,17 @@ from url_inspector.infrastructure.egress_proxy import EgressProxy
 # --- Parsing (pure) ---
 
 def test_connect_is_a_tunnel_to_host_and_port():
-    target = parse_request_head(b"CONNECT banco.example:443 HTTP/1.1\r\nHost: banco.example:443\r\n\r\n")
+    target = parse_request_head(
+        b"CONNECT banco.example:443 HTTP/1.1\r\nHost: banco.example:443\r\n\r\n"
+    )
     assert (target.host, target.port, target.is_tunnel) == ("banco.example", 443, True)
 
 
 def test_absolute_http_request_becomes_origin_form_and_closes_the_connection():
-    head = b"GET http://site.example/promo?x=1 HTTP/1.1\r\nHost: site.example\r\nProxy-Connection: keep-alive\r\n\r\n"
+    head = (
+        b"GET http://site.example/promo?x=1 HTTP/1.1\r\nHost: site.example\r\n"
+        b"Proxy-Connection: keep-alive\r\n\r\n"
+    )
     target = parse_request_head(head)
     assert (target.host, target.port, target.is_tunnel) == ("site.example", 80, False)
     assert target.forward_head.startswith(b"GET /promo?x=1 HTTP/1.1\r\n")
@@ -23,7 +28,10 @@ def test_absolute_http_request_becomes_origin_form_and_closes_the_connection():
     assert b"Proxy-Connection" not in target.forward_head
 
 
-@pytest.mark.parametrize("head", [b"GET /relative HTTP/1.1\r\n\r\n", b"lixo\r\n\r\n", b"CONNECT semporta HTTP/1.1\r\n\r\n"])
+@pytest.mark.parametrize(
+    "head",
+    [b"GET /relative HTTP/1.1\r\n\r\n", b"lixo\r\n\r\n", b"CONNECT semporta HTTP/1.1\r\n\r\n"],
+)
 def test_malformed_requests_are_rejected(head):
     with pytest.raises(ValueError):
         parse_request_head(head)
@@ -69,17 +77,23 @@ async def test_request_to_a_validated_host_is_forwarded():
     upstream, upstream_port = await start_upstream()
     proxy, proxy_port = await start_proxy(upstream_port)
     async with upstream, proxy:
-        response = await send(proxy_port, f"GET http://ok.test:{upstream_port}/ HTTP/1.1\r\nHost: ok.test\r\n\r\n".encode())
+        response = await send(
+            proxy_port,
+            f"GET http://ok.test:{upstream_port}/ HTTP/1.1\r\nHost: ok.test\r\n\r\n".encode(),
+        )
     assert response.startswith(b"HTTP/1.1 200 OK")
     assert response.endswith(b"ok")
 
 
 async def test_redirect_target_on_cloud_metadata_is_blocked():
-    # A phishing page that redirects (or loads an <img>) to the metadata service hits the proxy like any request.
+    # A phishing page that redirects (or loads an <img>) to the metadata service hits the proxy
+    # like any request.
     upstream, upstream_port = await start_upstream()
     proxy, proxy_port = await start_proxy(upstream_port)
     async with upstream, proxy:
-        response = await send(proxy_port, b"CONNECT metadata.test:443 HTTP/1.1\r\nHost: metadata.test:443\r\n\r\n")
+        response = await send(
+            proxy_port, b"CONNECT metadata.test:443 HTTP/1.1\r\nHost: metadata.test:443\r\n\r\n"
+        )
     assert response.startswith(b"HTTP/1.1 403")
 
 
@@ -87,7 +101,9 @@ async def test_ports_other_than_web_are_blocked():
     upstream, upstream_port = await start_upstream()
     proxy, proxy_port = await start_proxy(upstream_port)
     async with upstream, proxy:
-        response = await send(proxy_port, b"CONNECT ok.test:22 HTTP/1.1\r\nHost: ok.test:22\r\n\r\n")
+        response = await send(
+            proxy_port, b"CONNECT ok.test:22 HTTP/1.1\r\nHost: ok.test:22\r\n\r\n"
+        )
     assert response.startswith(b"HTTP/1.1 403")
 
 

@@ -20,7 +20,9 @@ def _use_case(query: list[float], verifier: FakeBrandVerifier | None = None) -> 
     )
 
 
-def _request(domain: str | None, source: ImageSource = ImageSource.PAGE_SCREENSHOT) -> BrandMatchRequest:
+def _request(
+    domain: str | None, source: ImageSource = ImageSource.PAGE_SCREENSHOT
+) -> BrandMatchRequest:
     return BrandMatchRequest(image_b64="aGVsbG8=", current_domain=domain, image_source=source)
 
 
@@ -66,7 +68,9 @@ async def test_gray_zone_confirmed_by_the_vlm_is_spoofing():
 
 
 async def test_gray_zone_denied_by_the_vlm_stays_a_signal():
-    result = await _use_case(GRAY_ZONE, FakeBrandVerifier(answer=False)).run(_request("bb-recadastro.xyz"))
+    result = await _use_case(GRAY_ZONE, FakeBrandVerifier(answer=False)).run(
+        _request("bb-recadastro.xyz")
+    )
 
     assert result.is_spoofing is False
     assert result.possible_brand == "Banco do Brasil"
@@ -75,7 +79,9 @@ async def test_gray_zone_denied_by_the_vlm_stays_a_signal():
 async def test_a_persons_screenshot_never_goes_to_the_vlm():
     verifier = FakeBrandVerifier(answer=True)
 
-    result = await _use_case(GRAY_ZONE, verifier).run(_request("bb-recadastro.xyz", ImageSource.USER_IMAGE))
+    result = await _use_case(GRAY_ZONE, verifier).run(
+        _request("bb-recadastro.xyz", ImageSource.USER_IMAGE)
+    )
 
     assert verifier.calls == 0
     assert result.is_spoofing is False
