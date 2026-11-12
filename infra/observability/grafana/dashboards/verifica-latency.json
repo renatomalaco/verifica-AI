@@ -1,0 +1,347 @@
+{
+  "uid": "verifica-latency",
+  "title": "Verifica AI — Latência da cascata",
+  "description": "P50/P95/P99 de cada estágio da cascata, por veredito. Só dados técnicos: nenhum conteúdo analisado.",
+  "tags": [
+    "verifica",
+    "latencia"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "verdict",
+        "label": "Veredito",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": {
+          "query": "label_values(verifica_stage_duration_milliseconds_bucket, verdict)",
+          "refId": "verdict"
+        },
+        "definition": "label_values(verifica_stage_duration_milliseconds_bucket, verdict)",
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "P50 por estágio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, stage) (rate(verifica_stage_duration_milliseconds_bucket{job=\"scan-orchestrator\", verdict=~\"$verdict\"}[$__rate_interval])))",
+          "legendFormat": "{{stage}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "P95 por estágio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, stage) (rate(verifica_stage_duration_milliseconds_bucket{job=\"scan-orchestrator\", verdict=~\"$verdict\"}[$__rate_interval])))",
+          "legendFormat": "{{stage}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "P99 por estágio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le, stage) (rate(verifica_stage_duration_milliseconds_bucket{job=\"scan-orchestrator\", verdict=~\"$verdict\"}[$__rate_interval])))",
+          "legendFormat": "{{stage}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Análise completa — P50 / P95 / P99",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "P50",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(verifica_scan_duration_milliseconds_bucket{job=\"scan-orchestrator\", verdict=~\"$verdict\"}[$__rate_interval])))"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "P95",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(verifica_scan_duration_milliseconds_bucket{job=\"scan-orchestrator\", verdict=~\"$verdict\"}[$__rate_interval])))"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "P99",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(verifica_scan_duration_milliseconds_bucket{job=\"scan-orchestrator\", verdict=~\"$verdict\"}[$__rate_interval])))"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Por estágio e veredito (período selecionado)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Análises"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Estágio",
+            "desc": false
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "P50",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "format": "table",
+          "instant": true,
+          "expr": "histogram_quantile(0.5, sum by (le, stage, verdict) (increase(verifica_stage_duration_milliseconds_bucket{job=\"scan-orchestrator\", verdict=~\"$verdict\"}[$__range]))) and on (stage, verdict) (sum by (stage, verdict) (increase(verifica_stage_duration_milliseconds_count{job=\"scan-orchestrator\", verdict=~\"$verdict\"}[$__range])) > 0)"
+        },
+        {
+          "refId": "P95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "format": "table",
+          "instant": true,
+          "expr": "histogram_quantile(0.95, sum by (le, stage, verdict) (increase(verifica_stage_duration_milliseconds_bucket{job=\"scan-orchestrator\", verdict=~\"$verdict\"}[$__range]))) and on (stage, verdict) (sum by (stage, verdict) (increase(verifica_stage_duration_milliseconds_count{job=\"scan-orchestrator\", verdict=~\"$verdict\"}[$__range])) > 0)"
+        },
+        {
+          "refId": "P99",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "format": "table",
+          "instant": true,
+          "expr": "histogram_quantile(0.99, sum by (le, stage, verdict) (increase(verifica_stage_duration_milliseconds_bucket{job=\"scan-orchestrator\", verdict=~\"$verdict\"}[$__range]))) and on (stage, verdict) (sum by (stage, verdict) (increase(verifica_stage_duration_milliseconds_count{job=\"scan-orchestrator\", verdict=~\"$verdict\"}[$__range])) > 0)"
+        },
+        {
+          "refId": "Análises",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "format": "table",
+          "instant": true,
+          "expr": "round(sum by (stage, verdict) (increase(verifica_stage_duration_milliseconds_count{job=\"scan-orchestrator\", verdict=~\"$verdict\"}[$__range]))) > 0"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value #P50": "P50",
+              "Value #P95": "P95",
+              "Value #P99": "P99",
+              "Value #Análises": "Análises",
+              "stage": "Estágio",
+              "verdict": "Veredito"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

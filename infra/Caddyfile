@@ -15,11 +15,6 @@ verifica.ai, localhost {
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
     }
 
-    # Metrics: only signed-in researchers (the orchestrator checks the access cookie)
-    handle /metrics {
-        reverse_proxy scan-orchestrator:8000
-    }
-
     # Public API and Scan Orchestrator endpoints
     handle /api/* {
         reverse_proxy scan-orchestrator:8000 {

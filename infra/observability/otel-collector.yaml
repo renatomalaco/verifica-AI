@@ -1,0 +1,32 @@
+# Receives OTLP from the services, sends traces to Jaeger and exposes metrics for Prometheus.
+# The services already drop everything but technical attributes (packages/observability).
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+  batch: {}
+
+exporters:
+  otlp_grpc/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true  # internal Docker network only
+  prometheus:
+    endpoint: 0.0.0.0:8889  # scraped by Prometheus on the internal network, never published
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_grpc/jaeger]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]

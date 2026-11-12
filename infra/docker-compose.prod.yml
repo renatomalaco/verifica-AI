@@ -44,6 +44,7 @@ services:
       - AUTH_JWT_PUBLIC_KEY=${AUTH_JWT_PUBLIC_KEY:?defina AUTH_JWT_PUBLIC_KEY no .env}
       - AUTH_ALLOWED_ORIGINS=https://verifica.ai
       - PUBLIC_BASE_URL=https://verifica.ai
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     networks:
       - public
       - internal
@@ -81,6 +82,7 @@ services:
     restart: unless-stopped
     environment:
       - DATABASE_URL=postgresql+asyncpg://verifica:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/verifica_db
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     networks:
       - internal
     depends_on:
@@ -97,6 +99,7 @@ services:
     environment:
       # No route to the internet of its own: every browser request goes through the egress proxy.
       - EGRESS_PROXY_URL=http://egress:3128
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     networks:
       - isolated-inspector
     depends_on:
@@ -120,6 +123,8 @@ services:
       dockerfile: services/image-extractor/Dockerfile
     container_name: verifica-image-extractor
     restart: unless-stopped
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     networks:
       - internal
 
@@ -131,6 +136,7 @@ services:
     restart: unless-stopped
     environment:
       - REDIS_URL=redis://redis:6379/0
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     networks:
       - internal
       - egress-out  # downloads feeds and the Tranco list from fixed, trusted hosts
@@ -147,9 +153,79 @@ services:
       # Public key only: the research-runner checks tokens but can never issue one.
       - AUTH_JWT_PUBLIC_KEY=${AUTH_JWT_PUBLIC_KEY:?defina AUTH_JWT_PUBLIC_KEY no .env}
       - AUTH_ALLOWED_ORIGINS=https://verifica.ai
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     networks:
       - public
       - internal
+
+  # --- Observability (R6): nothing is published to the internet. Prometheus scrapes the
+  # collector on the internal network; the Jaeger and Grafana UIs listen on the server's
+  # loopback only (open them through an SSH tunnel).
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.164.0
+    container_name: verifica-otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    networks:
+      - internal
+      - isolated-inspector  # the url-inspector has no other network; its browser cannot reach it (SSRF shield)
+    depends_on:
+      - jaeger
+
+  jaeger:
+    image: jaegertracing/jaeger:2.22.0
+    container_name: verifica-jaeger
+    restart: unless-stopped
+    user: "0"  # Badger writes to the named volume, which Docker creates owned by root
+    command: ["--config=/etc/jaeger/config.yaml"]
+    volumes:
+      - ./observability/jaeger.yaml:/etc/jaeger/config.yaml:ro
+      - jaegerdata_prod:/badger
+    ports:
+      - "127.0.0.1:16686:16686"
+    networks:
+      - internal
+      - ops
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    container_name: verifica-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheusdata_prod:/prometheus
+    networks:
+      - internal
+
+  grafana:
+    image: grafana/grafana:13.2.6
+    container_name: verifica-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?defina GRAFANA_ADMIN_PASSWORD no .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata_prod:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - internal
+      - ops
+    depends_on:
+      - prometheus
+      - jaeger
 
   postgres:
     image: pgvector/pgvector:pg16
@@ -192,9 +268,14 @@ networks:
     internal: true
   egress-out:
     driver: bridge
+  ops:
+    driver: bridge  # only to publish the Jaeger and Grafana UIs on the server's loopback
 
 volumes:
   pgdata_prod:
   redisdata_prod:
   caddy_data:
   caddy_config:
+  jaegerdata_prod:
+  prometheusdata_prod:
+  grafanadata_prod:
