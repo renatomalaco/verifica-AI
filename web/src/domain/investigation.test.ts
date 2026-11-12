@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { m } from '../paraglide/messages.js'
-import { buildEvidence, friendlyErrorMessage, toScanRequest, upsertStage } from './investigation'
+import {
+  ScanRateLimitedError,
+  buildEvidence,
+  friendlyErrorMessage,
+  toScanRequest,
+  upsertStage,
+} from './investigation'
 
 describe('buildEvidence', () => {
   it('uses the trimmed text for messages and links', () => {
@@ -54,5 +60,16 @@ describe('friendlyErrorMessage', () => {
   it('never exposes technical details for other failures', () => {
     const message = friendlyErrorMessage(new Error('Erro (500): Traceback ...'), true)
     expect(message).toBe(m.home_error_generic())
+  })
+
+  it('says the pause is short and when to try again when there were too many scans', () => {
+    const retryAt = new Date(2026, 10, 10, 14, 31, 20).toISOString()
+    const message = friendlyErrorMessage(new ScanRateLimitedError(retryAt), true)
+    expect(message).toBe(m.home_error_rate_limited({ time: '14:32' }))
+  })
+
+  it('still explains the pause when the server did not say when it ends', () => {
+    expect(friendlyErrorMessage(new ScanRateLimitedError(null), true)).toBe(m.home_error_rate_limited_soon())
+    expect(friendlyErrorMessage(new ScanRateLimitedError('not-a-date'), true)).toBe(m.home_error_rate_limited_soon())
   })
 })

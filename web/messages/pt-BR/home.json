@@ -45,5 +45,7 @@
   "home_stage_unknown": "Conferindo mais um detalhe",
 
   "home_error_offline": "Parece que a internet caiu. Confira a conexão e tente de novo.",
-  "home_error_generic": "Houve um problema na investigação. Tente de novo em instantes."
+  "home_error_generic": "Houve um problema na investigação. Tente de novo em instantes.",
+  "home_error_rate_limited": "Foram muitas verificações seguidas nesta conexão. Para evitar abuso, o Verifica faz uma pausa curta. Tente de novo a partir das {time}.",
+  "home_error_rate_limited_soon": "Foram muitas verificações seguidas nesta conexão. Para evitar abuso, o Verifica faz uma pausa curta. Tente de novo daqui a um minuto."
 }

@@ -40,6 +40,11 @@ describe('Privacy', () => {
     expect(screen.getByText(m.privacy_traces_retention())).toBeInTheDocument()
   })
 
+  it('says the internet address of each scan is kept for a minute only, against floods', () => {
+    render(<Privacy onBack={() => {}} />)
+    expect(screen.getByText(m.privacy_during_rate_limit())).toBeInTheDocument()
+  })
+
   it('says that a share from another app stays on the device only until the app opens it', () => {
     render(<Privacy onBack={() => {}} />)
     expect(screen.getByText(m.privacy_device_shared())).toBeInTheDocument()
