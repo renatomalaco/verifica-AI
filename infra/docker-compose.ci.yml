@@ -1,0 +1,14 @@
+# CI-only override of docker-compose.yml (used by scripts/ci/integration.sh).
+# Own container names, loopback-only host ports and throwaway volumes, so a build never
+# touches a developer's stack running on the same machine.
+services:
+  postgres:
+    container_name: verifica-ci-postgres
+    restart: "no"
+    ports: !override
+      - "127.0.0.1:${CI_POSTGRES_PORT:?}:5432"
+  redis:
+    container_name: verifica-ci-redis
+    restart: "no"
+    ports: !override
+      - "127.0.0.1:${CI_REDIS_PORT:?}:6379"

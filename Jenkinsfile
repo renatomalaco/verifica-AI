@@ -1,54 +1,77 @@
+// Verifica AI CI/CD (R7). Every shell step calls a command that also runs on a developer
+// machine; the Python matrix and the integration stage live in scripts/ci/.
 pipeline {
     agent any
 
+    options {
+        timeout(time: 60, unit: 'MINUTES')
+        // The integration stage binds fixed loopback ports, so builds of this job run one at a time.
+        disableConcurrentBuilds()
+    }
+
     environment {
-        UV_PROJECT_ENVIRONMENT = '/tmp/uv_env'
+        // Per-build virtualenv inside the workspace: cleanWs removes it, and builds never share it.
+        UV_PROJECT_ENVIRONMENT = "${WORKSPACE}/.venv"
         PYTHONUNBUFFERED = '1'
     }
 
     stages {
-        stage('Checkout & Setup') {
+        stage('Preparar ambiente') {
             steps {
-                echo '=== Sincronizando repositorio e dependencias via uv ==='
-                sh 'uv sync --all-packages'
+                // --frozen: install exactly uv.lock and fail if pyproject.toml drifted from it.
+                sh 'uv sync --all-packages --frozen'
             }
         }
 
-        stage('Qualidade de Codigo & Seguranca') {
-            parallel {
-                stage('Lint & Estilo') {
-                    steps {
-                        echo '=== Executando verificacao de sintaxe e estilo ==='
-                        sh 'uv run flake8 packages services --max-line-length=100 --ignore=E203,W503 --exclude=.venv,__pycache__'
-                    }
-                }
-                stage('Analise Estatica SAST') {
-                    steps {
-                        echo '=== Executando auditoria de seguranca SAST com Bandit ==='
-                        sh 'uv run bandit -r packages services -x .venv,tests -ll'
-                    }
-                }
-                stage('Auditoria de Vulnerabilidades') {
-                    steps {
-                        echo '=== Executando auditoria de CVEs nas dependencias ==='
-                        sh 'uv run pip-audit --ignore-vuln=PYSEC-0000'
-                    }
-                }
-            }
-        }
-
-        stage('Testes Unitarios & Cobertura') {
+        stage('Auditoria de dependencias') {
             steps {
-                echo '=== Executando testes unitarios com cobertura minima de 80% ==='
-                sh 'uv run pytest packages services -m "not integration" --cov=packages --cov=services --cov-report=term-missing --cov-fail-under=80 -q'
+                // No ignores: a finding is fixed by upgrading. If one ever has to be ignored,
+                // use --ignore-vuln <ID> with the reason written right next to it.
+                sh 'uv run --no-sync pip-audit --skip-editable'
             }
         }
 
-        stage('Testes do Frontend & Acessibilidade') {
+        stage('Python por componente') {
+            matrix {
+                axes {
+                    axis {
+                        name 'COMPONENT'
+                        values 'packages/contracts',
+                            'packages/observability',
+                            'services/ai-gateway',
+                            'services/image-extractor',
+                            'services/research-runner',
+                            'services/scan-orchestrator',
+                            'services/threat-intel-sync',
+                            'services/url-inspector'
+                    }
+                }
+                stages {
+                    stage('Lint, SAST e testes (cobertura >= 80%)') {
+                        steps {
+                            sh 'bash scripts/ci/python_component.sh "$COMPONENT"'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Integracao (Docker)') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'verifica-postgres-password', variable: 'POSTGRES_PASSWORD'),
+                ]) {
+                    sh 'bash scripts/ci/integration.sh'
+                }
+            }
+        }
+
+        stage('Frontend') {
             steps {
                 dir('web') {
-                    echo '=== Testes do frontend: vitest (markup acessivel) e Playwright (WCAG 2.2 AA no navegador) ==='
-                    sh 'npm test -- --run'
+                    sh 'npm ci --no-audit --no-fund'
+                    sh 'npm run lint'
+                    sh 'npm test'
                     sh 'npm run build'
                     sh 'npx playwright install --with-deps chromium'
                     sh 'CI=1 npm run test:e2e'
@@ -56,20 +79,35 @@ pipeline {
             }
         }
 
-        stage('Gate Cientifico de Regressao F1') {
+        stage('Gate cientifico F1') {
             steps {
-                echo '=== Validando Gate Cientifico Automatizado (F1 >= 0.92 na cascata) ==='
-                // Exit 2 while the test split has no real samples: the gate never passes on made-up data.
-                sh 'uv run python -m research_runner --threshold-f1 0.92'
+                script {
+                    // research_runner exit codes: 0 = F1 >= threshold, 1 = below, 2 = no real test samples.
+                    int code = sh(
+                        script: 'uv run --no-sync python -m research_runner --threshold-f1 0.92',
+                        returnStatus: true
+                    )
+                    if (code == 2) {
+                        error('Gate F1 (saida 2): o split de teste ainda nao tem amostras reais. ' +
+                              'O pipeline fica vermelho de proposito ate a coleta do dataset ' +
+                              '(services/research-runner/data/README.md): nenhum numero inventado passa pelo gate.')
+                    }
+                    if (code == 1) {
+                        error('Gate F1 (saida 1): o F1 da cascata no split de teste ficou abaixo de 0.92. ' +
+                              'Veja services/research-runner/reports/latest.json.')
+                    }
+                    if (code != 0) {
+                        error("Gate F1: o research_runner terminou com a saida inesperada ${code}; veja o log acima.")
+                    }
+                }
             }
         }
 
-        stage('Build das Imagens Docker') {
+        stage('Build das imagens Docker') {
             when {
                 branch 'main'
             }
             steps {
-                echo '=== Compilando imagens Docker para producao ==='
                 // Compose requires these secrets; they come from Jenkins credentials, never from the repo.
                 withCredentials([
                     string(credentialsId: 'verifica-postgres-password', variable: 'POSTGRES_PASSWORD'),
@@ -84,13 +122,14 @@ pipeline {
 
     post {
         always {
+            junit allowEmptyResults: true, testResults: 'reports/junit-*.xml'
             cleanWs deleteDirs: true, notFailBuild: true
         }
         success {
-            echo 'Pipeline de CI/CD do Verifica AI concluido com sucesso! Gate F1 >= 0.92 aprovado.'
+            echo 'Pipeline do Verifica AI verde: lint, seguranca, testes, integracao, frontend e gate F1 aprovados.'
         }
         failure {
-            echo 'Falha detectada no pipeline de CI/CD. Verifique os logs das etapas anteriores.'
+            echo 'Pipeline vermelho: abra o primeiro estagio em vermelho e leia o fim do log dele.'
         }
     }
 }
