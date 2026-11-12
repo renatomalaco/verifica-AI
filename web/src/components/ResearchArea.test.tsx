@@ -57,6 +57,17 @@ describe('ResearchArea', () => {
     expect(await screen.findByText(m.research_missing_title())).toBeInTheDocument()
   })
 
+  it('has no link to /metrics, which only the internal Prometheus reads now', async () => {
+    serve({ ...signedOut, 'POST /api/v1/auth/login': { status: 200, body: RESEARCHER } })
+    render(<ResearchArea onBack={vi.fn()} />)
+
+    await signIn('banca@exemplo.com')
+
+    const nav = await screen.findByRole('navigation', { name: m.research_nav_label() })
+    const hrefs = Array.from(nav.querySelectorAll('a')).map((link) => link.getAttribute('href'))
+    expect(hrefs).not.toContain('/metrics')
+  })
+
   it('shows a generic message for wrong credentials', async () => {
     serve({ ...signedOut, 'POST /api/v1/auth/login': { status: 401, body: { detail: 'invalid_credentials' } } })
     render(<ResearchArea onBack={vi.fn()} />)

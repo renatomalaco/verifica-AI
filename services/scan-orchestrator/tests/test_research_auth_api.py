@@ -67,13 +67,12 @@ async def login(client: AsyncClient, email: str = "banca@exemplo.com", password:
     return await client.post("/api/v1/auth/login", json={"email": email, "password": password})
 
 
-async def test_metrics_need_a_signed_in_researcher(client):
-    assert (await client.get("/metrics")).status_code == 401
-
+async def test_metrics_are_not_served_publicly_even_to_a_researcher(client):
+    # Prometheus scrapes the OTel Collector on the internal network (R6), never the orchestrator.
     await create_account("banca@exemplo.com", ResearchRole.RESEARCHER)
     await login(client)
 
-    assert (await client.get("/metrics")).status_code == 200
+    assert (await client.get("/metrics")).status_code == 404
 
 
 async def test_login_returns_the_user_and_sets_hardened_cookies(client):

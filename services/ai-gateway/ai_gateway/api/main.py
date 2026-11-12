@@ -1,6 +1,7 @@
 from functools import lru_cache
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import create_async_engine
+from observability import configure_telemetry
 from contracts import TriageRequest, TriageResult, BrandMatchRequest, BrandMatchResult, ExplainRequest, ExplainResult
 from ai_gateway.settings import Settings
 from ai_gateway.domain.envelope import guard_for_model
@@ -15,6 +16,7 @@ from ai_gateway.domain.explanation import ExplanationProvider
 from ai_gateway.infrastructure.explanation_provider import FakeExplanationProvider, GeminiExplanationProvider
 
 app = FastAPI(title="ai-gateway", version="0.1.0")
+configure_telemetry("ai-gateway", app)
 
 @lru_cache
 def get_settings() -> Settings:

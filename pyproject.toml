@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "contracts",
+    "observability",
     "ai-gateway",
     "image-extractor",
     "scan-orchestrator",
@@ -19,6 +20,7 @@ members = ["packages/*", "services/*"]
 
 [tool.uv.sources]
 contracts = { workspace = true }
+observability = { workspace = true }
 ai-gateway = { workspace = true }
 image-extractor = { workspace = true }
 scan-orchestrator = { workspace = true }

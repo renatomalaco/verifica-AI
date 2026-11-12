@@ -32,6 +32,14 @@ describe('Privacy', () => {
     expect(screen.getByText(m.privacy_voice_scope())).toBeInTheDocument()
   })
 
+  it('says which technical traces are kept, without any content, and for how long', () => {
+    render(<Privacy onBack={() => {}} />)
+    expect(screen.getByRole('heading', { name: m.privacy_traces_title() })).toBeInTheDocument()
+    expect(screen.getByText(m.privacy_traces_kept())).toBeInTheDocument()
+    expect(screen.getByText(m.privacy_traces_never())).toBeInTheDocument()
+    expect(screen.getByText(m.privacy_traces_retention())).toBeInTheDocument()
+  })
+
   it('says that a share from another app stays on the device only until the app opens it', () => {
     render(<Privacy onBack={() => {}} />)
     expect(screen.getByText(m.privacy_device_shared())).toBeInTheDocument()

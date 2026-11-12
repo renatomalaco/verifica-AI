@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from contracts import ExtractRequest, ExtractResult
+from observability import configure_telemetry
 from image_extractor.domain.extractor_service import ImageExtractorService
 from image_extractor.infrastructure.ocr import TesseractOcrEngine, ZbarQrReader
 
@@ -8,6 +9,7 @@ app = FastAPI(
     description="Visual evidence extraction and analysis: OCR, QR code, pHash and SHA-256",
     version="0.1.0",
 )
+configure_telemetry("image-extractor", app)
 
 # A fallback OCR (Florence-2) plugs in through fallback_ocr when it is deployed; off by default.
 _global_service = ImageExtractorService(ocr_engine=TesseractOcrEngine(), qr_reader=ZbarQrReader())

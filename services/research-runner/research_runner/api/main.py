@@ -2,6 +2,7 @@ from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from observability import configure_telemetry
 
 from research_runner.application.ablation_study import StudyConfig, run_study
 from research_runner.domain.report_generator import generate_latex_table
@@ -16,6 +17,7 @@ app = FastAPI(
     description="Internal API to run the ablation study and serve its latest report.",
     version="0.2.0",
 )
+configure_telemetry("research-runner", app)
 
 app.add_middleware(
     CORSMiddleware,

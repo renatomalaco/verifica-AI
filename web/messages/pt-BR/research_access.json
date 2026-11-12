@@ -12,7 +12,6 @@
   "research_login_failed": "Não foi possível entrar agora. Tente de novo em instantes.",
   "research_nav_label": "Área de pesquisa",
   "research_nav_report": "Estudo de ablação",
-  "research_nav_metrics": "Métricas do sistema",
   "research_nav_run": "Rodar o estudo agora",
   "research_nav_running": "Rodando o estudo… isso pode levar alguns minutos.",
   "research_nav_run_done": "Estudo concluído. A tabela foi atualizada.",
