@@ -23,9 +23,13 @@ from scan_orchestrator.domain.cascade import (
 from scan_orchestrator.domain.decision import ThresholdPolicy
 from scan_orchestrator.domain.quota import ExplainQuota, QuotaLimits, QuotaStore
 from scan_orchestrator.domain.research_access import LoginLimits, LoginThrottle
+from scan_orchestrator.domain.scan_rate_limit import ScanRateLimit, ScanRateLimits
 from scan_orchestrator.infrastructure.access_tokens import AccessTokenIssuer, AccessTokenVerifier
 from scan_orchestrator.infrastructure.brand_matcher_client import HttpBrandMatcherClient
-from scan_orchestrator.infrastructure.explainer_client import ExplainerClientProtocol, HttpExplainerClient
+from scan_orchestrator.infrastructure.explainer_client import (
+    ExplainerClientProtocol,
+    HttpExplainerClient,
+)
 from scan_orchestrator.infrastructure.image_extractor_client import (
     HttpImageExtractorClient,
     ImageExtractorClientProtocol,
@@ -55,7 +59,8 @@ from scan_orchestrator.settings import Settings
 
 _in_memory_repo = InMemoryScanRepository()
 _in_memory_accounts = InMemoryResearchAccountRepository()
-# Without DEVICE_TOKEN_SECRET, each process picks a random one and device cookies are invalidated on every restart.
+# Without DEVICE_TOKEN_SECRET, each process picks a random one and device cookies are
+# invalidated on every restart.
 _ephemeral_device_secret = secrets.token_bytes(32)
 
 
@@ -101,18 +106,24 @@ def _tranco_ranks(redis_url: str) -> RedisTrancoRanks:
 
 
 def get_domain_evidence_client(settings: Settings = Depends(get_settings)) -> DomainEvidenceClient:
-    return HttpDomainEvidenceClient(rdap=RdapClient(), crtsh=CrtShClient(), tranco=_tranco_ranks(settings.REDIS_URL))
+    return HttpDomainEvidenceClient(
+        rdap=RdapClient(), crtsh=CrtShClient(), tranco=_tranco_ranks(settings.REDIS_URL)
+    )
 
 
 def get_inspector_client(settings: Settings = Depends(get_settings)) -> InspectorClientProtocol:
     return HttpInspectorClient(base_url=settings.URL_INSPECTOR_URL)
 
 
-def get_image_extractor_client(settings: Settings = Depends(get_settings)) -> ImageExtractorClientProtocol:
+def get_image_extractor_client(
+    settings: Settings = Depends(get_settings),
+) -> ImageExtractorClientProtocol:
     return HttpImageExtractorClient(base_url=settings.IMAGE_EXTRACTOR_URL)
 
 
-def get_brand_matcher_client(settings: Settings = Depends(get_settings)) -> BrandMatcherClientProtocol | None:
+def get_brand_matcher_client(
+    settings: Settings = Depends(get_settings),
+) -> BrandMatcherClientProtocol | None:
     if not settings.VISUAL_RAG_ENABLED:
         return None
     return HttpBrandMatcherClient(base_url=settings.AI_GATEWAY_URL)
@@ -129,6 +140,16 @@ def _redis_quota_store(redis_url: str) -> RedisQuotaStore:
 
 def get_quota_store(settings: Settings = Depends(get_settings)) -> QuotaStore:
     return _redis_quota_store(settings.REDIS_URL)
+
+
+def get_scan_rate_limit(
+    settings: Settings = Depends(get_settings),
+    store: QuotaStore = Depends(get_quota_store),
+) -> ScanRateLimit:
+    limits = ScanRateLimits(
+        per_ip=settings.SCAN_IP_LIMIT, window_seconds=settings.SCAN_IP_WINDOW_SECONDS
+    )
+    return ScanRateLimit(store, limits)
 
 
 def get_cascade(
@@ -206,7 +227,9 @@ def get_access_verifier(settings: Settings = Depends(get_settings)) -> AccessTok
     return _access_verifier(settings.AUTH_JWT_PUBLIC_KEY)
 
 
-def get_research_account_repository(settings: Settings = Depends(get_settings)) -> ResearchAccountRepository:
+def get_research_account_repository(
+    settings: Settings = Depends(get_settings),
+) -> ResearchAccountRepository:
     if not settings.DATABASE_URL:
         return _in_memory_accounts
     return SqlResearchAccountRepository(_session_factory(settings.DATABASE_URL))
@@ -222,7 +245,9 @@ def get_research_auth(
     store: QuotaStore = Depends(get_login_store),
 ) -> ResearchAuth:
     if not settings.AUTH_JWT_PRIVATE_KEY:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="auth_not_configured")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="auth_not_configured"
+        )
     limits = LoginLimits(
         per_account=settings.LOGIN_ACCOUNT_LIMIT,
         per_ip=settings.LOGIN_IP_LIMIT,

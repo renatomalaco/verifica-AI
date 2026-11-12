@@ -11,7 +11,16 @@ from sse_starlette.sse import EventSourceResponse
 
 from observability import configure_telemetry
 
-from contracts import ExplainResponse, ExplainScanRequest, Locale, QuotaExceeded, ScanRequest, ScanResponse, StageEvent
+from contracts import (
+    ExplainResponse,
+    ExplainScanRequest,
+    Locale,
+    QuotaExceeded,
+    ScanRequest,
+    ScanRateLimited,
+    ScanResponse,
+    StageEvent,
+)
 from scan_orchestrator.api.dependencies import (
     get_analyze_text_use_case,
     get_device_secret,
@@ -19,6 +28,10 @@ from scan_orchestrator.api.dependencies import (
     get_settings,
 )
 from scan_orchestrator.api.research_auth_routes import router as research_auth_router
+from scan_orchestrator.api.scan_rate_guard import (
+    enforce_scan_rate_limit,
+    scan_rate_limited_response,
+)
 from scan_orchestrator.application.analyze_text import AnalyzeTextUseCase
 from scan_orchestrator.application.explain_scan import (
     ExplainScanUseCase,
@@ -27,6 +40,7 @@ from scan_orchestrator.application.explain_scan import (
 )
 from scan_orchestrator.domain.device_token import issue_device_token, verify_device_token
 from scan_orchestrator.domain.quota import QuotaExceededError
+from scan_orchestrator.domain.scan_rate_limit import ScanRateLimitedError
 from scan_orchestrator.domain.scan_input import ScanInput
 from scan_orchestrator.settings import Settings
 
@@ -42,6 +56,7 @@ app.add_middleware(
 )
 
 app.include_router(research_auth_router)
+app.add_exception_handler(ScanRateLimitedError, scan_rate_limited_response)
 
 DEVICE_COOKIE = "va_device"
 DEVICE_COOKIE_MAX_AGE = 365 * 24 * 3600
@@ -59,7 +74,12 @@ def _to_scan_input(request: ScanRequest) -> ScanInput:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
-@app.post("/api/v1/scans", response_model=ScanResponse)
+@app.post(
+    "/api/v1/scans",
+    response_model=ScanResponse,
+    responses={429: {"model": ScanRateLimited}},
+    dependencies=[Depends(enforce_scan_rate_limit)],
+)
 async def scan(
     request: ScanRequest,
     use_case: AnalyzeTextUseCase = Depends(get_analyze_text_use_case),
@@ -85,7 +105,7 @@ FORM_TYPES = ("multipart/form-data", "application/x-www-form-urlencoded")
 
 
 async def read_scan_request(request: Request) -> ScanRequest:
-    """JSON from the web app, or multipart when a phone shares a screenshot as a file (Share Target)."""
+    """JSON from the web app, or multipart when a phone shares a screenshot (Share Target)."""
     content_type = request.headers.get("content-type", "")
     if not content_type.startswith(FORM_TYPES):
         return _validated(await _json_body(request))
@@ -95,7 +115,9 @@ async def read_scan_request(request: Request) -> ScanRequest:
     if isinstance(upload, UploadFile):
         raw = await upload.read(MAX_UPLOAD_BYTES + 1)
         if len(raw) > MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail="Image exceeds 8MB.")
+            raise HTTPException(
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail="Image exceeds 8MB."
+            )
         image_b64 = base64.b64encode(raw).decode("ascii")
     return _validated({"content": str(form.get("content") or ""), "image_b64": image_b64})
 
@@ -104,17 +126,26 @@ async def _json_body(request: Request) -> object:
     try:
         return await request.json()
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Body must be JSON or a form.")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Body must be JSON or a form."
+        )
 
 
 def _validated(payload: object) -> ScanRequest:
     try:
         return ScanRequest.model_validate(payload)
     except ValidationError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=exc.errors(include_input=False, include_context=False))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=exc.errors(include_input=False, include_context=False),
+        )
 
 
-@app.post("/api/v1/scans/stream")
+@app.post(
+    "/api/v1/scans/stream",
+    responses={429: {"model": ScanRateLimited}},
+    dependencies=[Depends(enforce_scan_rate_limit)],
+)
 async def scan_stream(
     request: ScanRequest = Depends(read_scan_request),
     use_case: AnalyzeTextUseCase = Depends(get_analyze_text_use_case),
