@@ -7,7 +7,9 @@ from research_runner.infrastructure.dataset_file import load_samples
 
 
 def sample(id: str, label: str = "GOLPE", origin: str = "real", channel: str = "texto") -> Sample:
-    return Sample(id=id, channel=channel, content=f"mensagem {id}", label=label, origin=origin, source="teste")
+    return Sample(
+        id=id, channel=channel, content=f"mensagem {id}", label=label, origin=origin, source="teste"
+    )
 
 
 def test_synthetic_samples_never_reach_the_test_split():
@@ -17,7 +19,9 @@ def test_synthetic_samples_never_reach_the_test_split():
 
 
 def test_split_is_stratified_by_channel_and_label():
-    samples = [sample(f"g{i}", label="GOLPE") for i in range(20)] + [sample(f"s{i}", label="SEGURO") for i in range(10)]
+    samples = [sample(f"g{i}", label="GOLPE") for i in range(20)] + [
+        sample(f"s{i}", label="SEGURO") for i in range(10)
+    ]
     splits = assign_splits(samples, test_ratio=0.3, seed=7)
     test_labels = [s.label for s in samples if splits[s.id] is Split.TEST]
     assert test_labels.count("GOLPE") == 6
@@ -42,13 +46,23 @@ def test_adding_a_sample_keeps_most_earlier_assignments():
 
 def test_loader_rejects_samples_without_provenance(tmp_path):
     path = tmp_path / "dataset.json"
-    path.write_text(json.dumps([{"id": "x", "channel": "texto", "content": "oi", "label": "GOLPE"}]), encoding="utf-8")
+    path.write_text(
+        json.dumps([{"id": "x", "channel": "texto", "content": "oi", "label": "GOLPE"}]),
+        encoding="utf-8",
+    )
     with pytest.raises(ValueError, match="origin"):
         load_samples(path)
 
 
 def test_loader_rejects_duplicate_ids(tmp_path):
-    item = {"id": "x", "channel": "texto", "content": "oi", "label": "GOLPE", "origin": "real", "source": "teste"}
+    item = {
+        "id": "x",
+        "channel": "texto",
+        "content": "oi",
+        "label": "GOLPE",
+        "origin": "real",
+        "source": "teste",
+    }
     path = tmp_path / "dataset.json"
     path.write_text(json.dumps([item, item]), encoding="utf-8")
     with pytest.raises(ValueError, match="duplicate"):

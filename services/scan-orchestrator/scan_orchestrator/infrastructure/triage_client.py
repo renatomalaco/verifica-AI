@@ -23,5 +23,6 @@ class HttpTriageClient:
                     return TriageResult.model_validate(response.json())
                 return None
         except httpx.HTTPError:
-            # None sends the cascade to the ethical fallback (INCONCLUSIVO) instead of breaking the analysis.
+            # None sends the cascade to the ethical fallback (INCONCLUSIVO) instead of
+            # breaking the analysis.
             return None

@@ -59,4 +59,6 @@ def is_ip_allowed(ip_str: str) -> bool:
 def assert_public_ip(ip_str: str) -> None:
     """Raises SsrfBlockedException if the IP is private or unsafe."""
     if not is_ip_allowed(ip_str):
-        raise SsrfBlockedException(f"SSRF block: IP address '{ip_str}' belongs to a private or reserved network.")
+        raise SsrfBlockedException(
+            f"SSRF block: IP address '{ip_str}' belongs to a private or reserved network."
+        )

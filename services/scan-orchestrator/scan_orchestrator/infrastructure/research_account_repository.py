@@ -34,7 +34,13 @@ sessoes_pesquisa_table = Table(
     "sessoes_pesquisa",
     metadata,
     Column("id", PG_UUID(as_uuid=True), primary_key=True),
-    Column("account_id", PG_UUID(as_uuid=True), ForeignKey("contas_pesquisa.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column(
+        "account_id",
+        PG_UUID(as_uuid=True),
+        ForeignKey("contas_pesquisa.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    ),
     Column("family_id", PG_UUID(as_uuid=True), nullable=False, index=True),
     Column("token_hash", String(64), nullable=False, unique=True),
     Column("expires_at", DateTime(timezone=True), nullable=False),
@@ -186,15 +192,21 @@ class SqlResearchAccountRepository:
                 return await session.execute(stmt)
 
     async def get_account(self, account_id: UUID) -> Account | None:
-        row = await self._one(select(contas_pesquisa_table).where(contas_pesquisa_table.c.id == account_id))
+        row = await self._one(
+            select(contas_pesquisa_table).where(contas_pesquisa_table.c.id == account_id)
+        )
         return _account(row) if row else None
 
     async def find_by_email(self, email: str) -> Account | None:
-        row = await self._one(select(contas_pesquisa_table).where(contas_pesquisa_table.c.email == email))
+        row = await self._one(
+            select(contas_pesquisa_table).where(contas_pesquisa_table.c.email == email)
+        )
         return _account(row) if row else None
 
     async def find_by_invite(self, invite_hash: str) -> Account | None:
-        row = await self._one(select(contas_pesquisa_table).where(contas_pesquisa_table.c.invite_hash == invite_hash))
+        row = await self._one(
+            select(contas_pesquisa_table).where(contas_pesquisa_table.c.invite_hash == invite_hash)
+        )
         return _account(row) if row else None
 
     async def save_invite(self, email, role, expires_at, invite_hash, invite_expires_at) -> Account:
@@ -222,7 +234,9 @@ class SqlResearchAccountRepository:
 
     async def disable(self, account_id: UUID, now: datetime) -> None:
         await self._write(
-            update(contas_pesquisa_table).where(contas_pesquisa_table.c.id == account_id).values(disabled_at=now)
+            update(contas_pesquisa_table)
+            .where(contas_pesquisa_table.c.id == account_id)
+            .values(disabled_at=now)
         )
 
     async def add_session(self, session: RefreshSession) -> None:
@@ -238,14 +252,19 @@ class SqlResearchAccountRepository:
         )
 
     async def find_session(self, token_hash: str) -> RefreshSession | None:
-        row = await self._one(select(sessoes_pesquisa_table).where(sessoes_pesquisa_table.c.token_hash == token_hash))
+        row = await self._one(
+            select(sessoes_pesquisa_table).where(sessoes_pesquisa_table.c.token_hash == token_hash)
+        )
         return _session(row) if row else None
 
     async def mark_used(self, session_id: UUID, now: datetime) -> bool:
         # The "used_at IS NULL" guard makes the check and the write one atomic step.
         result = await self._write(
             update(sessoes_pesquisa_table)
-            .where(sessoes_pesquisa_table.c.id == session_id, sessoes_pesquisa_table.c.used_at.is_(None))
+            .where(
+                sessoes_pesquisa_table.c.id == session_id,
+                sessoes_pesquisa_table.c.used_at.is_(None),
+            )
             .values(used_at=now)
         )
         return result.rowcount == 1

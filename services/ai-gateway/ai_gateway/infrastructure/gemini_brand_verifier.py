@@ -33,7 +33,12 @@ class GeminiBrandVerifier:
                     "role": "user",
                     "parts": [
                         {"inlineData": {"mimeType": _mime_type(image_b64), "data": image_b64}},
-                        {"text": f"Does this page imitate the visual identity of the brand '{brand}'?"},
+                        {
+                            "text": (
+                                "Does this page imitate the visual identity of the brand "
+                                f"'{brand}'?"
+                            )
+                        },
                     ],
                 }
             ],
@@ -43,7 +48,9 @@ class GeminiBrandVerifier:
                 "responseSchema": _RESPONSE_SCHEMA,
             },
         }
-        data = await generate_content(self._base_url, self._api_key, self._model, self._timeout_seconds, payload)
+        data = await generate_content(
+            self._base_url, self._api_key, self._model, self._timeout_seconds, payload
+        )
 
         try:
             answer = json.loads(data["candidates"][0]["content"]["parts"][0]["text"])

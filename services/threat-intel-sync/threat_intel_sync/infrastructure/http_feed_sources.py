@@ -11,7 +11,11 @@ async def _download(feed_url: str, client: httpx.AsyncClient | None) -> str:
 
 
 class OpenPhishSource:
-    def __init__(self, feed_url: str = "https://openphish.com/feed.txt", client: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self,
+        feed_url: str = "https://openphish.com/feed.txt",
+        client: httpx.AsyncClient | None = None,
+    ) -> None:
         self._feed_url = feed_url
         self._client = client
 

@@ -12,7 +12,8 @@ from image_extractor.domain.ocr_reader import OcrEngineProtocol, QrReaderProtoco
 MIN_OCR_CONFIDENCE = 60.0
 
 _URL_REGEX = re.compile(
-    r"(?:https?://|www\.)[^\s/$.?#].[^\s]*|\b[\w-]+\.(?:com|br|net|org|app|io|xyz|top|online|shop)\b",
+    r"(?:https?://|www\.)[^\s/$.?#].[^\s]*"
+    r"|\b[\w-]+\.(?:com|br|net|org|app|io|xyz|top|online|shop)\b",
     re.IGNORECASE,
 )
 

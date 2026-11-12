@@ -31,5 +31,6 @@ MIN_OCR_CONFIDENCE = 60.0
 
 
 def ocr_is_reliable(confidence: float | None) -> bool:
-    """A screenshot read with doubt may hide the scam: it can hold a verdict back, never clear it."""
+    """A screenshot read with doubt may hide the scam: it can hold a verdict back, never
+    clear it."""
     return confidence is not None and confidence >= MIN_OCR_CONFIDENCE

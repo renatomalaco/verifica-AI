@@ -143,7 +143,9 @@ class AnalyzeTextUseCase:
         if scan_input.is_image and self._image_extractor:
             return await self._analyze_image(scan_input.image_b64, report)
         if scan_input.is_url_only and self._cascade:
-            return await self._cascade.run(StageContext(raw_url=scan_input.content.strip(), on_stage=report))
+            return await self._cascade.run(
+                StageContext(raw_url=scan_input.content.strip(), on_stage=report)
+            )
         if scan_input.has_links and self._cascade:
             return await self._analyze_text_with_links(scan_input, report)
         return await self._analyze_plain_text(scan_input, report)
@@ -159,11 +161,15 @@ class AnalyzeTextUseCase:
         self, text: str, urls: list[str], report: StageClock
     ) -> tuple[TriageResult | None, list[ScanResponse]]:
         """Runs text triage (if any) and each link's cascade in parallel."""
-        inspections = [self._cascade.run(StageContext(raw_url=url, on_stage=report.fork())) for url in urls]
+        inspections = [
+            self._cascade.run(StageContext(raw_url=url, on_stage=report.fork())) for url in urls
+        ]
         if not text:
             return None, _scan_responses(await asyncio.gather(*inspections, return_exceptions=True))
 
-        triage, *url_results = await asyncio.gather(self._triage(text, report), *inspections, return_exceptions=True)
+        triage, *url_results = await asyncio.gather(
+            self._triage(text, report), *inspections, return_exceptions=True
+        )
         return (None if isinstance(triage, Exception) else triage), _scan_responses(url_results)
 
     # --- Image (screenshot) ---
@@ -175,7 +181,9 @@ class AnalyzeTextUseCase:
         report(StageName.IMAGE_EXTRACTION, "done")
 
         # Perceptual cache (pHash): an already analyzed screenshot returns in < 10ms.
-        cached = await self._redis_client.get_cached_phash(extract.phash) if self._redis_client else None
+        cached = (
+            await self._redis_client.get_cached_phash(extract.phash) if self._redis_client else None
+        )
         if cached:
             return cached
 
@@ -184,7 +192,9 @@ class AnalyzeTextUseCase:
             await self._redis_client.set_cached_phash(extract.phash, response)
         return response
 
-    async def _image_verdict(self, extract: ExtractResult, duration_ms: float, report: StageClock) -> ScanResponse:
+    async def _image_verdict(
+        self, extract: ExtractResult, duration_ms: float, report: StageClock
+    ) -> ScanResponse:
         visual_checked = True
         try:
             spoofing = await self._brand_spoofing_verdict(extract, duration_ms, report)
@@ -202,7 +212,9 @@ class AnalyzeTextUseCase:
             return _unsure_verdict(response, "image_visual_rag_unavailable")
         return response
 
-    async def _read_image(self, extract: ExtractResult, duration_ms: float, report: StageClock) -> ScanResponse:
+    async def _read_image(
+        self, extract: ExtractResult, duration_ms: float, report: StageClock
+    ) -> ScanResponse:
         if extract.urls_found and self._cascade:
             return await self._image_with_links_verdict(extract, duration_ms, report)
         if extract.extracted_text:
@@ -232,7 +244,9 @@ class AnalyzeTextUseCase:
         report(StageName.VISUAL_RAG, "started")
         try:
             # A person's screenshot: compared locally, never sent to a third-party VLM.
-            match = await self._brand_matcher.match_brand(extract.clean_image_b64, domain, ImageSource.USER_IMAGE)
+            match = await self._brand_matcher.match_brand(
+                extract.clean_image_b64, domain, ImageSource.USER_IMAGE
+            )
         finally:
             report(StageName.VISUAL_RAG, "done")
         if not match.is_spoofing:
@@ -245,7 +259,10 @@ class AnalyzeTextUseCase:
                 deciding_stage="image_visual_rag_brand_spoofing",
                 category="brand_spoofing",
                 scores={"is_phishing": 1.0, "brand_spoofing": 1.0},
-                domain_signals={"spoofed_brand": match.matched_brand or "", "official_domains": ", ".join(match.official_domains)},
+                domain_signals={
+                    "spoofed_brand": match.matched_brand or "",
+                    "official_domains": ", ".join(match.official_domains),
+                },
                 latency_breakdown={"image_processing": duration_ms},
             ),
         )
@@ -253,7 +270,9 @@ class AnalyzeTextUseCase:
     async def _image_with_links_verdict(
         self, extract: ExtractResult, duration_ms: float, report: StageClock
     ) -> ScanResponse:
-        triage, url_responses = await self._triage_and_inspect(extract.extracted_text, extract.urls_found, report)
+        triage, url_responses = await self._triage_and_inspect(
+            extract.extracted_text, extract.urls_found, report
+        )
         latency = {"image_and_urls": duration_ms}
 
         scam_url = _first_scam(url_responses)
@@ -276,7 +295,9 @@ class AnalyzeTextUseCase:
             ),
         )
 
-    async def _image_text_verdict(self, text: str, duration_ms: float, report: StageClock) -> ScanResponse:
+    async def _image_text_verdict(
+        self, text: str, duration_ms: float, report: StageClock
+    ) -> ScanResponse:
         triage = await self._triage(text, report)
         latency = {"image_ocr": duration_ms}
         if triage is None:
@@ -292,7 +313,9 @@ class AnalyzeTextUseCase:
                 ),
             )
 
-        threat = decide(RiskScore(triage.is_phishing), has_unverified_links=False, policy=self._policy)
+        threat = decide(
+            RiskScore(triage.is_phishing), has_unverified_links=False, policy=self._policy
+        )
         return _verdict(
             threat,
             triage.persuasion,
@@ -307,7 +330,9 @@ class AnalyzeTextUseCase:
 
     # --- Text ---
 
-    async def _analyze_text_with_links(self, scan_input: ScanInput, report: StageClock) -> ScanResponse:
+    async def _analyze_text_with_links(
+        self, scan_input: ScanInput, report: StageClock
+    ) -> ScanResponse:
         started = time.perf_counter()
         urls = scan_input.extract_urls()
         triage, url_responses = await self._triage_and_inspect(scan_input.content, urls, report)
@@ -320,23 +345,35 @@ class AnalyzeTextUseCase:
             return _text_triage_unavailable(links_not_inspected=True, latency=latency)
 
         unverified = _has_unverified(url_responses, expected=len(urls))
-        threat = decide(RiskScore(triage.is_phishing), has_unverified_links=unverified, policy=self._policy)
+        threat = decide(
+            RiskScore(triage.is_phishing), has_unverified_links=unverified, policy=self._policy
+        )
         return _text_triage_verdict(threat, triage, "combined_text_and_urls", unverified, latency)
 
-    async def _analyze_plain_text(self, scan_input: ScanInput, report: StageClock) -> ScanResponse:
+    async def _analyze_plain_text(
+        self, scan_input: ScanInput, report: StageClock
+    ) -> ScanResponse:
         started = time.perf_counter()
         triage = await self._triage(scan_input.content, report)
         latency = {"triage": elapsed_ms(started)}
 
         if triage is None:
-            return _text_triage_unavailable(links_not_inspected=scan_input.has_links, latency=latency)
+            return _text_triage_unavailable(
+                links_not_inspected=scan_input.has_links, latency=latency
+            )
 
         # No cascade wired: the links were never inspected.
-        threat = decide(RiskScore(triage.is_phishing), has_unverified_links=scan_input.has_links, policy=self._policy)
+        threat = decide(
+            RiskScore(triage.is_phishing),
+            has_unverified_links=scan_input.has_links,
+            policy=self._policy,
+        )
         return _text_triage_verdict(threat, triage, "triage", scan_input.has_links, latency)
 
 
-def _verdict(threat: ThreatLevel, persuasion: Persuasion | None, details: ScanDetails) -> ScanResponse:
+def _verdict(
+    threat: ThreatLevel, persuasion: Persuasion | None, details: ScanDetails
+) -> ScanResponse:
     return ScanResponse(
         id=uuid4(),
         threat_level=threat,
@@ -365,7 +402,9 @@ def _has_unverified(url_responses: list[ScanResponse], expected: int) -> bool:
     # A crashed inspection returns nothing, so a missing response is an unverified link too.
     if len(url_responses) < expected:
         return True
-    return any(u.threat_level in (ThreatLevel.INCONCLUSIVE, ThreatLevel.CAUTION) for u in url_responses)
+    return any(
+        u.threat_level in (ThreatLevel.INCONCLUSIVE, ThreatLevel.CAUTION) for u in url_responses
+    )
 
 
 def _embedded_scam_verdict(

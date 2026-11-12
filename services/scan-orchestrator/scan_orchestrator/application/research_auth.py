@@ -58,7 +58,9 @@ class ResearchAuth:
         self._throttle = throttle
         self._clock = clock
 
-    async def invite(self, email: str, role: ResearchRole, expires_at: datetime | None = None) -> str:
+    async def invite(
+        self, email: str, role: ResearchRole, expires_at: datetime | None = None
+    ) -> str:
         """Creates (or renews) the account and returns the one-time secret for the invite link."""
         raw = new_secret()
         await self._repo.save_invite(
@@ -72,7 +74,11 @@ class ResearchAuth:
 
     async def accept_invite(self, raw_invite: str, password: str) -> None:
         account = await self._repo.find_by_invite(hash_secret(raw_invite))
-        if account is None or account.invite_expires_at is None or self._clock() >= account.invite_expires_at:
+        if (
+            account is None
+            or account.invite_expires_at is None
+            or self._clock() >= account.invite_expires_at
+        ):
             raise InviteInvalidError()
         validate_password(password)
         await self._repo.set_password(account.id, self._hasher.hash(password))
@@ -133,4 +139,8 @@ class ResearchAuth:
                 expires_at=self._clock() + REFRESH_TTL,
             )
         )
-        return SignedIn(access_token=self._issuer.issue(account.id, account.role), refresh_token=raw, account=account)
+        return SignedIn(
+            access_token=self._issuer.issue(account.id, account.role),
+            refresh_token=raw,
+            account=account,
+        )

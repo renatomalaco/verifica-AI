@@ -4,7 +4,9 @@ import re
 JWT_PATTERN = re.compile(r"eyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]+")
 
 # 2. PIX UUID (must run before long tokens so it is not mistaken for one)
-PIX_UUID_PATTERN = re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b")
+PIX_UUID_PATTERN = re.compile(
+    r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b"
+)
 
 # 3. Long hex/alphanumeric tokens (>= 32 chars)
 LONG_TOKEN_PATTERN = re.compile(r"\b[a-zA-Z0-9]{32,}\b")

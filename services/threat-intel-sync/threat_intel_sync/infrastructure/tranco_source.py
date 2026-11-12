@@ -9,7 +9,9 @@ TRANCO_URL = "https://tranco-list.eu/top-1m.csv.zip"
 
 
 class TrancoSource:
-    def __init__(self, top: int = 100_000, url: str = TRANCO_URL, timeout_seconds: float = 60.0) -> None:
+    def __init__(
+        self, top: int = 100_000, url: str = TRANCO_URL, timeout_seconds: float = 60.0
+    ) -> None:
         self._top = top
         self._url = url
         self._timeout = timeout_seconds

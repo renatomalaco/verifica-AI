@@ -51,7 +51,9 @@ def one_hot(index: int, dimension: int) -> list[float]:
 
 def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
     if len(vec_a) != len(vec_b):
-        raise ValueError(f"Embedding dimension {len(vec_a)} does not match the catalog dimension {len(vec_b)}")
+        raise ValueError(
+            f"Embedding dimension {len(vec_a)} does not match the catalog dimension {len(vec_b)}"
+        )
     norm = math.sqrt(sum(a * a for a in vec_a)) * math.sqrt(sum(b * b for b in vec_b))
     if norm == 0.0:
         return 0.0

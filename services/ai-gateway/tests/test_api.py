@@ -57,7 +57,6 @@ async def test_triage_masks_pii_before_jev():
         app.dependency_overrides.clear()
 
 
-
 BB_LOGO = one_hot(0, 768)
 
 
@@ -68,15 +67,21 @@ async def _post_brand_match(payload: dict):
 
 @pytest.fixture
 def brand_overrides():
-    app.dependency_overrides[get_visual_embedder] = lambda: FakeVisualEmbedder(default_embedding=BB_LOGO)
-    app.dependency_overrides[get_brand_catalog] = lambda: FakeBrandCatalog({"Banco do Brasil": [BB_LOGO]})
+    app.dependency_overrides[get_visual_embedder] = lambda: FakeVisualEmbedder(
+        default_embedding=BB_LOGO
+    )
+    app.dependency_overrides[get_brand_catalog] = lambda: FakeBrandCatalog(
+        {"Banco do Brasil": [BB_LOGO]}
+    )
     app.dependency_overrides[get_brand_verifier] = lambda: None
     yield app.dependency_overrides
     app.dependency_overrides.clear()
 
 
 async def test_brand_match_endpoint_detects_spoofing(brand_overrides):
-    resp = await _post_brand_match({"image_b64": "aGVsbG8=", "current_domain": "bb-seguro-atualizacao.xyz"})
+    resp = await _post_brand_match(
+        {"image_b64": "aGVsbG8=", "current_domain": "bb-seguro-atualizacao.xyz"}
+    )
 
     assert resp.status_code == 200
     data = resp.json()
@@ -111,9 +116,18 @@ def test_visual_rag_defaults_follow_the_plan():
 
 
 def test_the_vlm_is_off_without_a_gemini_key():
-    assert get_brand_verifier(Settings(_env_file=None, VLM_PROVIDER="gemini", GEMINI_API_KEY="")) is None
-    assert get_brand_verifier(Settings(_env_file=None, VLM_PROVIDER="none", GEMINI_API_KEY="k")) is None
-    assert get_brand_verifier(Settings(_env_file=None, VLM_PROVIDER="gemini", GEMINI_API_KEY="k")) is not None
+    assert (
+        get_brand_verifier(Settings(_env_file=None, VLM_PROVIDER="gemini", GEMINI_API_KEY=""))
+        is None
+    )
+    assert (
+        get_brand_verifier(Settings(_env_file=None, VLM_PROVIDER="none", GEMINI_API_KEY="k"))
+        is None
+    )
+    assert (
+        get_brand_verifier(Settings(_env_file=None, VLM_PROVIDER="gemini", GEMINI_API_KEY="k"))
+        is not None
+    )
 
 
 def test_triage_provider_follows_ai_provider():

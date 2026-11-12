@@ -24,7 +24,9 @@ def main(argv: list[str] | None = None) -> int:
         feed_urls=tuple(feed_urls),
         feed_snapshot=args.feed_snapshot,
     )
-    report = asyncio.run(run_study(load_samples(args.dataset), config, providers_from_settings(ResearchSettings())))
+    report = asyncio.run(
+        run_study(load_samples(args.dataset), config, providers_from_settings(ResearchSettings()))
+    )
     out_dir = Path(args.output_dir) if args.output_dir else reports_dir()
     write_report(report, out_dir)
 
@@ -47,7 +49,10 @@ def _gate(report: dict, threshold: float) -> int:
         return NO_TEST_DATA
     f1 = cascade["metrics"]["f1_score"]
     passed = f1 >= threshold
-    print(f"[{'OK' if passed else 'FAIL'}] F1 gate on the test split: {f1:.4f} (threshold {threshold:.4f})")
+    print(
+        f"[{'OK' if passed else 'FAIL'}] F1 gate on the test split: {f1:.4f} "
+        f"(threshold {threshold:.4f})"
+    )
     return GATE_PASSED if passed else GATE_FAILED
 
 
@@ -59,13 +64,27 @@ def _read_feed(path: str | None) -> list[str]:
 
 
 def _parse(argv: list[str] | None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Verifica AI research runner: ablation study and F1 gate.")
-    parser.add_argument("--dataset", default=None, help="Benchmark dataset JSON (default: data/benchmark_dataset.json).")
-    parser.add_argument("--output-dir", default=None, help="Where latest.json and the SVG diagrams go.")
-    parser.add_argument("--threshold-f1", type=float, default=None, help="Minimum cascade F1 on the test split.")
+    parser = argparse.ArgumentParser(
+        description="Verifica AI research runner: ablation study and F1 gate."
+    )
+    parser.add_argument(
+        "--dataset",
+        default=None,
+        help="Benchmark dataset JSON (default: data/benchmark_dataset.json).",
+    )
+    parser.add_argument(
+        "--output-dir", default=None, help="Where latest.json and the SVG diagrams go."
+    )
+    parser.add_argument(
+        "--threshold-f1", type=float, default=None, help="Minimum cascade F1 on the test split."
+    )
     parser.add_argument("--seed", type=int, default=42, help="Seed of the fixed train/test split.")
-    parser.add_argument("--test-ratio", type=float, default=0.3, help="Share of real samples held out for testing.")
-    parser.add_argument("--feed-snapshot", default=None, help="Text file with one scam URL per line (stage 0 feed).")
+    parser.add_argument(
+        "--test-ratio", type=float, default=0.3, help="Share of real samples held out for testing."
+    )
+    parser.add_argument(
+        "--feed-snapshot", default=None, help="Text file with one scam URL per line (stage 0 feed)."
+    )
     return parser.parse_args(argv)
 
 

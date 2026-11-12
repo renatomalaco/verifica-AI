@@ -2,7 +2,6 @@ import io
 import zipfile
 
 import fakeredis.aioredis
-import httpx
 import respx
 
 from threat_intel_sync.domain.tranco import parse_tranco_csv
@@ -17,7 +16,10 @@ def test_parse_keeps_only_the_top_n_domains():
 
 
 def test_parse_ignores_malformed_lines():
-    assert parse_tranco_csv("1,google.com\nlixo\n,\n3,ok.com", top=10) == {"google.com": 1, "ok.com": 3}
+    assert parse_tranco_csv("1,google.com\nlixo\n,\n3,ok.com", top=10) == {
+        "google.com": 1,
+        "ok.com": 3,
+    }
 
 
 async def test_source_downloads_and_unzips_the_list():
@@ -26,7 +28,11 @@ async def test_source_downloads_and_unzips_the_list():
         archive.writestr("top-1m.csv", CSV)
     async with respx.mock() as mock:
         mock.get("https://tranco-list.eu/top-1m.csv.zip").respond(content=buffer.getvalue())
-        assert await TrancoSource(top=3).fetch_ranks() == {"google.com": 1, "youtube.com": 2, "facebook.com": 3}
+        assert await TrancoSource(top=3).fetch_ranks() == {
+            "google.com": 1,
+            "youtube.com": 2,
+            "facebook.com": 3,
+        }
 
 
 def storage_with(redis) -> RedisStackStorage:

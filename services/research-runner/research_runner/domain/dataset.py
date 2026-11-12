@@ -42,7 +42,9 @@ def parse_samples(items: list[dict[str, Any]]) -> list[Sample]:
 def _parse_one(item: dict[str, Any]) -> Sample:
     missing = [f for f in REQUIRED_FIELDS if not item.get(f)]
     if missing:
-        raise ValueError(f"sample {item.get('id', '?')} is missing {missing} (origin and source are mandatory)")
+        raise ValueError(
+            f"sample {item.get('id', '?')} is missing {missing} (origin and source are mandatory)"
+        )
     if item["label"] not in LABELS or item["origin"] not in ORIGINS:
         raise ValueError(f"sample {item['id']} has an invalid label or origin")
     known = {k: item[k] for k in Sample.__dataclass_fields__ if k in item}

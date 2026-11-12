@@ -14,7 +14,11 @@ from research_runner.settings import ResearchSettings
 # Takes the guarded envelope, returns the model's answer and what that call cost in USD.
 ModelCall = Callable[[str], Awaitable[tuple[TriageResult, float]]]
 
-GEMINI_PRICES = ("GEMINI_PRICE_INPUT_USD_PER_1M", "GEMINI_PRICE_OUTPUT_USD_PER_1M", "GEMINI_PRICE_DATE")
+GEMINI_PRICES = (
+    "GEMINI_PRICE_INPUT_USD_PER_1M",
+    "GEMINI_PRICE_OUTPUT_USD_PER_1M",
+    "GEMINI_PRICE_DATE",
+)
 JEV_PRICES = ("JEV_PRICE_USD_PER_1K_CALLS", "JEV_PRICE_DATE")
 JEV_MODEL = "jev-latest"  # the model HttpJevClient asks for
 
@@ -69,7 +73,9 @@ def _gemini(settings: ResearchSettings) -> Provider | str:
         model=settings.GEMINI_MODEL,
         timeout_seconds=settings.GEMINI_TIMEOUT_SECONDS,
     )
-    price = TokenPrice(settings.GEMINI_PRICE_INPUT_USD_PER_1M, settings.GEMINI_PRICE_OUTPUT_USD_PER_1M)
+    price = TokenPrice(
+        settings.GEMINI_PRICE_INPUT_USD_PER_1M, settings.GEMINI_PRICE_OUTPUT_USD_PER_1M
+    )
 
     async def call(envelope: str) -> tuple[TriageResult, float]:
         measured = await client.measure(envelope)
@@ -92,7 +98,9 @@ def _jev(settings: ResearchSettings) -> Provider | str:
         return f"{', '.join(missing)} not set: the cost could not be measured"
 
     client = HttpJevClient(
-        base_url=settings.JEV_BASE_URL, api_key=settings.JEV_API_KEY, timeout_seconds=settings.JEV_TIMEOUT_SECONDS
+        base_url=settings.JEV_BASE_URL,
+        api_key=settings.JEV_API_KEY,
+        timeout_seconds=settings.JEV_TIMEOUT_SECONDS,
     )
     per_call = settings.JEV_PRICE_USD_PER_1K_CALLS / 1000
 

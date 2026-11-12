@@ -7,7 +7,15 @@ import pytest
 import respx
 from httpx import ASGITransport, AsyncClient
 
-from contracts import Channel, ExplainResult, Locale, ScanDetails, ScanResponse, ThreatLevel, VerdictMessage
+from contracts import (
+    Channel,
+    ExplainResult,
+    Locale,
+    ScanDetails,
+    ScanResponse,
+    ThreatLevel,
+    VerdictMessage,
+)
 from scan_orchestrator.api.dependencies import (
     get_explainer_client,
     get_quota_store,

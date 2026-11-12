@@ -1,4 +1,5 @@
-"""Parses what the browser asks the egress proxy for: a CONNECT tunnel or an absolute-form HTTP request."""
+"""Parses what the browser asks the egress proxy for: a CONNECT tunnel or an absolute-form
+HTTP request."""
 
 from dataclasses import dataclass
 from urllib.parse import urlsplit
@@ -39,5 +40,15 @@ def _plain_http(method: bytes, target: str, version: bytes, headers: list[bytes]
     path = (url.path or "/") + (f"?{url.query}" if url.query else "")
     kept = [h for h in headers if h and h.split(b":", 1)[0].strip().lower() not in HOP_BY_HOP]
     # One request per connection, so a kept-alive socket can never be reused for another host.
-    head = b"\r\n".join([method + b" " + path.encode("ascii") + b" " + version, *kept, b"Connection: close", b"", b""])
-    return ProxyTarget(host=url.hostname.lower(), port=url.port or 80, is_tunnel=False, forward_head=head)
+    head = b"\r\n".join(
+        [
+            method + b" " + path.encode("ascii") + b" " + version,
+            *kept,
+            b"Connection: close",
+            b"",
+            b"",
+        ]
+    )
+    return ProxyTarget(
+        host=url.hostname.lower(), port=url.port or 80, is_tunnel=False, forward_head=head
+    )

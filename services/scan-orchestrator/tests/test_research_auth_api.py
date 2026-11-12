@@ -14,7 +14,9 @@ from scan_orchestrator.api.main import app
 from scan_orchestrator.api.research_guard import ACCESS_COOKIE, REFRESH_COOKIE
 from scan_orchestrator.infrastructure.access_tokens import generate_key_pair
 from scan_orchestrator.infrastructure.quota_store import InMemoryQuotaStore
-from scan_orchestrator.infrastructure.research_account_repository import InMemoryResearchAccountRepository
+from scan_orchestrator.infrastructure.research_account_repository import (
+    InMemoryResearchAccountRepository,
+)
 from scan_orchestrator.settings import Settings
 
 PRIVATE_KEY, PUBLIC_KEY = generate_key_pair()
@@ -47,7 +49,9 @@ async def client():
         app.dependency_overrides.pop(dependency, None)
 
 
-async def create_account(email: str, role: ResearchRole, expires_at: datetime | None = None) -> None:
+async def create_account(
+    email: str, role: ResearchRole, expires_at: datetime | None = None
+) -> None:
     auth = get_research_auth(
         settings=settings(),
         repository=app.dependency_overrides[get_research_account_repository](),
@@ -90,7 +94,10 @@ async def test_login_returns_the_user_and_sets_hardened_cookies(client):
     assert "path=/api/v1/auth/refresh" in cookies[REFRESH_COOKIE]
 
 
-@pytest.mark.parametrize("email, password", [("banca@exemplo.com", "senha-errada-qualquer"), ("ninguem@exemplo.com", PASSWORD)])
+@pytest.mark.parametrize(
+    "email, password",
+    [("banca@exemplo.com", "senha-errada-qualquer"), ("ninguem@exemplo.com", PASSWORD)],
+)
 async def test_failed_logins_look_identical(client, email, password):
     await create_account("banca@exemplo.com", ResearchRole.RESEARCHER)
 
@@ -101,7 +108,11 @@ async def test_failed_logins_look_identical(client, email, password):
 
 
 async def test_an_expired_account_cannot_sign_in(client):
-    await create_account("banca@exemplo.com", ResearchRole.RESEARCHER, expires_at=datetime.now(timezone.utc) - timedelta(seconds=1))
+    await create_account(
+        "banca@exemplo.com",
+        ResearchRole.RESEARCHER,
+        expires_at=datetime.now(timezone.utc) - timedelta(seconds=1),
+    )
 
     assert (await login(client)).status_code == 401
 
@@ -123,7 +134,11 @@ async def test_posts_from_another_origin_are_refused(client, origin):
     if origin is None:
         client.headers.pop("Origin")
 
-    res = await client.post("/api/v1/auth/login", json={"email": "banca@exemplo.com", "password": PASSWORD}, headers=headers)
+    res = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "banca@exemplo.com", "password": PASSWORD},
+        headers=headers,
+    )
 
     assert res.status_code == 403
 
@@ -190,9 +205,15 @@ async def test_accepting_an_invite_sets_the_password(client):
     )
     token = await auth.invite("banca@exemplo.com", ResearchRole.RESEARCHER)
 
-    short = await client.post("/api/v1/auth/invites/accept", json={"token": token, "password": "curta"})
-    accepted = await client.post("/api/v1/auth/invites/accept", json={"token": token, "password": PASSWORD})
-    again = await client.post("/api/v1/auth/invites/accept", json={"token": token, "password": PASSWORD})
+    short = await client.post(
+        "/api/v1/auth/invites/accept", json={"token": token, "password": "curta"}
+    )
+    accepted = await client.post(
+        "/api/v1/auth/invites/accept", json={"token": token, "password": PASSWORD}
+    )
+    again = await client.post(
+        "/api/v1/auth/invites/accept", json={"token": token, "password": PASSWORD}
+    )
 
     assert short.status_code == 422 and short.json() == {"detail": "password_too_short"}
     assert accepted.status_code == 204
@@ -210,4 +231,7 @@ def test_allowed_origins_come_comma_separated_from_the_environment(monkeypatch):
     # JSON lists lose their quotes in some .env readers; a plain comma list survives everywhere.
     monkeypatch.setenv("AUTH_ALLOWED_ORIGINS", "https://verifica.ai, https://www.verifica.ai")
 
-    assert Settings(_env_file=None).AUTH_ALLOWED_ORIGINS == ["https://verifica.ai", "https://www.verifica.ai"]
+    assert Settings(_env_file=None).AUTH_ALLOWED_ORIGINS == [
+        "https://verifica.ai",
+        "https://www.verifica.ai",
+    ]

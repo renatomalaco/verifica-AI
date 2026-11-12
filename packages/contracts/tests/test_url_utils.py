@@ -1,4 +1,3 @@
-import pytest
 from contracts.url_utils import normalize_url, extract_domain
 
 

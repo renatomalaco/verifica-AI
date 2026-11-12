@@ -21,7 +21,9 @@ def test_hamming_counts_differing_bits():
     assert hamming(ORIGINAL, flip_bits(ORIGINAL, [0, 13, 40])) == 3
 
 
-@pytest.mark.parametrize("positions", [[0, 1, 2, 3], [5, 18, 31, 44], [12, 25, 38, 51], [63, 62, 61, 60]])
+@pytest.mark.parametrize(
+    "positions", [[0, 1, 2, 3], [5, 18, 31, 44], [12, 25, 38, 51], [63, 62, 61, 60]]
+)
 def test_hashes_within_the_tolerance_always_share_a_segment(positions):
     # Pigeonhole: 4 flipped bits cannot touch all 5 segments, so at least one index matches.
     near = flip_bits(ORIGINAL, positions)

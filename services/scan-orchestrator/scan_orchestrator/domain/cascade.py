@@ -69,8 +69,9 @@ class RedisCacheClientProtocol(Protocol):
     async def get_cached_scan(self, sha256_hash: str) -> ScanResponse | None:
         ...
 
-    async def set_cached_scan(self, sha256_hash: str, response: ScanResponse, ttl: int = 3600) -> None:
-        ...
+    async def set_cached_scan(
+        self, sha256_hash: str, response: ScanResponse, ttl: int = 3600
+    ) -> None: ...
 
     async def get_cached_phash(self, phash: str) -> ScanResponse | None:
         ...
@@ -137,7 +138,9 @@ class Stage1ReputationAndSignals:
 
     name = StageName.STAGE_1_SIGNALS
 
-    def __init__(self, evidence_client: DomainEvidenceClient, protected: list[str] | None = None) -> None:
+    def __init__(
+        self, evidence_client: DomainEvidenceClient, protected: list[str] | None = None
+    ) -> None:
         self._evidence = evidence_client
         self._protected = protected if protected is not None else protected_domains()
 
@@ -159,7 +162,9 @@ class Stage1ReputationAndSignals:
             ctx.deciding_stage = "stage_1_domain_signals"
 
 
-def _record_signals(ctx: StageContext, evidence: DomainEvidence, imitated: str | None, assessment: DomainAssessment) -> None:
+def _record_signals(
+    ctx: StageContext, evidence: DomainEvidence, imitated: str | None, assessment: DomainAssessment
+) -> None:
     ctx.domain_signals.update(evidence.as_signals())
     if imitated:
         ctx.domain_signals["imitates"] = imitated
@@ -173,7 +178,8 @@ def raise_score(ctx: StageContext, score: float) -> None:
 
 
 class Stage2RemoteInspection:
-    """Stage 2: headless Playwright inspection, Visual RAG and semantic triage with ethical fallback."""
+    """Stage 2: headless Playwright inspection, Visual RAG and semantic triage with ethical
+    fallback."""
 
     name = StageName.STAGE_2_INSPECTION
 
@@ -195,7 +201,9 @@ class Stage2RemoteInspection:
         # Strict ethical rule: an anti-bot block or network error NEVER returns SEGURO.
         if result.is_blocked:
             ctx.short_circuit(
-                ThreatLevel.INCONCLUSIVE, "stage_2_antibot_or_error", result.blocked_reason or "antibot_challenge"
+                ThreatLevel.INCONCLUSIVE,
+                "stage_2_antibot_or_error",
+                result.blocked_reason or "antibot_challenge",
             )
             ctx.links_not_inspected = True
             ctx.scores["is_phishing"] = 0.50
@@ -218,7 +226,9 @@ class Stage2RemoteInspection:
         ctx.report(StageName.VISUAL_RAG, "started")
         started = time.perf_counter()
         try:
-            match = await self._brand_matcher.match_brand(ctx.screenshot_b64, ctx.domain, ImageSource.PAGE_SCREENSHOT)
+            match = await self._brand_matcher.match_brand(
+                ctx.screenshot_b64, ctx.domain, ImageSource.PAGE_SCREENSHOT
+            )
         except BrandMatchUnavailable:
             # Same ethics rule as a link we could not open: at most CUIDADO, never SEGURO.
             ctx.links_not_inspected = True
@@ -243,7 +253,9 @@ class Stage2RemoteInspection:
         ctx.latency_breakdown["stage_2_triage"] = elapsed_ms(started)
 
         if triage is None:
-            ctx.short_circuit(ThreatLevel.INCONCLUSIVE, "stage_2_triage_unavailable", "triage_failure")
+            ctx.short_circuit(
+                ThreatLevel.INCONCLUSIVE, "stage_2_triage_unavailable", "triage_failure"
+            )
             ctx.links_not_inspected = True
             return
 
@@ -270,7 +282,9 @@ class Cascade:
             ctx.deciding_stage = ctx.deciding_stage or "no_stage_scored"
             return ThreatLevel.INCONCLUSIVE
         return decide(
-            RiskScore(ctx.scores["is_phishing"]), has_unverified_links=ctx.links_not_inspected, policy=self._policy
+            RiskScore(ctx.scores["is_phishing"]),
+            has_unverified_links=ctx.links_not_inspected,
+            policy=self._policy,
         )
 
     async def run(self, ctx: StageContext) -> ScanResponse:

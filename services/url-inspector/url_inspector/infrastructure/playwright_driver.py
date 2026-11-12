@@ -15,11 +15,13 @@ from url_inspector.infrastructure.resolver import resolve_safe_ip
 SCREENSHOT_BUDGET_BYTES = 800_000
 SCREENSHOT_QUALITIES = (80, 70, 60, 50, 40)
 USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/126.0.0.0 Safari/537.36"
 )
 
 # Text a person actually sees: skips nodes hidden by computed style, not only by inline style.
-VISIBLE_TEXT_JS = """
+VISIBLE_TEXT_JS = (
+    """
 () => {
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   const parts = [];
@@ -29,18 +31,21 @@ VISIBLE_TEXT_JS = """
     const s = getComputedStyle(el);
     const r = el.getBoundingClientRect();
     const hidden = s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity) === 0
-      || parseFloat(s.fontSize) < 1 || r.width === 0 || r.height === 0 || r.right < 0 || r.bottom < 0;
+      || parseFloat(s.fontSize) < 1 || r.width === 0 || r.height === 0 || r.right < 0"""
+    """ || r.bottom < 0;
     if (!hidden) parts.push(walker.currentNode.textContent);
   }
   return parts.join(' ');
 }
 """
+)
 
 
 def browser_launch_args(hostname: str, resolved_ip: str, proxy_url: str) -> list[str]:
     base = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
     if proxy_url:
-        # Chromium skips the proxy for localhost unless told otherwise: "<-loopback>" closes that gap.
+        # Chromium skips the proxy for localhost unless told otherwise:
+        # "<-loopback>" closes that gap.
         return [*base, f"--proxy-server={proxy_url}", "--proxy-bypass-list=<-loopback>"]
     # Local development only: pins the first host; redirects and sub-resources are not validated.
     return [*base, f"--host-resolver-rules=MAP {hostname} {resolved_ip}"]
@@ -81,12 +86,18 @@ class PlaywrightBrowserDriver(BrowserDriverProtocol):
                 await browser.close()
 
     async def _inspect_page(self, browser, url: str, timeout_seconds: float) -> InspectResult:
-        context = await browser.new_context(viewport={"width": 1280, "height": 720}, user_agent=USER_AGENT)
+        context = await browser.new_context(
+            viewport={"width": 1280, "height": 720}, user_agent=USER_AGENT
+        )
         page = await context.new_page()
         try:
             await page.goto(url, timeout=int(timeout_seconds * 1000), wait_until="domcontentloaded")
         except (PlaywrightTimeoutError, PlaywrightError) as err:
-            return InspectResult(final_url=url, is_blocked=True, blocked_reason=f"browser_navigation_failed: {type(err).__name__}")
+            return InspectResult(
+                final_url=url,
+                is_blocked=True,
+                blocked_reason=f"browser_navigation_failed: {type(err).__name__}",
+            )
 
         html = await page.content()
         is_blocked, blocked_reason = check_antibot_block(html, await page.title())

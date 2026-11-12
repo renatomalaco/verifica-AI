@@ -1,4 +1,6 @@
-"""FastAPI guards for the research area. The research-runner imports them too, with only the public key."""
+"""FastAPI guards for the research area.
+
+The research-runner imports them too, with only the public key."""
 
 from fastapi import Depends, HTTPException, Request, status
 
@@ -13,14 +15,17 @@ SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
 
 
 def require_same_origin(request: Request, settings: Settings = Depends(get_settings)) -> None:
-    """CSRF defence on top of SameSite=Strict: state-changing calls must come from the app itself."""
+    """CSRF defence on top of SameSite=Strict: state-changing calls must come from the app
+    itself."""
     if request.method in SAFE_METHODS:
         return
     if request.headers.get("origin") not in settings.AUTH_ALLOWED_ORIGINS:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="origin_not_allowed")
 
 
-def current_principal(request: Request, verifier: AccessTokenVerifier = Depends(get_access_verifier)) -> Principal:
+def current_principal(
+    request: Request, verifier: AccessTokenVerifier = Depends(get_access_verifier)
+) -> Principal:
     principal = verifier.verify(request.cookies.get(ACCESS_COOKIE))
     if principal is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="not_signed_in")

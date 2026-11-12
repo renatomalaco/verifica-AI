@@ -9,13 +9,35 @@ from research_runner.domain.dataset import Sample
 from research_runner.infrastructure.llm_providers import providers_from_settings
 
 
-def sample(id: str, content: str, label: str, origin: str = "real", channel: str = "texto") -> Sample:
-    return Sample(id=id, channel=channel, content=content, label=label, origin=origin, source="t", collected_on="2026-10-01")
+def sample(
+    id: str, content: str, label: str, origin: str = "real", channel: str = "texto"
+) -> Sample:
+    return Sample(
+        id=id,
+        channel=channel,
+        content=content,
+        label=label,
+        origin=origin,
+        source="t",
+        collected_on="2026-10-01",
+    )
 
 
-SCAMS = ["manda um pix urgente mae", "conta bloqueada regularize agora", "taxa da encomenda retida pague", "premio sorteio clique e resgate"]
-SAFE = ["almoco de domingo na vovo", "consulta confirmada terca", "obrigado pela compra", "reuniao amanha as dez"]
-REAL = [sample(f"g{i}", t, "GOLPE") for i, t in enumerate(SCAMS * 3)] + [sample(f"s{i}", t, "SEGURO") for i, t in enumerate(SAFE * 3)]
+SCAMS = [
+    "manda um pix urgente mae",
+    "conta bloqueada regularize agora",
+    "taxa da encomenda retida pague",
+    "premio sorteio clique e resgate",
+]
+SAFE = [
+    "almoco de domingo na vovo",
+    "consulta confirmada terca",
+    "obrigado pela compra",
+    "reuniao amanha as dez",
+]
+REAL = [sample(f"g{i}", t, "GOLPE") for i, t in enumerate(SCAMS * 3)] + [
+    sample(f"s{i}", t, "SEGURO") for i, t in enumerate(SAFE * 3)
+]
 CONFIG = StudyConfig(test_ratio=0.25, seed=42)
 
 
@@ -43,8 +65,15 @@ async def test_report_declares_what_did_not_run_for_real():
 async def test_report_carries_reliability_bins_and_adversarial_results():
     report = await run_study(REAL, CONFIG)
     cascade = next(m for m in report["modes"] if m["mode"] == "cascade")
-    assert all({"lower", "upper", "count", "accuracy", "mean_confidence"} <= set(b) for b in cascade["reliability"])
-    assert set(report["adversarial"]) == {"total", "detected_without_sanitization", "detected_with_sanitization"}
+    assert all(
+        {"lower", "upper", "count", "accuracy", "mean_confidence"} <= set(b)
+        for b in cascade["reliability"]
+    )
+    assert set(report["adversarial"]) == {
+        "total",
+        "detected_without_sanitization",
+        "detected_with_sanitization",
+    }
 
 
 async def test_without_real_samples_the_report_warns_instead_of_inventing_numbers():
@@ -55,7 +84,9 @@ async def test_without_real_samples_the_report_warns_instead_of_inventing_number
     assert any("real" in w for w in report["meta"]["warnings"])
 
 
-async def test_with_gemini_configured_mode_2_measures_the_model_and_names_model_and_price(make_settings, gemini_env, gemini):
+async def test_with_gemini_configured_mode_2_measures_the_model_and_names_model_and_price(
+    make_settings, gemini_env, gemini
+):
     gemini.answers(0.97)
     report = await run_study(REAL, CONFIG, providers_from_settings(make_settings(**gemini_env)))
 
@@ -71,7 +102,9 @@ async def test_with_gemini_configured_mode_2_measures_the_model_and_names_model_
     assert any("AI_PROVIDER" in w for w in report["meta"]["warnings"])
 
 
-async def test_with_ai_provider_gemini_the_cascade_triage_is_the_real_model(make_settings, gemini_env, gemini):
+async def test_with_ai_provider_gemini_the_cascade_triage_is_the_real_model(
+    make_settings, gemini_env, gemini
+):
     gemini.answers(0.97)
     providers = providers_from_settings(make_settings(**gemini_env, AI_PROVIDER="gemini"))
     report = await run_study(REAL, CONFIG, providers)
@@ -83,7 +116,9 @@ async def test_with_ai_provider_gemini_the_cascade_triage_is_the_real_model(make
     assert not any("AI_PROVIDER" in w for w in report["meta"]["warnings"])
 
 
-async def test_model_failures_are_counted_and_reported_never_scored_as_safe(make_settings, gemini_env, gemini):
+async def test_model_failures_are_counted_and_reported_never_scored_as_safe(
+    make_settings, gemini_env, gemini
+):
     gemini.fails_with(status_code=503)
     report = await run_study(REAL, CONFIG, providers_from_settings(make_settings(**gemini_env)))
 
@@ -103,14 +138,29 @@ def write_dataset(tmp_path, samples):
 def test_gate_refuses_to_pass_without_a_test_split(tmp_path):
     synthetic = [sample(f"x{i}", t, "GOLPE", origin="synthetic") for i, t in enumerate(SCAMS)]
     synthetic += [sample(f"y{i}", t, "SEGURO", origin="synthetic") for i, t in enumerate(SAFE)]
-    code = main(["--dataset", str(write_dataset(tmp_path, synthetic)), "--output-dir", str(tmp_path), "--threshold-f1", "0.5"])
+    code = main(
+        [
+            "--dataset",
+            str(write_dataset(tmp_path, synthetic)),
+            "--output-dir",
+            str(tmp_path),
+            "--threshold-f1",
+            "0.5",
+        ]
+    )
     assert code == 2
 
 
 def test_gate_compares_the_cascade_f1_on_the_test_split(tmp_path):
     dataset = write_dataset(tmp_path, REAL)
-    assert main(["--dataset", str(dataset), "--output-dir", str(tmp_path), "--threshold-f1", "0.0"]) == 0
-    assert main(["--dataset", str(dataset), "--output-dir", str(tmp_path), "--threshold-f1", "1.01"]) == 1
+    assert (
+        main(["--dataset", str(dataset), "--output-dir", str(tmp_path), "--threshold-f1", "0.0"])
+        == 0
+    )
+    assert (
+        main(["--dataset", str(dataset), "--output-dir", str(tmp_path), "--threshold-f1", "1.01"])
+        == 1
+    )
     assert json.loads((tmp_path / "latest.json").read_text(encoding="utf-8"))["modes"]
     assert (tmp_path / "reliability_cascade.svg").read_text(encoding="utf-8").startswith("<svg")
 
@@ -125,10 +175,13 @@ async def test_api_serves_the_latest_report_or_404(reports_dir):
     from research_runner.api.main import app
     from scan_orchestrator.api.research_guard import require_research_reader
 
-    app.dependency_overrides[require_research_reader] = lambda: None  # access rules: test_api_access.py
+    # Access rules are covered in test_api_access.py.
+    app.dependency_overrides[require_research_reader] = lambda: None
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         missing = await client.get("/pesquisa/report")
-        (reports_dir / "latest.json").write_text(json.dumps({"modes": [], "meta": {}}), encoding="utf-8")
+        (reports_dir / "latest.json").write_text(
+            json.dumps({"modes": [], "meta": {}}), encoding="utf-8"
+        )
         found = await client.get("/pesquisa/report")
     app.dependency_overrides.pop(require_research_reader)
 
@@ -142,6 +195,8 @@ def test_cli_reads_the_providers_from_the_environment(tmp_path, monkeypatch, gem
     gemini.answers(0.97)
     for name, value in gemini_env.items():
         monkeypatch.setenv(name, str(value))
-    assert main(["--dataset", str(write_dataset(tmp_path, REAL)), "--output-dir", str(tmp_path)]) == 0
+    assert (
+        main(["--dataset", str(write_dataset(tmp_path, REAL)), "--output-dir", str(tmp_path)]) == 0
+    )
     report = json.loads((tmp_path / "latest.json").read_text(encoding="utf-8"))
     assert next(m for m in report["modes"] if m["mode"] == "pure_vlm")["status"] == "executed"

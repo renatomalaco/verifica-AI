@@ -66,7 +66,9 @@ async def test_fake_provider_explains_brand_spoofing_in_plain_language():
 
 
 async def test_fake_provider_handles_safe_verdict():
-    req = scam_request(threat_level=ThreatLevel.SAFE, category=None, domain_signals={}, deciding_stage="triage")
+    req = scam_request(
+        threat_level=ThreatLevel.SAFE, category=None, domain_signals={}, deciding_stage="triage"
+    )
     result = await FakeExplanationProvider().explain(req)
     assert result.lines
 
@@ -109,7 +111,9 @@ async def test_gemini_provider_raises_on_http_error():
 async def test_gemini_provider_raises_on_malformed_answer():
     provider = GeminiExplanationProvider(base_url=GEMINI_BASE, api_key="k", model="gemini-x")
     async with respx.mock(base_url=GEMINI_BASE) as mock:
-        mock.post("/v1beta/models/gemini-x:generateContent").respond(json=gemini_reply({"lines": []}))
+        mock.post("/v1beta/models/gemini-x:generateContent").respond(
+            json=gemini_reply({"lines": []})
+        )
         with pytest.raises(RuntimeError):
             await provider.explain(scam_request())
 
@@ -117,7 +121,9 @@ async def test_gemini_provider_raises_on_malformed_answer():
 async def test_gemini_provider_raises_on_timeout():
     provider = GeminiExplanationProvider(base_url=GEMINI_BASE, api_key="k", model="gemini-x")
     async with respx.mock(base_url=GEMINI_BASE) as mock:
-        mock.post("/v1beta/models/gemini-x:generateContent").mock(side_effect=httpx.ReadTimeout("lento"))
+        mock.post("/v1beta/models/gemini-x:generateContent").mock(
+            side_effect=httpx.ReadTimeout("lento")
+        )
         with pytest.raises(RuntimeError):
             await provider.explain(scam_request())
 

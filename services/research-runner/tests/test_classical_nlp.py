@@ -39,7 +39,12 @@ def test_classical_nlp_training_and_inference():
 
 def test_scam_probability_is_the_probability_of_the_golpe_class():
     classifier = ClassicalPTBRClassifier().fit(
-        ["manda um pix urgente", "conta bloqueada regularize", "almoco de domingo", "consulta amanha"],
+        [
+            "manda um pix urgente",
+            "conta bloqueada regularize",
+            "almoco de domingo",
+            "consulta amanha",
+        ],
         ["GOLPE", "GOLPE", "SEGURO", "SEGURO"],
     )
     label, confidence = classifier.predict("pix urgente")

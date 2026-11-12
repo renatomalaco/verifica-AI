@@ -26,7 +26,8 @@ def read_text(
     fallback: OcrEngineProtocol | None,
     min_confidence: float,
 ) -> OcrResult:
-    """Photos of screens defeat Tesseract; a stronger engine (Florence-2) only runs when it doubts."""
+    """Photos of screens defeat Tesseract; a stronger engine (Florence-2) only runs when
+    it doubts."""
     result = primary.extract_text(img)
     is_doubtful = result.confidence is None or result.confidence < min_confidence
     if fallback is None or not is_doubtful:

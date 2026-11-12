@@ -65,7 +65,9 @@ def test_ece_calculation():
         SamplePrediction("2", "GOLPE", "GOLPE", 0.90, 10.0, 0.0, "s"),
         SamplePrediction("3", "GOLPE", "GOLPE", 0.90, 10.0, 0.0, "s"),
         SamplePrediction("4", "GOLPE", "GOLPE", 0.90, 10.0, 0.0, "s"),
-        SamplePrediction("5", "GOLPE", "SEGURO", 0.90, 10.0, 0.0, "s"),  # 4/5 = 0.80 accuracy, conf = 0.90 -> error 0.10
+        SamplePrediction(
+            "5", "GOLPE", "SEGURO", 0.90, 10.0, 0.0, "s"
+        ),  # 4/5 = 0.80 accuracy, conf = 0.90 -> error 0.10
     ]
     ece = calculate_ece(predictions, n_bins=5)
     assert 0.0 <= ece <= 1.0
@@ -105,4 +107,10 @@ def test_reliability_bins_feed_the_diagram_and_the_ece():
     assert top.accuracy == 0.5
     assert abs(top.mean_confidence - 0.935) < 1e-9
     assert sum(b.count for b in bins) == 3
-    assert abs(calculate_ece(predictions, n_bins=10) - sum(b.count / 3 * abs(b.accuracy - b.mean_confidence) for b in bins)) < 1e-9
+    assert (
+        abs(
+            calculate_ece(predictions, n_bins=10)
+            - sum(b.count / 3 * abs(b.accuracy - b.mean_confidence) for b in bins)
+        )
+        < 1e-9
+    )

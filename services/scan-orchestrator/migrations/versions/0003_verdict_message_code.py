@@ -19,13 +19,21 @@ def upgrade() -> None:
     # The wording moved to the front end's dictionary; only the code is a fact worth keeping.
     op.add_column(
         "analises_phishing",
-        sa.Column("verdict_message", sa.String(length=40), nullable=False, server_default="inconclusive"),
+        sa.Column(
+            "verdict_message", sa.String(length=40), nullable=False, server_default="inconclusive"
+        ),
     )
     op.drop_column("analises_phishing", "verdict_plain")
     op.drop_column("analises_phishing", "action_advice")
 
 
 def downgrade() -> None:
-    op.add_column("analises_phishing", sa.Column("action_advice", sa.Text(), nullable=False, server_default=""))
-    op.add_column("analises_phishing", sa.Column("verdict_plain", sa.Text(), nullable=False, server_default=""))
+    op.add_column(
+        "analises_phishing",
+        sa.Column("action_advice", sa.Text(), nullable=False, server_default=""),
+    )
+    op.add_column(
+        "analises_phishing",
+        sa.Column("verdict_plain", sa.Text(), nullable=False, server_default=""),
+    )
     op.drop_column("analises_phishing", "verdict_message")

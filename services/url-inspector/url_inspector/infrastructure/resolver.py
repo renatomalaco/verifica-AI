@@ -1,6 +1,6 @@
 import asyncio
 import socket
-from url_inspector.domain.ssrf_shield import assert_public_ip, SsrfBlockedException
+from url_inspector.domain.ssrf_shield import assert_public_ip
 
 
 async def resolve_safe_ip(hostname: str) -> str:

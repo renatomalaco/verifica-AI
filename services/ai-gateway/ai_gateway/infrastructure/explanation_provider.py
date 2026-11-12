@@ -17,9 +17,13 @@ _BY_CATEGORY = {
     "blacklist_feed": "Este endereço já está em listas de golpes conhecidos.",
     "embedded_phishing_link": "O link que veio junto leva para um site de golpe conhecido.",
     "urgencia": "A mensagem tenta te apressar. Golpistas fazem isso para você não parar e pensar.",
-    "ameaca_financeira": "A mensagem ameaça bloquear sua conta ou cobrar algo. Bancos não avisam assim.",
+    "ameaca_financeira": (
+        "A mensagem ameaça bloquear sua conta ou cobrar algo. Bancos não avisam assim."
+    ),
     "coercao_afetiva": "A mensagem finge ser alguém da família pedindo dinheiro com pressa.",
-    "antibot_challenge": "O site não deixou o Verifica olhar por dentro, e isso já é motivo de desconfiança.",
+    "antibot_challenge": (
+        "O site não deixou o Verifica olhar por dentro, e isso já é motivo de desconfiança."
+    ),
 }
 
 
@@ -40,7 +44,9 @@ class FakeExplanationProvider:
             lines.append(_BY_CATEGORY[request.category])
 
         if request.links_not_inspected:
-            lines.append("Nem todos os links puderam ser abertos com segurança, então fique com o pé atrás.")
+            lines.append(
+                "Nem todos os links puderam ser abertos com segurança, então fique com o pé atrás."
+            )
 
         return ExplainResult(lines=lines)
 
@@ -71,7 +77,9 @@ class GeminiExplanationProvider:
                 "responseSchema": _RESPONSE_SCHEMA,
             },
         }
-        data = await generate_content(self._base_url, self._api_key, self._model, self._timeout_seconds, payload)
+        data = await generate_content(
+            self._base_url, self._api_key, self._model, self._timeout_seconds, payload
+        )
 
         try:
             text = data["candidates"][0]["content"]["parts"][0]["text"]

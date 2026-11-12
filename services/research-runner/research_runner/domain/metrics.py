@@ -45,7 +45,11 @@ def reliability_bins(predictions: List[SamplePrediction], n_bins: int = 10) -> L
     bins: List[ReliabilityBin] = []
     for i, (lower, upper) in enumerate(zip(edges, edges[1:])):
         is_last = i == n_bins - 1
-        members = [p for p in predictions if lower <= p.confidence < upper or (is_last and p.confidence == upper)]
+        members = [
+            p
+            for p in predictions
+            if lower <= p.confidence < upper or (is_last and p.confidence == upper)
+        ]
         if not members:
             continue
         accuracy = sum(1 for p in members if p.is_correct) / len(members)
@@ -58,7 +62,12 @@ def calculate_ece(predictions: List[SamplePrediction], n_bins: int = 10) -> floa
     if not predictions:
         return 0.0
     total = len(predictions)
-    return float(sum(b.count / total * abs(b.accuracy - b.mean_confidence) for b in reliability_bins(predictions, n_bins)))
+    return float(
+        sum(
+            b.count / total * abs(b.accuracy - b.mean_confidence)
+            for b in reliability_bins(predictions, n_bins)
+        )
+    )
 
 
 def calculate_percentiles(latencies: List[float]) -> Tuple[float, float, float]:

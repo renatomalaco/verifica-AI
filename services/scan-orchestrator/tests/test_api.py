@@ -188,12 +188,16 @@ async def test_stream_accepts_a_screenshot_as_multipart_file():
     from scan_orchestrator.infrastructure.image_extractor_client import FakeImageExtractorClient
 
     extractor = FakeImageExtractorClient(
-        default_result=ExtractResult(sha256="s", phash="0123456789abcdef", extracted_text="", ocr_confidence=None)
+        default_result=ExtractResult(
+            sha256="s", phash="0123456789abcdef", extracted_text="", ocr_confidence=None
+        )
     )
     app.dependency_overrides[get_image_extractor_client] = lambda: extractor
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            resp = await client.post("/api/v1/scans/stream", files={"image": ("print.png", _png_bytes(), "image/png")})
+            resp = await client.post(
+                "/api/v1/scans/stream", files={"image": ("print.png", _png_bytes(), "image/png")}
+            )
         assert resp.status_code == 200
         assert "image_extraction" in resp.text
         assert extractor.calls == 1
@@ -205,7 +209,9 @@ async def test_stream_accepts_a_screenshot_as_multipart_file():
 async def test_multipart_upload_above_the_limit_is_refused():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         big = b"\x89PNG\r\n\x1a\n" + b"0" * (8 * 1024 * 1024)
-        resp = await client.post("/api/v1/scans/stream", files={"image": ("print.png", big, "image/png")})
+        resp = await client.post(
+            "/api/v1/scans/stream", files={"image": ("print.png", big, "image/png")}
+        )
     assert resp.status_code == 413
 
 

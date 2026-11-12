@@ -24,7 +24,9 @@ def make_quota(daily=3, monthly=30, ip_limit=100, ip_window=3600, now=NOON_UTC):
     clock = Clock(now)
     quota = ExplainQuota(
         store=store,
-        limits=QuotaLimits(daily=daily, monthly=monthly, ip_per_window=ip_limit, ip_window_seconds=ip_window),
+        limits=QuotaLimits(
+            daily=daily, monthly=monthly, ip_per_window=ip_limit, ip_window_seconds=ip_window
+        ),
         utc_offset_hours=-3,
         clock=clock,
     )

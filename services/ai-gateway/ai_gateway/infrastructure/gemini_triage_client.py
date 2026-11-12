@@ -10,8 +10,10 @@ from ai_gateway.infrastructure.gemini_http import generate_content
 _SYSTEM_PROMPT = (
     "You triage messages, links and screenshot text for scams aimed at older adults in Brazil. "
     f"{SYSTEM_DIRECTIVE} "
-    "Give the probability (0 to 1) that the content attempts a scam, banking fraud or social engineering, "
-    "the probability (0 to 1) that a conclusive decision depends on visual appearance, logo or layout, "
+    "Give the probability (0 to 1) that the content attempts a scam, banking fraud "
+    "or social engineering, "
+    "the probability (0 to 1) that a conclusive decision depends on visual appearance, "
+    "logo or layout, "
     "and the main persuasion technique."
 )
 
@@ -55,14 +57,17 @@ class GeminiTriageClient:
                 "responseSchema": _RESPONSE_SCHEMA,
             },
         }
-        data = await generate_content(self._base_url, self._api_key, self._model, self._timeout_seconds, payload)
+        data = await generate_content(
+            self._base_url, self._api_key, self._model, self._timeout_seconds, payload
+        )
         try:
             text = data["candidates"][0]["content"]["parts"][0]["text"]
             usage = data["usageMetadata"]
             return MeasuredTriage(
                 result=TriageResult.model_validate(json.loads(text)),
                 input_tokens=int(usage["promptTokenCount"]),
-                output_tokens=int(usage.get("candidatesTokenCount", 0)) + int(usage.get("thoughtsTokenCount", 0)),
+                output_tokens=int(usage.get("candidatesTokenCount", 0))
+                + int(usage.get("thoughtsTokenCount", 0)),
             )
         except (KeyError, IndexError, TypeError, ValueError, ValidationError) as exc:
             raise RuntimeError("Gemini answer is not in the expected format") from exc

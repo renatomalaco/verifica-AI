@@ -10,7 +10,12 @@ from PIL import Image, ImageDraw
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from ai_gateway.api.main import app as gateway_app, get_brand_catalog, get_brand_verifier, get_visual_embedder
+from ai_gateway.api.main import (
+    app as gateway_app,
+    get_brand_catalog,
+    get_brand_verifier,
+    get_visual_embedder,
+)
 from ai_gateway.infrastructure.fakes import FakeBrandVerifier, FakeVisualEmbedder, one_hot
 from ai_gateway.infrastructure.pgvector_catalog import PgvectorBrandCatalog
 from contracts import InspectResult, ThreatLevel
@@ -55,11 +60,15 @@ EMBEDDERS = {
 @pytest.fixture
 async def catalog():
     if not DATABASE_URL:
-        pytest.skip("TEST_DATABASE_URL not set (needs the migrated Postgres from infra/docker-compose.yml)")
+        pytest.skip(
+            "TEST_DATABASE_URL not set (needs the migrated Postgres from infra/docker-compose.yml)"
+        )
     engine = create_async_engine(DATABASE_URL)
     yield PgvectorBrandCatalog(engine)
     async with engine.begin() as conn:
-        await conn.execute(text("DELETE FROM marcas_referencias WHERE source = :source"), {"source": SOURCE})
+        await conn.execute(
+            text("DELETE FROM marcas_referencias WHERE source = :source"), {"source": SOURCE}
+        )
     await engine.dispose()
     gateway_app.dependency_overrides.clear()
 
@@ -67,7 +76,9 @@ async def catalog():
 @pytest.mark.parametrize("embedder_name", sorted(EMBEDDERS))
 async def test_bank_look_on_an_unofficial_domain_is_scam_without_the_vlm(catalog, embedder_name):
     embedder = EMBEDDERS[embedder_name]()
-    await catalog.save_reference("Banco do Brasil", SOURCE, await embedder.embed_image(_bank_login_page("PNG")))
+    await catalog.save_reference(
+        "Banco do Brasil", SOURCE, await embedder.embed_image(_bank_login_page("PNG"))
+    )
     verifier = FakeBrandVerifier(answer=True)
     gateway_app.dependency_overrides[get_visual_embedder] = lambda: embedder
     gateway_app.dependency_overrides[get_brand_catalog] = lambda: catalog
@@ -77,7 +88,11 @@ async def test_bank_look_on_an_unofficial_domain_is_scam_without_the_vlm(catalog
     # What reaches the matcher is a recompressed screenshot, not the reference file itself.
     inspector.set_result(
         PHISHING_URL,
-        InspectResult(final_url=PHISHING_URL, dom_text="Acesse sua conta", screenshot_b64=_bank_login_page("JPEG", 60)),
+        InspectResult(
+            final_url=PHISHING_URL,
+            dom_text="Acesse sua conta",
+            screenshot_b64=_bank_login_page("JPEG", 60),
+        ),
     )
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=gateway_app)) as http:
         stage2 = Stage2RemoteInspection(
@@ -86,7 +101,9 @@ async def test_bank_look_on_an_unofficial_domain_is_scam_without_the_vlm(catalog
             brand_matcher=HttpBrandMatcherClient(base_url="http://ai-gateway", client=http),
         )
         policy = ThresholdPolicy(scam=0.90, safe=0.10)
-        result = await Cascade(stages=[stage2], policy=policy).run(StageContext(raw_url=PHISHING_URL))
+        result = await Cascade(stages=[stage2], policy=policy).run(
+            StageContext(raw_url=PHISHING_URL)
+        )
 
     assert result.threat_level is ThreatLevel.SCAM
     assert result.details.category == "brand_spoofing"

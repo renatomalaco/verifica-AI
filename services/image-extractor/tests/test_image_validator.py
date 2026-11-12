@@ -84,7 +84,11 @@ def test_whatsapp_recompression_stays_within_the_cache_tolerance():
     draw = ImageDraw.Draw(screenshot)
     draw.rectangle((0, 0, 720, 140), fill=(18, 140, 126))
     for line in range(14):
-        draw.text((40, 200 + line * 70), f"Mensagem {line}: seu Pix foi bloqueado, regularize agora", fill="black")
+        draw.text(
+            (40, 200 + line * 70),
+            f"Mensagem {line}: seu Pix foi bloqueado, regularize agora",
+            fill="black",
+        )
     draw.rectangle((40, 1150, 680, 1230), fill=(37, 211, 102))
 
     original = encoded(screenshot, "PNG")

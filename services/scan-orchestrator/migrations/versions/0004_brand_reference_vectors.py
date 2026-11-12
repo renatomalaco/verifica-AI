@@ -47,5 +47,11 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("marcas_referencias")
-    op.add_column("marcas_protegidas", sa.Column("official_domains", JSON(), nullable=False, server_default="[]"))
-    op.add_column("marcas_protegidas", sa.Column("logo_embedding", JSON(), nullable=False, server_default="[]"))
+    op.add_column(
+        "marcas_protegidas",
+        sa.Column("official_domains", JSON(), nullable=False, server_default="[]"),
+    )
+    op.add_column(
+        "marcas_protegidas",
+        sa.Column("logo_embedding", JSON(), nullable=False, server_default="[]"),
+    )

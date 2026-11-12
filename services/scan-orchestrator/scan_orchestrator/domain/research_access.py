@@ -93,7 +93,8 @@ def new_secret() -> str:
 
 
 def hash_secret(raw: str) -> str:
-    # The tokens are 256-bit random values, so a fast hash is enough: there is nothing to brute-force.
+    # The tokens are 256-bit random values, so a fast hash is enough: there is nothing
+    # to brute-force.
     return hashlib.sha256(raw.encode("ascii")).hexdigest()
 
 

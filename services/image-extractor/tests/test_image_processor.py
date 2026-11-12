@@ -23,7 +23,9 @@ def test_identical_images_have_hamming_distance_zero():
 
 
 def test_extractor_service_aggregates_qr_ocr_and_urls():
-    ocr = FakeOcrEngine(OcrResult("Acesse agora https://banco-promo.com e resgate seu cupom.", confidence=91.0))
+    ocr = FakeOcrEngine(
+        OcrResult("Acesse agora https://banco-promo.com e resgate seu cupom.", confidence=91.0)
+    )
     qr = FakeQrReader(qr_codes=["https://qr-promo.com/pix"])
 
     result = ImageExtractorService(ocr_engine=ocr, qr_reader=qr).extract(create_sample_image())
@@ -38,7 +40,9 @@ def test_extractor_service_aggregates_qr_ocr_and_urls():
 def test_extractor_returns_a_clean_copy_without_metadata_for_visual_rag():
     exif = Image.Exif()
     exif[0x010F] = "Celular"
-    service = ImageExtractorService(ocr_engine=FakeOcrEngine(OcrResult("", None)), qr_reader=FakeQrReader())
+    service = ImageExtractorService(
+        ocr_engine=FakeOcrEngine(OcrResult("", None)), qr_reader=FakeQrReader()
+    )
 
     result = service.extract(create_sample_image(fmt="JPEG", exif=exif.tobytes()))
 
@@ -51,13 +55,20 @@ def test_extractor_returns_a_clean_copy_without_metadata_for_visual_rag():
 
 def test_confident_ocr_does_not_call_the_fallback():
     fallback = FakeOcrEngine(OcrResult("outro", 99.0))
-    result = read_text(Image.new("RGB", (5, 5)), FakeOcrEngine(OcrResult("ok", 85.0)), fallback, min_confidence=60)
+    result = read_text(
+        Image.new("RGB", (5, 5)), FakeOcrEngine(OcrResult("ok", 85.0)), fallback, min_confidence=60
+    )
     assert result.text == "ok"
     assert fallback.calls == 0
 
 
 def test_low_confidence_ocr_uses_the_fallback_when_it_is_configured():
-    result = read_text(Image.new("RGB", (5, 5)), FakeOcrEngine(OcrResult("t3xt0", 30.0)), FakeOcrEngine(OcrResult("texto", 88.0)), 60)
+    result = read_text(
+        Image.new("RGB", (5, 5)),
+        FakeOcrEngine(OcrResult("t3xt0", 30.0)),
+        FakeOcrEngine(OcrResult("texto", 88.0)),
+        60,
+    )
     assert result == OcrResult("texto", 88.0)
 
 

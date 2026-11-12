@@ -2,21 +2,37 @@ from functools import lru_cache
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import create_async_engine
 from observability import configure_telemetry
-from contracts import TriageRequest, TriageResult, BrandMatchRequest, BrandMatchResult, ExplainRequest, ExplainResult
+from contracts import (
+    TriageRequest,
+    TriageResult,
+    BrandMatchRequest,
+    BrandMatchResult,
+    ExplainRequest,
+    ExplainResult,
+)
 from ai_gateway.settings import Settings
 from ai_gateway.domain.envelope import guard_for_model
 from ai_gateway.domain.brand_matcher import MatchPolicy
-from ai_gateway.application.match_brand import BrandCatalog, BrandVerifier, MatchBrandUseCase, VisualEmbedder
+from ai_gateway.application.match_brand import (
+    BrandCatalog,
+    BrandVerifier,
+    MatchBrandUseCase,
+    VisualEmbedder,
+)
 from ai_gateway.infrastructure.pgvector_catalog import PgvectorBrandCatalog
 from ai_gateway.infrastructure.siglip_embedder import SiglipEmbedder
 from ai_gateway.infrastructure.gemini_brand_verifier import GeminiBrandVerifier
 from ai_gateway.infrastructure.jev_client import JevClient, FakeJevClient, HttpJevClient
 from ai_gateway.infrastructure.gemini_triage_client import GeminiTriageClient
 from ai_gateway.domain.explanation import ExplanationProvider
-from ai_gateway.infrastructure.explanation_provider import FakeExplanationProvider, GeminiExplanationProvider
+from ai_gateway.infrastructure.explanation_provider import (
+    FakeExplanationProvider,
+    GeminiExplanationProvider,
+)
 
 app = FastAPI(title="ai-gateway", version="0.1.0")
 configure_telemetry("ai-gateway", app)
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -24,18 +40,20 @@ def get_settings() -> Settings:
 
 
 def get_visual_embedder(settings: Settings = Depends(get_settings)) -> VisualEmbedder:
-    return _siglip(settings.SIGLIP_MODEL, settings.EMBEDDING_DIM)
+    return _siglip(settings.SIGLIP_MODEL, settings.SIGLIP_REVISION, settings.EMBEDDING_DIM)
 
 
 @lru_cache
-def _siglip(model_name: str, dimension: int) -> SiglipEmbedder:
+def _siglip(model_name: str, revision: str, dimension: int) -> SiglipEmbedder:
     # One model in memory per process; it loads on the first request.
-    return SiglipEmbedder(model_name=model_name, dimension=dimension)
+    return SiglipEmbedder(model_name=model_name, revision=revision, dimension=dimension)
 
 
 def get_brand_catalog(settings: Settings = Depends(get_settings)) -> BrandCatalog:
     if not settings.DATABASE_URL:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Visual RAG is not configured.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Visual RAG is not configured."
+        )
     return _pgvector_catalog(settings.DATABASE_URL)
 
 
@@ -65,7 +83,9 @@ def get_match_brand(
     return MatchBrandUseCase(
         embedder=embedder,
         catalog=catalog,
-        policy=MatchPolicy(threshold=settings.BRAND_MATCH_THRESHOLD, gray_floor=settings.BRAND_GRAY_ZONE_FLOOR),
+        policy=MatchPolicy(
+            threshold=settings.BRAND_MATCH_THRESHOLD, gray_floor=settings.BRAND_GRAY_ZONE_FLOOR
+        ),
         dimension=settings.EMBEDDING_DIM,
         verifier=verifier,
     )
@@ -109,7 +129,8 @@ async def triage(
     request: TriageRequest,
     jev_client: JevClient = Depends(get_jev_client),
 ):
-    # PII is masked (LGPD) and the text wrapped in the anti-prompt-injection envelope before reaching the model.
+    # PII is masked (LGPD) and the text wrapped in the anti-prompt-injection envelope
+    # before reaching the model.
     return await jev_client.classify(guard_for_model(request.text))
 
 
@@ -122,7 +143,10 @@ async def match_brand(
     try:
         return await use_case.run(request)
     except RuntimeError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Visual RAG unavailable right now.") from exc
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Visual RAG unavailable right now.",
+        ) from exc
 
 
 @app.post("/v1/explain", response_model=ExplainResult)
@@ -134,4 +158,6 @@ async def explain(
     try:
         return await provider.explain(request)
     except RuntimeError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Explanation unavailable right now.") from exc
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail="Explanation unavailable right now."
+        ) from exc

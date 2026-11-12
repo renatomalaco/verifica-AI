@@ -10,10 +10,16 @@ class TesseractOcrEngine:
         try:
             import pytesseract
 
-            data = pytesseract.image_to_data(img, lang="por+eng", output_type=pytesseract.Output.DICT)
+            data = pytesseract.image_to_data(
+                img, lang="por+eng", output_type=pytesseract.Output.DICT
+            )
         except Exception:
-            return OcrResult("", None)  # engine missing or crashed: nothing read, confidence unknown
-        words = [(w, float(c)) for w, c in zip(data["text"], data["conf"]) if w.strip() and float(c) >= 0]
+            return OcrResult(
+                "", None
+            )  # engine missing or crashed: nothing read, confidence unknown
+        words = [
+            (w, float(c)) for w, c in zip(data["text"], data["conf"]) if w.strip() and float(c) >= 0
+        ]
         if not words:
             return OcrResult("", None)
         text = " ".join(w for w, _ in words)
@@ -25,6 +31,8 @@ class ZbarQrReader:
         try:
             from pyzbar.pyzbar import decode
 
-            return [obj.data.decode("utf-8", errors="ignore").strip() for obj in decode(img) if obj.data]
+            return [
+                obj.data.decode("utf-8", errors="ignore").strip() for obj in decode(img) if obj.data
+            ]
         except Exception:
             return []

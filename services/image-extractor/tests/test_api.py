@@ -18,7 +18,9 @@ def create_sample_image() -> str:
 
 @pytest.fixture
 def fake_service():
-    ocr = FakeOcrEngine(OcrResult("Texto de teste da imagem com link https://site-fake.top", confidence=90.0))
+    ocr = FakeOcrEngine(
+        OcrResult("Texto de teste da imagem com link https://site-fake.top", confidence=90.0)
+    )
     qr = FakeQrReader(qr_codes=[])
     return ImageExtractorService(ocr_engine=ocr, qr_reader=qr)
 
