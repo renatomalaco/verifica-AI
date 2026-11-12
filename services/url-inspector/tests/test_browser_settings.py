@@ -1,4 +1,7 @@
-from url_inspector.infrastructure.playwright_driver import browser_launch_args, capture_within_budget
+from url_inspector.infrastructure.playwright_driver import (
+    browser_launch_args,
+    capture_within_budget,
+)
 
 
 def test_with_a_proxy_every_request_goes_through_it_including_loopback():

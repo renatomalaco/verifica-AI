@@ -76,3 +76,37 @@ async def test_inspect_url_returns_blocked_when_antibot_triggered(client, fake_d
     data = response.json()
     assert data["is_blocked"] is True
     assert data["blocked_reason"] == "cloudflare_challenge"
+
+
+class BrokenDriver:
+    async def inspect(self, url: str, timeout_seconds: float = 6.0) -> InspectResult:
+        raise TimeoutError("navigation timed out")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "url", ["file:///etc/passwd", "javascript:alert(1)", "ftp://exemplo.com/arquivo"]
+)
+async def test_inspect_refuses_schemes_other_than_http(client, url):
+    response = await client.post("/inspect", json={"url": url})
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_inspect_refuses_a_url_without_host(client):
+    response = await client.post("/inspect", json={"url": "https:///caminho"})
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_a_browser_failure_comes_back_blocked_never_as_a_clean_page(client):
+    app.dependency_overrides[get_browser_driver] = BrokenDriver
+
+    response = await client.post("/inspect", json={"url": "https://lento.example"})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["is_blocked"] is True
+    assert data["blocked_reason"].startswith("inspection_error")

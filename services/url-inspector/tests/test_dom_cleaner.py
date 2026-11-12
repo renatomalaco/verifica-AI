@@ -47,8 +47,21 @@ def test_check_antibot_allows_normal_page():
 
 def test_small_but_visible_font_sizes_are_kept():
     # "font-size: 0.9em" used to match the "font-size: 0" rule and drop real text.
-    html = '<p style="font-size: 0.9em">Oferta valida ate hoje</p><p style="font-size:0">escondido</p><p style="opacity: 0.5">meio</p>'
+    html = (
+        '<p style="font-size: 0.9em">Oferta valida ate hoje</p>'
+        '<p style="font-size:0">escondido</p><p style="opacity: 0.5">meio</p>'
+    )
     text = clean_dom_text(html)
     assert "Oferta valida ate hoje" in text
     assert "meio" in text
     assert "escondido" not in text
+
+
+def test_check_antibot_detects_a_challenge_in_the_html_even_without_the_title():
+    html = '<html><body><div class="cf-turnstile"></div></body></html>'
+    assert check_antibot_block(html, title="Banco") == (True, "cloudflare_challenge")
+
+
+def test_check_antibot_detects_other_bot_walls():
+    html = "<html><body><script src='https://ct.datadome.co/c.js'></script></body></html>"
+    assert check_antibot_block(html) == (True, "antibot_challenge")

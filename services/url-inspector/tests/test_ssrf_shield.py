@@ -1,5 +1,10 @@
 import pytest
-from url_inspector.domain.ssrf_shield import is_ip_allowed, assert_public_ip, SsrfBlockedException
+from url_inspector.domain.ssrf_shield import (
+    SsrfBlockedException,
+    assert_public_ip,
+    is_ip_allowed,
+    is_literal_ip,
+)
 
 
 @pytest.mark.parametrize(
@@ -22,8 +27,8 @@ from url_inspector.domain.ssrf_shield import is_ip_allowed, assert_public_ip, Ss
         "fc00::1",          # IPv6 ULA
         "fd00:ec2::254",    # AWS IPv6 metadata
         "fe80::1",          # IPv6 Link-local
-        "::ffff:127.0.0.1", # IPv4-mapped loopback
-        "::ffff:169.254.169.254", # IPv4-mapped metadata
+        "::ffff:127.0.0.1",  # IPv4-mapped loopback
+        "::ffff:169.254.169.254",  # IPv4-mapped metadata
     ],
 )
 def test_ssrf_shield_rejects_private_ips(forbidden_ip: str):
@@ -46,3 +51,9 @@ def test_ssrf_shield_allows_public_ips(public_ip: str):
     assert is_ip_allowed(public_ip) is True
     # Must not raise
     assert_public_ip(public_ip)
+
+
+@pytest.mark.parametrize("not_an_ip", ["", "localhost", "999.1.1.1", "banco.com.br"])
+def test_ssrf_shield_rejects_anything_that_is_not_an_ip(not_an_ip: str):
+    assert is_ip_allowed(not_an_ip) is False
+    assert is_literal_ip(not_an_ip) is False

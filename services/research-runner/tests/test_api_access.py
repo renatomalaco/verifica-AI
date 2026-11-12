@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -14,10 +15,12 @@ from scan_orchestrator.settings import Settings
 PRIVATE_KEY, PUBLIC_KEY = generate_key_pair()
 ORIGIN = "https://verifica.test"
 REPORT = {"modes": [], "dataset_size": 0}
+study_runs: list[object] = []
 
 
 @pytest.fixture
 async def client(monkeypatch, tmp_path):
+    study_runs.clear()
     # The research-runner only verifies tokens: it never receives the private key.
     app.dependency_overrides[get_settings] = lambda: Settings(
         _env_file=None, AUTH_JWT_PUBLIC_KEY=PUBLIC_KEY, AUTH_ALLOWED_ORIGINS=[ORIGIN]
@@ -26,10 +29,13 @@ async def client(monkeypatch, tmp_path):
     monkeypatch.setattr(main, "load_samples", lambda: [])
 
     async def fake_study(samples, config, providers):
+        study_runs.append(config)
         return REPORT
 
     monkeypatch.setattr(main, "run_study", fake_study)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test", headers={"Origin": ORIGIN}) as http:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="https://test", headers={"Origin": ORIGIN}
+    ) as http:
         yield http
     app.dependency_overrides.pop(get_settings, None)
 
@@ -67,6 +73,34 @@ async def test_running_the_study_from_another_origin_is_refused(client):
 
 async def test_a_token_from_another_issuer_is_refused(client):
     other_private, _ = generate_key_pair()
-    client.cookies.set(ACCESS_COOKIE, AccessTokenIssuer(other_private).issue(uuid4(), ResearchRole.ADMIN))
+    client.cookies.set(
+        ACCESS_COOKIE, AccessTokenIssuer(other_private).issue(uuid4(), ResearchRole.ADMIN)
+    )
 
     assert (await client.get("/pesquisa/report")).status_code == 401
+
+
+async def test_an_anonymous_call_never_starts_the_study(client):
+    await client.post("/pesquisa/run")
+
+    assert study_runs == []
+
+
+async def test_an_expired_admin_token_is_refused_on_both_routes(client):
+    issued = datetime.now(timezone.utc) - timedelta(minutes=16)
+    issuer = AccessTokenIssuer(PRIVATE_KEY, clock=lambda: issued)
+    client.cookies.set(ACCESS_COOKIE, issuer.issue(uuid4(), ResearchRole.ADMIN))
+
+    assert (await client.get("/pesquisa/report")).status_code == 401
+    assert (await client.post("/pesquisa/run")).status_code == 401
+    assert study_runs == []
+
+
+async def test_a_runner_deployed_without_the_public_key_lets_nobody_in(client):
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        _env_file=None, AUTH_JWT_PUBLIC_KEY="", AUTH_ALLOWED_ORIGINS=[ORIGIN]
+    )
+    sign_in(client, ResearchRole.ADMIN)
+
+    assert (await client.get("/pesquisa/report")).status_code == 401
+    assert (await client.post("/pesquisa/run")).status_code == 401
