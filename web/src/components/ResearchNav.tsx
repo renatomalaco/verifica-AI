@@ -39,11 +39,6 @@ export function ResearchNav({ user, onSignOut, onStudyRan, onSignedOut }: Props)
             {m.research_nav_report()}
           </a>
         </li>
-        <li>
-          <a href="/metrics" target="_blank" rel="noopener">
-            {m.research_nav_metrics()}
-          </a>
-        </li>
       </ul>
 
       {canRunStudy(user.role) && <RunStudy onStudyRan={onStudyRan} onSignedOut={onSignedOut} />}

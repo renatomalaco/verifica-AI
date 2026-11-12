@@ -10,7 +10,8 @@ interface PrivacyProps {
 
 // Everything here must match what the backend actually does:
 // migrations/0001, 0003 and 0005 (what is stored), domain/quota.py, domain/research_access.py
-// and settings (limits and retention), and utils/speech.ts (what is read aloud).
+// and settings (limits and retention), utils/speech.ts (what is read aloud), and
+// packages/observability/privacy.py plus infra/observability (what a trace keeps, and for how long).
 export function Privacy({ onBack }: PrivacyProps) {
   const headingRef = useRef<HTMLHeadingElement>(null)
   const [cleared, setCleared] = useState(false)
@@ -75,6 +76,15 @@ export function Privacy({ onBack }: PrivacyProps) {
           <li>{m.privacy_during_masking()}</li>
           <li>{m.privacy_during_isolated_browser()}</li>
         </ul>
+      </PrivacySection>
+
+      <PrivacySection title={m.privacy_traces_title()}>
+        <p>{m.privacy_traces_intro()}</p>
+        <ul className="bullet-list bullet-list--ok">
+          <li>{m.privacy_traces_kept()}</li>
+          <li>{m.privacy_traces_never()}</li>
+        </ul>
+        <p>{m.privacy_traces_retention()}</p>
       </PrivacySection>
 
       <PrivacySection title={m.privacy_quota_title()}>
