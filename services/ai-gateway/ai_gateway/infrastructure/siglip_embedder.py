@@ -17,8 +17,9 @@ class SiglipEmbedder:
     torch and transformers come from the optional 'siglip' extra.
     """
 
-    def __init__(self, model_name: str, dimension: int) -> None:
+    def __init__(self, model_name: str, revision: str, dimension: int) -> None:
         self._model_name = model_name
+        self._revision = revision
         self._dimension = dimension
         self._lock = threading.Lock()
         self._model = None
@@ -43,9 +44,15 @@ class SiglipEmbedder:
                 try:
                     from transformers import AutoImageProcessor, SiglipModel
                 except ImportError as exc:
-                    raise RuntimeError("SigLIP needs the ai-gateway 'siglip' extra (torch, transformers)") from exc
-                self._processor = AutoImageProcessor.from_pretrained(self._model_name)
-                self._model = SiglipModel.from_pretrained(self._model_name).eval()
+                    raise RuntimeError(
+                        "SigLIP needs the ai-gateway 'siglip' extra (torch, transformers)"
+                    ) from exc
+                self._processor = AutoImageProcessor.from_pretrained(
+                    self._model_name, revision=self._revision
+                )
+                self._model = SiglipModel.from_pretrained(
+                    self._model_name, revision=self._revision
+                ).eval()
         return self._model, self._processor
 
 
@@ -61,6 +68,8 @@ def decode_image(image_b64: str) -> Image.Image:
 
 def unit_vector(values: list[float], dimension: int) -> list[float]:
     if len(values) != dimension:
-        raise ValueError(f"Embedding dimension {len(values)} does not match the catalog dimension {dimension}")
+        raise ValueError(
+            f"Embedding dimension {len(values)} does not match the catalog dimension {dimension}"
+        )
     norm = math.sqrt(sum(v * v for v in values)) or 1.0
     return [v / norm for v in values]
