@@ -208,7 +208,7 @@ class QuotaExceeded(BaseModel):
 
 class ResearchRole(StrEnum):
     ADMIN = "admin"  # runs the study (heavy and, with Gemini, paid) and sends invites
-    RESEARCHER = "researcher"  # reads the report and the metrics
+    RESEARCHER = "researcher"  # reads the report
 
 
 def _normalized_email(value: object) -> object:

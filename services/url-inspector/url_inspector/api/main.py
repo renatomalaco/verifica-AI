@@ -2,6 +2,7 @@ import os
 from urllib.parse import urlparse
 from fastapi import FastAPI, Depends, HTTPException, status
 from contracts import InspectRequest, InspectResult
+from observability import configure_telemetry
 from url_inspector.domain.ssrf_shield import assert_public_ip, is_literal_ip, SsrfBlockedException
 from url_inspector.domain.browser_driver import BrowserDriverProtocol
 from url_inspector.infrastructure.playwright_driver import PlaywrightBrowserDriver
@@ -11,6 +12,7 @@ app = FastAPI(
     description="Headless inspection of remote pages with isolation and SSRF protection",
     version="0.1.0",
 )
+configure_telemetry("url-inspector", app)
 
 # In production EGRESS_PROXY_URL points to the egress container; empty means local development.
 _global_driver = PlaywrightBrowserDriver(proxy_url=os.environ.get("EGRESS_PROXY_URL", ""))

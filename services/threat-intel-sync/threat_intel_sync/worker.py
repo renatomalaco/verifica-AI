@@ -4,6 +4,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
+from observability import configure_telemetry
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from threat_intel_sync.domain.sync_manager import SyncManager
@@ -59,6 +60,7 @@ async def refresh_tranco(source, storage) -> dict[str, int]:
 
 
 async def main() -> None:
+    configure_telemetry("threat-intel-sync")  # no FastAPI: only the feed downloads are traced
     settings = WorkerSettings()
     storage = RedisStackStorage(redis_url=settings.REDIS_URL)
     manager = SyncManager(feed_sources=[OpenPhishSource(), URLhausSource()], storage=storage)

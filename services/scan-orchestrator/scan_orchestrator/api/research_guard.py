@@ -28,7 +28,7 @@ def current_principal(request: Request, verifier: AccessTokenVerifier = Depends(
 
 
 def require_research_reader(principal: Principal = Depends(current_principal)) -> Principal:
-    """Any research role reads the report and the metrics."""
+    """Any research role reads the report."""
     return principal
 
 

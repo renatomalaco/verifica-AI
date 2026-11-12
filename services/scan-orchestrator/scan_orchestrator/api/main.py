@@ -4,13 +4,14 @@ from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from starlette.datastructures import UploadFile
 from sse_starlette.sse import EventSourceResponse
 
+from observability import configure_telemetry
+
 from contracts import ExplainResponse, ExplainScanRequest, Locale, QuotaExceeded, ScanRequest, ScanResponse, StageEvent
-from contracts.telemetry import LatencyTracker, TraceContextMiddleware
 from scan_orchestrator.api.dependencies import (
     get_analyze_text_use_case,
     get_device_secret,
@@ -18,7 +19,6 @@ from scan_orchestrator.api.dependencies import (
     get_settings,
 )
 from scan_orchestrator.api.research_auth_routes import router as research_auth_router
-from scan_orchestrator.api.research_guard import require_research_reader
 from scan_orchestrator.application.analyze_text import AnalyzeTextUseCase
 from scan_orchestrator.application.explain_scan import (
     ExplainScanUseCase,
@@ -31,9 +31,7 @@ from scan_orchestrator.domain.scan_input import ScanInput
 from scan_orchestrator.settings import Settings
 
 app = FastAPI(title="scan-orchestrator", version="0.1.0")
-
-latency_tracker = LatencyTracker()
-app.add_middleware(TraceContextMiddleware, tracker=latency_tracker)
+configure_telemetry("scan-orchestrator", app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,12 +45,6 @@ app.include_router(research_auth_router)
 
 DEVICE_COOKIE = "va_device"
 DEVICE_COOKIE_MAX_AGE = 365 * 24 * 3600
-
-
-@app.get("/metrics", response_class=PlainTextResponse, dependencies=[Depends(require_research_reader)])
-async def metrics() -> str:
-    """Metrics endpoint for Prometheus scraping and P50/P95/P99 computation."""
-    return latency_tracker.generate_prometheus_metrics()
 
 
 @app.get("/health")

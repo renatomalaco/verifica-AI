@@ -79,19 +79,8 @@ async def verify_phase_6():
         assert len(res_report.json()["modes"]) == 4
         print("[OK] 5. /pesquisa/report serves the latest study with the 4 ablation modes.")
 
-        # 5. Validate OTel telemetry: W3C traceparent propagation and /metrics endpoint
-        trace_headers = {"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
-        res_trace = await client.get("http://127.0.0.1:8000/health", headers=trace_headers)
-        assert res_trace.status_code == 200
-        assert "traceparent" in res_trace.headers
-        assert "4bf92f3577b34da6a3ce929d0e0e4736" in res_trace.headers["traceparent"]
-        print("[OK] 6. Propagacao de contexto de trace W3C traceparent validada na borda.")
-
-        # 6. Validate Prometheus metrics export (/metrics)
-        res_metrics = await client.get("http://127.0.0.1:8000/metrics")
-        assert res_metrics.status_code == 200
-        assert "http_request_duration_ms" in res_metrics.text
-        print("[OK] 7. Endpoint Prometheus /metrics com rastreamento de latencias distribucionais (P50/P95/P99) validado.")
+        # Traces and stage latency (R6) go through the OTel Collector, not the services:
+        # see packages/observability and the Jaeger/Grafana stack in infra/docker-compose.yml.
 
     print("=" * 80)
     print("FASE 6 VALIDADA COM SUCESSO INTEGRAL (100% OK)!")
