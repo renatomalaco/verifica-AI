@@ -17,7 +17,7 @@ COPY pyproject.toml README.md ./
 COPY packages/ ./packages/
 COPY services/image-extractor/ ./services/image-extractor/
 
-RUN uv pip install --system -e ./packages/contracts -e ./services/image-extractor
+RUN uv pip install --system -e ./packages/contracts -e ./packages/observability -e ./services/image-extractor
 
 EXPOSE 8003
 

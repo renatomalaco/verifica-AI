@@ -11,6 +11,6 @@ COPY pyproject.toml README.md ./
 COPY packages/ ./packages/
 COPY services/threat-intel-sync/ ./services/threat-intel-sync/
 
-RUN uv pip install --system -e ./packages/contracts -e ./services/threat-intel-sync
+RUN uv pip install --system -e ./packages/contracts -e ./packages/observability -e ./services/threat-intel-sync
 
 CMD ["python", "-m", "threat_intel_sync.worker"]

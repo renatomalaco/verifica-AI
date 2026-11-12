@@ -11,7 +11,7 @@ COPY pyproject.toml README.md ./
 COPY packages/ ./packages/
 COPY services/url-inspector/ ./services/url-inspector/
 
-RUN uv pip install --system -e ./packages/contracts -e ./services/url-inspector
+RUN uv pip install --system -e ./packages/contracts -e ./packages/observability -e ./services/url-inspector
 RUN playwright install chromium --with-deps
 
 EXPOSE 8002

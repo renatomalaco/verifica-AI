@@ -18,7 +18,7 @@ COPY services/ai-gateway/ ./services/ai-gateway/
 
 # CPU-only torch first, so the extra does not pull the multi-GB CUDA build from PyPI.
 RUN uv pip install --system --index-url https://download.pytorch.org/whl/cpu "torch>=2.5" \
-    && uv pip install --system -e ./packages/contracts -e "./services/ai-gateway[siglip]" \
+    && uv pip install --system -e ./packages/contracts -e ./packages/observability -e "./services/ai-gateway[siglip]" \
     && python -c "import os; from transformers import AutoImageProcessor, SiglipModel; m = os.environ['SIGLIP_MODEL']; AutoImageProcessor.from_pretrained(m); SiglipModel.from_pretrained(m)"
 
 ENV HF_HUB_OFFLINE=1

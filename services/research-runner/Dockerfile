@@ -14,7 +14,7 @@ COPY services/ai-gateway/ ./services/ai-gateway/
 COPY services/scan-orchestrator/ ./services/scan-orchestrator/
 COPY services/research-runner/ ./services/research-runner/
 
-RUN uv pip install --system -e ./packages/contracts -e ./services/ai-gateway -e ./services/scan-orchestrator -e ./services/research-runner
+RUN uv pip install --system -e ./packages/contracts -e ./packages/observability -e ./services/ai-gateway -e ./services/scan-orchestrator -e ./services/research-runner
 
 EXPOSE 8004
 

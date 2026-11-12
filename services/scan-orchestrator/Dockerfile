@@ -11,7 +11,7 @@ COPY pyproject.toml README.md ./
 COPY packages/ ./packages/
 COPY services/scan-orchestrator/ ./services/scan-orchestrator/
 
-RUN uv pip install --system -e ./packages/contracts -e ./services/scan-orchestrator
+RUN uv pip install --system -e ./packages/contracts -e ./packages/observability -e ./services/scan-orchestrator
 
 EXPOSE 8000
 
