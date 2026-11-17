@@ -12,6 +12,8 @@ dependencies = [
     "pydantic-settings>=2.4.0",
     "pillow>=13.0.0",
     "imagehash>=4.3.1",
+    "pytesseract>=0.3.10",
+    "pyzbar>=0.1.9",
 ]
 
 [tool.uv.sources]
