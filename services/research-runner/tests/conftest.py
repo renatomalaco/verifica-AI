@@ -6,7 +6,6 @@ import respx
 from research_runner.settings import ResearchSettings
 
 GEMINI_BASE = "https://gemini.test"
-JEV_BASE = "https://jev.test"
 GEMINI = dict(
     GEMINI_API_KEY="k",
     GEMINI_BASE_URL=GEMINI_BASE,
@@ -15,22 +14,13 @@ GEMINI = dict(
     GEMINI_PRICE_OUTPUT_USD_PER_1M=2.50,
     GEMINI_PRICE_DATE="2026-11-01",
 )
-JEV = dict(
-    AI_PROVIDER="jev",
-    JEV_API_KEY="k",
-    JEV_BASE_URL=JEV_BASE,
-    JEV_PRICE_USD_PER_1K_CALLS=2.0,
-    JEV_PRICE_DATE="2026-11-01",
-)
 GEMINI_CALL_USD = 0.0013  # 1000 input and 400 billed output tokens at the GEMINI prices above
-JEV_CALL_USD = 0.002
 
 
 @pytest.fixture(autouse=True)
 def no_real_providers(monkeypatch):
     # The author's .env may hold real keys: unit tests must never reach a paid model.
-    for name in ("GEMINI_API_KEY", "JEV_API_KEY"):
-        monkeypatch.setenv(name, "")
+    monkeypatch.setenv("GEMINI_API_KEY", "")
     monkeypatch.setenv("AI_PROVIDER", "fake")
 
 
@@ -74,25 +64,10 @@ def _gemini_reply(scam_probability: float) -> dict:
     }
 
 
-def _jev_reply(scam_probability: float) -> dict:
-    return {
-        "answers": {
-            "is_phishing": {"probability": scam_probability},
-            "persuasion": {"selected": "urgencia"},
-        }
-    }
-
-
 @pytest.fixture
 def gemini():
     with respx.mock(base_url=GEMINI_BASE, assert_all_called=False) as mock:
         yield ModelStub(mock.post("/v1beta/models/gemini-x:generateContent"), _gemini_reply)
-
-
-@pytest.fixture
-def jev():
-    with respx.mock(base_url=JEV_BASE, assert_all_called=False) as mock:
-        yield ModelStub(mock.post("/v1/systemone"), _jev_reply)
 
 
 @pytest.fixture
@@ -103,8 +78,3 @@ def make_settings():
 @pytest.fixture
 def gemini_env():
     return GEMINI
-
-
-@pytest.fixture
-def jev_env():
-    return JEV

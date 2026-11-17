@@ -33,7 +33,7 @@ It writes `reports/latest.json` and one reliability diagram per mode, and exits 
 Language models are only called when configured (same variables as `ai-gateway`, see `.env.example`):
 
 - **Mode 2** (the model alone) runs when `GEMINI_API_KEY`, `GEMINI_PRICE_INPUT_USD_PER_1M`, `GEMINI_PRICE_OUTPUT_USD_PER_1M` and `GEMINI_PRICE_DATE` are set. Each sample goes through the gateway's PII masking and untrusted-content envelope, never raw.
-- **Mode 3** (the cascade) uses the real triage when `AI_PROVIDER=gemini` (the Gemini variables above) or `AI_PROVIDER=jev` (`JEV_API_KEY`, `JEV_PRICE_USD_PER_1K_CALLS`, `JEV_PRICE_DATE`). Otherwise it uses the local TF-IDF classifier, and the report says so.
+- **Mode 3** (the cascade) uses the real triage when `AI_PROVIDER=gemini` (the Gemini variables above), the same model as Mode 2. Otherwise it uses the local TF-IDF classifier, and the report says so.
 - Cost comes from the token usage each call reports times the declared prices; the model name and price date go into `meta.llm`. A timeout, rate limit or malformed answer counts as INCONCLUSIVO (never SEGURO) and is listed in `meta.warnings`.
 - On a free tier, set `RESEARCH_LLM_PAUSE_SECONDS` (e.g. `7` for 10 requests per minute). The pause is not counted as latency.
 

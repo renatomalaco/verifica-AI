@@ -99,22 +99,3 @@ async def test_cascade_triage_failures_count_as_inconclusive_never_safe(
     assert outcome.predicted == "INCONCLUSIVO"
     assert outcome.deciding_stage == "contingency_fallback"
     assert outcome.cost_usd == 0.0
-
-
-@pytest.mark.parametrize(
-    "failure", [{"side_effect": httpx.ReadTimeout("lento")}, {"json": {"answers": {}}}]
-)
-async def test_cascade_with_jev_meters_the_price_per_call_and_fails_closed(
-    make_settings, jev_env, jev, failure
-):
-    triage = GatewayTriageClient(providers_from_settings(make_settings(**jev_env)).triage.call)
-    evaluator = CascadeEvaluator.build(triage, feed_urls=[])
-
-    jev.answers(0.95)
-    answered = await evaluator.evaluate(sample(WITH_CPF))
-    jev.fails_with(**failure)
-    failed = await evaluator.evaluate(sample(WITH_CPF))
-
-    assert "[CPF_MASCARADO]" in jev.sent_texts()[0]
-    assert (answered.predicted, answered.cost_usd) == ("GOLPE", pytest.approx(0.002))
-    assert (failed.predicted, failed.cost_usd) == ("INCONCLUSIVO", 0.0)

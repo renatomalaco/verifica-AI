@@ -10,8 +10,6 @@ class ResearchSettings(Settings):
     # Thinking tokens are billed at the output price too.
     GEMINI_PRICE_OUTPUT_USD_PER_1M: float | None = None
     GEMINI_PRICE_DATE: str = ""
-    JEV_PRICE_USD_PER_1K_CALLS: float | None = None
-    JEV_PRICE_DATE: str = ""
     # Seconds between model calls, outside the measured latency
     # (free tiers allow few requests per minute).
     RESEARCH_LLM_PAUSE_SECONDS: float = 0.0
@@ -19,7 +17,6 @@ class ResearchSettings(Settings):
     @field_validator(
         "GEMINI_PRICE_INPUT_USD_PER_1M",
         "GEMINI_PRICE_OUTPUT_USD_PER_1M",
-        "JEV_PRICE_USD_PER_1K_CALLS",
         mode="before",
     )
     @classmethod
