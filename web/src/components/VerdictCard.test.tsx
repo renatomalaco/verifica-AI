@@ -12,7 +12,7 @@ const scam: ScanResponse = {
   id: 'scan-1',
   threat_level: 'GOLPE',
   verdict_message: 'scam_affective_coercion',
-  details: { channel: 'texto', deciding_stage: 'triage', scores: { jev: 0.97 } },
+  details: { channel: 'texto', deciding_stage: 'triage', scores: { is_phishing: 0.97 } },
 }
 
 const evidence: EvidenceData = { tab: 'text', content: 'Oi mãe, troquei de número', imageB64: null }

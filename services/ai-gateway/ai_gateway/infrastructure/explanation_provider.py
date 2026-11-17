@@ -9,7 +9,7 @@ from ai_gateway.infrastructure.gemini_http import generate_content
 _OPENING = {
     ThreatLevel.SCAM: "Isto tem cara de golpe. Veja por quê.",
     ThreatLevel.CAUTION: "Aqui vale ter cuidado antes de fazer qualquer coisa.",
-    ThreatLevel.SAFE: "O Verifica não encontrou sinais de golpe aqui.",
+    ThreatLevel.SAFE: "O Verifica AI não encontrou sinais de golpe aqui.",
     ThreatLevel.INCONCLUSIVE: "Desta vez não deu para ter certeza.",
 }
 
@@ -22,7 +22,7 @@ _BY_CATEGORY = {
     ),
     "coercao_afetiva": "A mensagem finge ser alguém da família pedindo dinheiro com pressa.",
     "antibot_challenge": (
-        "O site não deixou o Verifica olhar por dentro, e isso já é motivo de desconfiança."
+        "O site não deixou o Verifica AI olhar por dentro, e isso já é motivo de desconfiança."
     ),
 }
 

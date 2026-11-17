@@ -1,4 +1,4 @@
-// Stroke icons drawn for Verifica (24×24, inherit currentColor).
+// Stroke icons drawn for Verifica AI (24×24, inherit currentColor).
 import type { SVGProps } from 'react'
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number }

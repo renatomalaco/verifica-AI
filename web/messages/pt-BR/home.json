@@ -14,7 +14,7 @@
   "home_url_placeholder": "Ex.: www.site-do-banco.com",
   "home_paste": "Colar",
   "home_check_now": "Conferir agora",
-  "home_privacy_note": "O Verifica não guarda o que você cola. Só registra dados anônimos para a pesquisa.",
+  "home_privacy_note": "O Verifica AI não guarda o que você cola. Só registra dados anônimos para a pesquisa.",
   "home_privacy_link": "Saiba como",
 
   "home_image_label": "Envie a foto ou o print da tela",
@@ -23,7 +23,7 @@
   "home_image_choose": "Escolher foto ou print",
   "home_image_drag_hint": "ou arraste a imagem para cá",
   "home_image_formats": "PNG, JPEG ou WebP, até {maxMb} MB",
-  "home_image_error_type": "Esse arquivo não é uma foto que o Verifica consiga ler. Use PNG, JPEG ou WebP.",
+  "home_image_error_type": "Esse arquivo não é uma foto que o Verifica AI consiga ler. Use PNG, JPEG ou WebP.",
   "home_image_error_size": "Essa foto é grande demais. Tente um print da tela em vez da foto.",
 
   "home_investigating_text": "Investigando a mensagem…",
@@ -46,6 +46,6 @@
 
   "home_error_offline": "Parece que a internet caiu. Confira a conexão e tente de novo.",
   "home_error_generic": "Houve um problema na investigação. Tente de novo em instantes.",
-  "home_error_rate_limited": "Foram muitas verificações seguidas nesta conexão. Para evitar abuso, o Verifica faz uma pausa curta. Tente de novo a partir das {time}.",
-  "home_error_rate_limited_soon": "Foram muitas verificações seguidas nesta conexão. Para evitar abuso, o Verifica faz uma pausa curta. Tente de novo daqui a um minuto."
+  "home_error_rate_limited": "Foram muitas verificações seguidas nesta conexão. Para evitar abuso, o Verifica AI faz uma pausa curta. Tente de novo a partir das {time}.",
+  "home_error_rate_limited_soon": "Foram muitas verificações seguidas nesta conexão. Para evitar abuso, o Verifica AI faz uma pausa curta. Tente de novo daqui a um minuto."
 }

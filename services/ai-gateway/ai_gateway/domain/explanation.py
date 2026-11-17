@@ -18,7 +18,7 @@ def explain_system_prompt(locale: Locale) -> str:
         f"Write in {LANGUAGE_NAMES[locale]}, with short sentences, no technical terms "
         "and no acronyms. "
         'Write 3 to 5 lines, one idea per line. Never speak in the first person (no "I"): '
-        'when a subject is needed, use "Verifica" or impersonal sentences. '
+        'when a subject is needed, use "Verifica AI" or impersonal sentences. '
         "Do not invent facts that are not "
         "in the data, do not ask for personal data and do not change the verdict. "
         + SYSTEM_DIRECTIVE

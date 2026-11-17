@@ -7,7 +7,7 @@ export const GOLDEN_RULES: string[] = [
   'Ninguém de confiança pede senha, código ou token por mensagem ou ligação.',
   'Confirme por outro caminho: ligue você mesmo para o número que já conhece.',
   'Não clique em links de mensagens que você não esperava.',
-  'Na dúvida, confira no Verifica ou pergunte a alguém de confiança.',
+  'Na dúvida, confira no Verifica AI ou pergunte a alguém de confiança.',
 ]
 
 export const LESSONS: Lesson[] = [
@@ -69,7 +69,7 @@ export const LESSONS: Lesson[] = [
     doThis: [
       'Não clique no link da mensagem.',
       'Abra o aplicativo oficial ou digite você mesmo o endereço que já conhece.',
-      'Antes de abrir, cole o link no Verifica para conferir.',
+      'Antes de abrir, cole o link no Verifica AI para conferir.',
     ],
     quiz: {
       message: 'Seu CPF será bloqueado hoje. Regularize em gov-br-regulariza.com para evitar multa.',

@@ -27,7 +27,7 @@ export function useImageInput(): ImageInput {
     const problem = imageProblem(file)
     setError(problem)
     if (problem) return
-    // A file the browser cannot read is, for the person, a photo the Verifica cannot read.
+    // A file the browser cannot read is, for the person, a photo the Verifica AI cannot read.
     readDataUrl(file).then(setImageB64, () => setError(m.home_image_error_type()))
   }
 
