@@ -108,13 +108,22 @@ pipeline {
                 branch 'main'
             }
             steps {
-                // Compose requires these secrets; they come from Jenkins credentials, never from the repo.
+                // Compose requires every one of these (${VAR:?}) even to build; they come from Jenkins
+                // credentials, never from the repo. Domain and ACME e-mail are kept there too.
                 withCredentials([
                     string(credentialsId: 'verifica-postgres-password', variable: 'POSTGRES_PASSWORD'),
                     string(credentialsId: 'verifica-auth-jwt-private-key', variable: 'AUTH_JWT_PRIVATE_KEY'),
                     string(credentialsId: 'verifica-auth-jwt-public-key', variable: 'AUTH_JWT_PUBLIC_KEY'),
+                    string(credentialsId: 'verifica-grafana-admin-password', variable: 'GRAFANA_ADMIN_PASSWORD'),
+                    string(credentialsId: 'verifica-device-token-secret', variable: 'DEVICE_TOKEN_SECRET'),
+                    string(credentialsId: 'verifica-gemini-api-key', variable: 'GEMINI_API_KEY'),
+                    string(credentialsId: 'verifica-public-domain', variable: 'PUBLIC_DOMAIN'),
+                    string(credentialsId: 'verifica-acme-email', variable: 'ACME_EMAIL'),
                 ]) {
-                    sh 'docker compose -f infra/docker-compose.prod.yml build'
+                    withEnv(['AI_PROVIDER=gemini', 'EXPLAIN_PROVIDER=gemini']) {
+                        sh 'docker compose -f infra/docker-compose.prod.yml config --quiet'
+                        sh 'docker compose -f infra/docker-compose.prod.yml build'
+                    }
                 }
             }
         }

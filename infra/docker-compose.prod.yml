@@ -1,11 +1,19 @@
+# Memory and CPU ceilings (mem_limit, cpus) are sized for an e2-standard-2 VM (2 vCPU, 8 GB):
+# about 7.3 GB in total, so a heavy page in the inspector's Chromium or the SigLIP model in the
+# ai-gateway cannot starve Postgres or the orchestrator. Tune them with `docker stats`.
 services:
   caddy:
     image: caddy:2-alpine
-    container_name: verifica-caddy
+    container_name: verifica-ai-caddy
     restart: always
+    mem_limit: 128m
+    cpus: "0.5"
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:?defina PUBLIC_DOMAIN no .env}
+      - ACME_EMAIL=${ACME_EMAIL:?defina ACME_EMAIL no .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -20,8 +28,10 @@ services:
     build:
       context: ..
       dockerfile: web/Dockerfile
-    container_name: verifica-web
+    container_name: verifica-ai-web
     restart: unless-stopped
+    mem_limit: 64m
+    cpus: "0.25"
     networks:
       - public
 
@@ -29,8 +39,10 @@ services:
     build:
       context: ..
       dockerfile: services/scan-orchestrator/Dockerfile
-    container_name: verifica-orchestrator
+    container_name: verifica-ai-orchestrator
     restart: unless-stopped
+    mem_limit: 512m
+    cpus: "1.0"
     environment:
       - AI_GATEWAY_URL=http://ai-gateway:8001
       # Turn on only after seeding marcas_referencias and calibrating the threshold (R4).
@@ -42,8 +54,11 @@ services:
       # Research area sign-in: only the orchestrator holds the private key (it issues the tokens).
       - AUTH_JWT_PRIVATE_KEY=${AUTH_JWT_PRIVATE_KEY:?defina AUTH_JWT_PRIVATE_KEY no .env}
       - AUTH_JWT_PUBLIC_KEY=${AUTH_JWT_PUBLIC_KEY:?defina AUTH_JWT_PUBLIC_KEY no .env}
-      - AUTH_ALLOWED_ORIGINS=https://verifica.ai
-      - PUBLIC_BASE_URL=https://verifica.ai
+      - AUTH_ALLOWED_ORIGINS=https://${PUBLIC_DOMAIN:?defina PUBLIC_DOMAIN no .env}
+      - PUBLIC_BASE_URL=https://${PUBLIC_DOMAIN:?defina PUBLIC_DOMAIN no .env}
+      # Signs the anonymous device cookie of the "Me explica" quota; without it every restart
+      # issues new cookies and resets everyone's quota.
+      - DEVICE_TOKEN_SECRET=${DEVICE_TOKEN_SECRET:?defina DEVICE_TOKEN_SECRET no .env}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     networks:
       - public
@@ -62,8 +77,10 @@ services:
     build:
       context: ..
       dockerfile: services/scan-orchestrator/Dockerfile
-    container_name: verifica-migrate
+    container_name: verifica-ai-migrate
     restart: "no"
+    mem_limit: 256m
+    cpus: "0.5"
     working_dir: /app/services/scan-orchestrator
     command: ["alembic", "upgrade", "head"]
     environment:
@@ -80,11 +97,22 @@ services:
       dockerfile: services/ai-gateway/Dockerfile
     container_name: verifica-ai-gateway
     restart: unless-stopped
+    mem_limit: 1280m
+    cpus: "1.5"
     environment:
       - DATABASE_URL=postgresql+asyncpg://verifica:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/verifica_db
+      # Real models in production: Gemini for the triage and the "Me explica". Required, so a
+      # missing line never silently falls back to the keyword simulator.
+      - AI_PROVIDER=${AI_PROVIDER:?defina AI_PROVIDER no .env (gemini)}
+      - EXPLAIN_PROVIDER=${EXPLAIN_PROVIDER:?defina EXPLAIN_PROVIDER no .env (gemini)}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:?defina GEMINI_API_KEY no .env}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      # Gray-zone VLM of the Visual RAG; it only matters once VISUAL_RAG_ENABLED is true.
+      - VLM_PROVIDER=${VLM_PROVIDER:-none}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     networks:
       - internal
+      - ai-egress  # its own way out, only to the Gemini API; no other service shares it
     depends_on:
       # Visual RAG reads marcas_referencias, which only exists after the migrations.
       migrate:
@@ -94,8 +122,10 @@ services:
     build:
       context: ..
       dockerfile: services/url-inspector/Dockerfile
-    container_name: verifica-url-inspector
+    container_name: verifica-ai-url-inspector
     restart: unless-stopped
+    mem_limit: 1280m
+    cpus: "1.5"
     environment:
       # No route to the internet of its own: every browser request goes through the egress proxy.
       - EGRESS_PROXY_URL=http://egress:3128
@@ -110,8 +140,10 @@ services:
     build:
       context: ..
       dockerfile: services/url-inspector/Dockerfile
-    container_name: verifica-egress
+    container_name: verifica-ai-egress
     restart: unless-stopped
+    mem_limit: 192m
+    cpus: "0.5"
     command: ["python", "-m", "url_inspector.egress"]
     networks:
       - isolated-inspector
@@ -121,8 +153,10 @@ services:
     build:
       context: ..
       dockerfile: services/image-extractor/Dockerfile
-    container_name: verifica-image-extractor
+    container_name: verifica-ai-image-extractor
     restart: unless-stopped
+    mem_limit: 512m
+    cpus: "1.0"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     networks:
@@ -132,8 +166,10 @@ services:
     build:
       context: ..
       dockerfile: services/threat-intel-sync/Dockerfile
-    container_name: verifica-threat-intel-sync
+    container_name: verifica-ai-threat-intel-sync
     restart: unless-stopped
+    mem_limit: 192m
+    cpus: "0.25"
     environment:
       - REDIS_URL=redis://redis:6379/0
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
@@ -147,12 +183,23 @@ services:
     build:
       context: ..
       dockerfile: services/research-runner/Dockerfile
-    container_name: verifica-research-runner
+    container_name: verifica-ai-research-runner
     restart: unless-stopped
+    mem_limit: 768m
+    cpus: "1.0"
     environment:
       # Public key only: the research-runner checks tokens but can never issue one.
       - AUTH_JWT_PUBLIC_KEY=${AUTH_JWT_PUBLIC_KEY:?defina AUTH_JWT_PUBLIC_KEY no .env}
-      - AUTH_ALLOWED_ORIGINS=https://verifica.ai
+      - AUTH_ALLOWED_ORIGINS=https://${PUBLIC_DOMAIN:?defina PUBLIC_DOMAIN no .env}
+      # The study calls the same model as production. Without the prices (and their date) the
+      # report marks Mode 2 as not executed instead of guessing a cost.
+      - AI_PROVIDER=${AI_PROVIDER:?defina AI_PROVIDER no .env (gemini)}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:?defina GEMINI_API_KEY no .env}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - GEMINI_PRICE_INPUT_USD_PER_1M=${GEMINI_PRICE_INPUT_USD_PER_1M:-}
+      - GEMINI_PRICE_OUTPUT_USD_PER_1M=${GEMINI_PRICE_OUTPUT_USD_PER_1M:-}
+      - GEMINI_PRICE_DATE=${GEMINI_PRICE_DATE:-}
+      - RESEARCH_LLM_PAUSE_SECONDS=${RESEARCH_LLM_PAUSE_SECONDS:-0}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     networks:
       - public
@@ -163,8 +210,10 @@ services:
   # loopback only (open them through an SSH tunnel).
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.164.0
-    container_name: verifica-otel-collector
+    container_name: verifica-ai-otel-collector
     restart: unless-stopped
+    mem_limit: 192m
+    cpus: "0.25"
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
       - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
@@ -176,8 +225,10 @@ services:
 
   jaeger:
     image: jaegertracing/jaeger:2.22.0
-    container_name: verifica-jaeger
+    container_name: verifica-ai-jaeger
     restart: unless-stopped
+    mem_limit: 384m
+    cpus: "0.5"
     user: "0"  # Badger writes to the named volume, which Docker creates owned by root
     command: ["--config=/etc/jaeger/config.yaml"]
     volumes:
@@ -191,8 +242,10 @@ services:
 
   prometheus:
     image: prom/prometheus:v3.15.1
-    container_name: verifica-prometheus
+    container_name: verifica-ai-prometheus
     restart: unless-stopped
+    mem_limit: 384m
+    cpus: "0.5"
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=30d
@@ -204,8 +257,10 @@ services:
 
   grafana:
     image: grafana/grafana:13.2.6
-    container_name: verifica-grafana
+    container_name: verifica-ai-grafana
     restart: unless-stopped
+    mem_limit: 192m
+    cpus: "0.25"
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?defina GRAFANA_ADMIN_PASSWORD no .env}
@@ -229,8 +284,10 @@ services:
 
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: verifica-postgres-prod
+    container_name: verifica-ai-postgres-prod
     restart: unless-stopped
+    mem_limit: 768m
+    cpus: "1.0"
     environment:
       POSTGRES_DB: verifica_db
       POSTGRES_USER: verifica
@@ -247,8 +304,10 @@ services:
 
   redis:
     image: redis/redis-stack-server:latest
-    container_name: verifica-redis-prod
+    container_name: verifica-ai-redis-prod
     restart: unless-stopped
+    mem_limit: 384m
+    cpus: "0.5"
     volumes:
       - redisdata_prod:/data
     networks:
@@ -267,6 +326,8 @@ networks:
   isolated-inspector:
     internal: true
   egress-out:
+    driver: bridge
+  ai-egress:
     driver: bridge
   ops:
     driver: bridge  # only to publish the Jaeger and Grafana UIs on the server's loopback
