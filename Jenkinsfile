@@ -123,6 +123,7 @@ pipeline {
                     withEnv(['AI_PROVIDER=gemini', 'EXPLAIN_PROVIDER=gemini']) {
                         sh 'docker compose -f infra/docker-compose.prod.yml config --quiet'
                         sh 'docker compose -f infra/docker-compose.prod.yml build'
+                        sh 'bash scripts/ci/smoke_images.sh'
                     }
                 }
             }
