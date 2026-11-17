@@ -40,18 +40,11 @@ def test_ai_provider_gemini_also_drives_the_cascade_triage(make_settings, gemini
     assert providers.triage.description["model"] == "gemini-x"
 
 
-def test_jev_needs_its_key_and_a_price_per_call(make_settings, jev_env):
-    unpriced = providers_from_settings(make_settings(AI_PROVIDER="jev", JEV_API_KEY="k"))
-    priced = providers_from_settings(make_settings(**jev_env))
+def test_the_removed_jev_provider_runs_no_triage_and_says_so(make_settings, gemini_env):
+    providers = providers_from_settings(make_settings(**gemini_env, AI_PROVIDER="jev"))
 
-    assert unpriced.triage is None
-    assert "JEV_PRICE_USD_PER_1K_CALLS" in unpriced.triage_missing
-    assert priced.triage.description == {
-        "provider": "jev",
-        "model": "jev-latest",
-        "usd_per_1k_calls": 2.0,
-        "price_date": "2026-11-01",
-    }
+    assert providers.triage is None
+    assert providers.triage_missing == "AI_PROVIDER is 'jev', not 'gemini'"
 
 
 def test_pause_between_model_calls_is_configurable(make_settings):
@@ -71,17 +64,8 @@ async def test_a_gemini_call_returns_the_answer_and_its_measured_cost(
     assert cost == pytest.approx(0.0013)  # 1000 input and 400 output tokens
 
 
-async def test_a_jev_call_costs_its_price_per_call(make_settings, jev_env, jev):
-    jev.answers(0.2)
-    answer, cost = await providers_from_settings(make_settings(**jev_env)).triage.call(ENVELOPE)
-    assert answer.is_phishing == 0.2
-    assert cost == pytest.approx(0.002)
-
-
 def test_empty_price_lines_copied_from_env_example_mean_not_set(make_settings):
     providers = providers_from_settings(
-        make_settings(
-            GEMINI_API_KEY="k", GEMINI_PRICE_INPUT_USD_PER_1M="", JEV_PRICE_USD_PER_1K_CALLS=""
-        )
+        make_settings(GEMINI_API_KEY="k", GEMINI_PRICE_INPUT_USD_PER_1M="")
     )
     assert "GEMINI_PRICE_INPUT_USD_PER_1M" in providers.pure_vlm_missing

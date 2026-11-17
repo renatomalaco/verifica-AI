@@ -224,7 +224,7 @@ describe('App', () => {
     render(<App />)
     expect(screen.getByText(m.home_privacy_note())).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Saiba como' }))
-    expect(screen.getByRole('heading', { level: 1, name: 'Como o Verifica cuida dos seus dados' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Como o Verifica AI cuida dos seus dados' })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/privacidade')
   })
 

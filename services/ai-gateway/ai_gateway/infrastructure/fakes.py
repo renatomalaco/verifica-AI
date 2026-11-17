@@ -1,6 +1,8 @@
 import hashlib
 import math
 
+from contracts import Persuasion, TriageResult
+
 from ai_gateway.domain.brand_matcher import BrandCandidate
 
 
@@ -69,3 +71,76 @@ def _unit_vector_from_hash(text: str, dimension: int) -> list[float]:
     raw = raw[:dimension]
     norm = math.sqrt(sum(v * v for v in raw)) or 1.0
     return [v / norm for v in raw]
+
+
+class FakeTriageClient:
+    """Deterministic keyword triage for local use and tests, tolerant of accent variations.
+
+    Never used for a reported number: the study and production use the real model.
+    """
+
+    async def classify(self, envelope: str) -> TriageResult:
+        lowered = envelope.lower()
+
+        has_new_number = any(
+            w in lowered
+            for w in ["troquei de número", "troquei de numero", "novo número", "novo numero"]
+        )
+        has_relative = any(w in lowered for w in ["mãe", "mae", "pai", "filho", "filha", "pix"])
+
+        # Fake relative scam / emotional coercion
+        if has_new_number and has_relative:
+            return TriageResult(
+                is_phishing=0.96,
+                requires_visual_inspection=0.02,
+                persuasion=Persuasion.AFFECTIVE_COERCION,
+            )
+
+        # Financial threat / account lockout
+        if any(w in lowered for w in ["bloqueio", "bloqueada", "cancelado"]) and any(
+            w in lowered for w in ["conta", "banco", "cartão", "cartao"]
+        ):
+            return TriageResult(
+                is_phishing=0.92,
+                requires_visual_inspection=0.08,
+                persuasion=Persuasion.FINANCIAL_THREAT,
+            )
+
+        # Plain urgency with payment
+        if any(w in lowered for w in ["urgente", "imediato", "agora"]) and any(
+            w in lowered for w in ["pix", "pague", "multa", "transferência", "transferencia"]
+        ):
+            return TriageResult(
+                is_phishing=0.91,
+                requires_visual_inspection=0.05,
+                persuasion=Persuasion.URGENCY,
+            )
+
+        # Corporate content or safe small talk
+        if any(
+            w in lowered
+            for w in [
+                "reunião",
+                "reuniao",
+                "bom dia",
+                "boa tarde",
+                "sala",
+                "anexo",
+                "abraço",
+                "abraco",
+                "almoço",
+                "almoco",
+            ]
+        ):
+            return TriageResult(
+                is_phishing=0.03,
+                requires_visual_inspection=0.0,
+                persuasion=Persuasion.NONE,
+            )
+
+        # Neutral/uncertain default (middle range)
+        return TriageResult(
+            is_phishing=0.45,
+            requires_visual_inspection=0.10,
+            persuasion=Persuasion.NONE,
+        )

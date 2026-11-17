@@ -7,7 +7,7 @@ Plataforma Multimodal em Cascata para Detecção de Phishing e Engenharia Social
 O projeto é organizado como um workspace **uv** com microsserviços desacoplados:
 - `packages/contracts`: Modelos de dados e contratos compartilhados Pydantic.
 - `services/scan-orchestrator`: Ponto de entrada da API pública, detecção de canal e orquestração em cascata.
-- `services/ai-gateway`: Sanitização de dados pessoais (LGPD), envelope de isolamento de prompt e clientes de IA (Jev, Gemini VLM, Embeddings).
+- `services/ai-gateway`: Sanitização de dados pessoais (LGPD), envelope de isolamento de prompt e clientes de IA (Gemini para triagem, VLM e "Me explica"; SigLIP para embeddings).
 - `services/url-inspector`: Navegação headless isolada via Playwright com mitigação de SSRF (DNS Pinning e proxy de egress).
 - `services/image-extractor`: OCR (Tesseract / Florence-2), leitura de QR Code e deduplicação perceptual (pHash).
 - `services/threat-intel-sync`: Worker cron para ingestão de feeds abertos de phishing (OpenPhish, URLhaus) no Redis Bloom.

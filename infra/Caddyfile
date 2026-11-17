@@ -1,9 +1,11 @@
 {
-    email admin@verifica.ai
+    # Let's Encrypt account e-mail: set ACME_EMAIL in the server's .env (never in the repository)
+    email {$ACME_EMAIL}
     admin off
 }
 
-verifica.ai, localhost {
+# Public domain from the server's .env, for example verifica.com.br; its DNS A record points here.
+{$PUBLIC_DOMAIN}, localhost {
     encode gzip zstd
 
     # Security headers recommended by OWASP and WCAG

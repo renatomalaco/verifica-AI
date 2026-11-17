@@ -74,6 +74,7 @@ export function Privacy({ onBack }: PrivacyProps) {
       <PrivacySection title={m.privacy_during_title()}>
         <ul className="bullet-list bullet-list--ok">
           <li>{m.privacy_during_masking()}</li>
+          <li>{m.privacy_during_ai_provider()}</li>
           <li>{m.privacy_during_isolated_browser()}</li>
           <li>{m.privacy_during_rate_limit()}</li>
         </ul>

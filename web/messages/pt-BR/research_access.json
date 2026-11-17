@@ -2,7 +2,7 @@
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "research_session_checking": "Verificando o acesso…",
   "research_login_title": "Entrar na área de pesquisa",
-  "research_login_intro": "Acesso só para quem recebeu convite. Para checar mensagens, o Verifica não pede conta.",
+  "research_login_intro": "Acesso só para quem recebeu convite. Para checar mensagens, o Verifica AI não pede conta.",
   "research_login_email": "E-mail",
   "research_login_password": "Senha",
   "research_login_submit": "Entrar",

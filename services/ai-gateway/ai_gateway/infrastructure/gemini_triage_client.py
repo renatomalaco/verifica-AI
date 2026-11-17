@@ -36,7 +36,7 @@ class MeasuredTriage:
 
 
 class GeminiTriageClient:
-    """Text triage on Gemini with structured output; same contract as the Jev client."""
+    """Text triage on Gemini with structured output (the contract of TriageClient)."""
 
     def __init__(self, base_url: str, api_key: str, model: str, timeout_seconds: float = 8.0):
         self._base_url = base_url

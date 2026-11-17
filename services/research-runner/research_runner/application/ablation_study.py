@@ -164,7 +164,7 @@ def _warnings(test: list[Sample], config: StudyConfig, providers: StudyProviders
         warnings.append(
             "Mode 2 calls a real model but the cascade triage is the local classifier "
             f"({providers.triage_missing}): "
-            "set AI_PROVIDER=gemini or jev before comparing them"
+            "set AI_PROVIDER=gemini before comparing them"
         )
     return warnings
 

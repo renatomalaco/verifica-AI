@@ -1,6 +1,6 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "app_name": "Verifica",
+  "app_name": "Verifica AI",
   "common_error_title": "A investigação não terminou.",
   "common_error_meanwhile": "Enquanto isso, não clique em links nem mande dinheiro.",
   "common_back": "Voltar",

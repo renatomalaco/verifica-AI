@@ -4,7 +4,7 @@ from ai_gateway.api.main import (
     app,
     get_brand_catalog,
     get_brand_verifier,
-    get_jev_client,
+    get_triage_client,
     get_settings,
     get_visual_embedder,
 )
@@ -13,7 +13,7 @@ from ai_gateway.settings import Settings
 from contracts import TriageResult, Persuasion
 
 
-class SpyJevClient:
+class SpyTriageClient:
     def __init__(self):
         self.received_envelope = ""
 
@@ -35,9 +35,9 @@ async def test_health_endpoint():
 
 
 @pytest.mark.asyncio
-async def test_triage_masks_pii_before_jev():
-    spy = SpyJevClient()
-    app.dependency_overrides[get_jev_client] = lambda: spy
+async def test_triage_masks_pii_before_the_model():
+    spy = SpyTriageClient()
+    app.dependency_overrides[get_triage_client] = lambda: spy
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -132,12 +132,13 @@ def test_the_vlm_is_off_without_a_gemini_key():
 
 def test_triage_provider_follows_ai_provider():
     from ai_gateway.infrastructure.gemini_triage_client import GeminiTriageClient
-    from ai_gateway.infrastructure.jev_client import FakeJevClient, HttpJevClient
+    from ai_gateway.infrastructure.fakes import FakeTriageClient
 
     gemini = Settings(_env_file=None, AI_PROVIDER="gemini", GEMINI_API_KEY="k")
-    jev = Settings(_env_file=None, AI_PROVIDER="jev", JEV_API_KEY="k")
     keyless = Settings(_env_file=None, AI_PROVIDER="gemini", GEMINI_API_KEY="")
+    removed_jev = Settings(_env_file=None, AI_PROVIDER="jev", GEMINI_API_KEY="k")
 
-    assert isinstance(get_jev_client(gemini), GeminiTriageClient)
-    assert isinstance(get_jev_client(jev), HttpJevClient)
-    assert isinstance(get_jev_client(keyless), FakeJevClient)
+    assert isinstance(get_triage_client(gemini), GeminiTriageClient)
+    assert isinstance(get_triage_client(keyless), FakeTriageClient)
+    # The Jev provider was removed: an old .env never reaches a paid API by accident.
+    assert isinstance(get_triage_client(removed_jev), FakeTriageClient)

@@ -45,12 +45,17 @@ describe('Privacy', () => {
     expect(screen.getByText(m.privacy_during_rate_limit())).toBeInTheDocument()
   })
 
+  it('names the AI provider that receives the masked text and its free-tier data use', () => {
+    render(<Privacy onBack={() => {}} />)
+    expect(screen.getByText(m.privacy_during_ai_provider())).toBeInTheDocument()
+  })
+
   it('says that a share from another app stays on the device only until the app opens it', () => {
     render(<Privacy onBack={() => {}} />)
     expect(screen.getByText(m.privacy_device_shared())).toBeInTheDocument()
   })
 
-  it('erases what the Verifica saved on this device', () => {
+  it('erases what the Verifica AI saved on this device', () => {
     localStorage.setItem('vf.onboarded', '1')
     localStorage.setItem('vf.lessons', '["falso-parente"]')
     localStorage.setItem('outro.app', 'fica')

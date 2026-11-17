@@ -2,11 +2,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # Triage model: 'fake', 'jev' or 'gemini' (reuses the GEMINI_* settings).
+    # Triage model: 'fake' or 'gemini' (reuses the GEMINI_* settings).
     AI_PROVIDER: str = "fake"
-    JEV_BASE_URL: str = "https://api.typesafe.ai"
-    JEV_API_KEY: str = ""
-    JEV_TIMEOUT_SECONDS: float = 1.5
     EXPLAIN_PROVIDER: str = "fake"  # 'fake' or 'gemini'
     GEMINI_API_KEY: str = ""
     GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com"

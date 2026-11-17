@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from ai_gateway.infrastructure.gemini_triage_client import GeminiTriageClient
-from ai_gateway.infrastructure.jev_client import HttpJevClient
 from contracts import TriageResult
 
 from research_runner.domain.pricing import TokenPrice
@@ -19,8 +18,6 @@ GEMINI_PRICES = (
     "GEMINI_PRICE_OUTPUT_USD_PER_1M",
     "GEMINI_PRICE_DATE",
 )
-JEV_PRICES = ("JEV_PRICE_USD_PER_1K_CALLS", "JEV_PRICE_DATE")
-JEV_MODEL = "jev-latest"  # the model HttpJevClient asks for
 
 
 @dataclass(frozen=True)
@@ -34,7 +31,7 @@ class StudyProviders:
     pure_vlm: Provider | None = None
     triage: Provider | None = None
     pure_vlm_missing: str = "GEMINI_API_KEY is not set"
-    triage_missing: str = "AI_PROVIDER is not 'gemini' or 'jev'"
+    triage_missing: str = "AI_PROVIDER is not 'gemini'"
     pause_seconds: float = 0.0
 
 
@@ -54,9 +51,7 @@ def _triage(settings: ResearchSettings) -> Provider | str:
     provider = settings.AI_PROVIDER.lower()
     if provider == "gemini":
         return _gemini(settings)
-    if provider == "jev":
-        return _jev(settings)
-    return f"AI_PROVIDER is '{settings.AI_PROVIDER}', not 'gemini' or 'jev'"
+    return f"AI_PROVIDER is '{settings.AI_PROVIDER}', not 'gemini'"
 
 
 def _gemini(settings: ResearchSettings) -> Provider | str:
@@ -87,31 +82,6 @@ def _gemini(settings: ResearchSettings) -> Provider | str:
         "input_usd_per_1m": price.input_usd_per_1m,
         "output_usd_per_1m": price.output_usd_per_1m,
         "price_date": settings.GEMINI_PRICE_DATE,
-    })
-
-
-def _jev(settings: ResearchSettings) -> Provider | str:
-    if not settings.JEV_API_KEY:
-        return "AI_PROVIDER is 'jev' but JEV_API_KEY is not set"
-    missing = _unset(settings, JEV_PRICES)
-    if missing:
-        return f"{', '.join(missing)} not set: the cost could not be measured"
-
-    client = HttpJevClient(
-        base_url=settings.JEV_BASE_URL,
-        api_key=settings.JEV_API_KEY,
-        timeout_seconds=settings.JEV_TIMEOUT_SECONDS,
-    )
-    per_call = settings.JEV_PRICE_USD_PER_1K_CALLS / 1000
-
-    async def call(envelope: str) -> tuple[TriageResult, float]:
-        return await client.classify(envelope), per_call
-
-    return Provider(call, {
-        "provider": "jev",
-        "model": JEV_MODEL,
-        "usd_per_1k_calls": settings.JEV_PRICE_USD_PER_1K_CALLS,
-        "price_date": settings.JEV_PRICE_DATE,
     })
 
 
