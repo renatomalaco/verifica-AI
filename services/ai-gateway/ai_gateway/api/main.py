@@ -22,8 +22,9 @@ from ai_gateway.application.match_brand import (
 from ai_gateway.infrastructure.pgvector_catalog import PgvectorBrandCatalog
 from ai_gateway.infrastructure.siglip_embedder import SiglipEmbedder
 from ai_gateway.infrastructure.gemini_brand_verifier import GeminiBrandVerifier
-from ai_gateway.infrastructure.jev_client import JevClient, FakeJevClient, HttpJevClient
+from ai_gateway.domain.triage import TriageClient
 from ai_gateway.infrastructure.gemini_triage_client import GeminiTriageClient
+from ai_gateway.infrastructure.fakes import FakeTriageClient
 from ai_gateway.domain.explanation import ExplanationProvider
 from ai_gateway.infrastructure.explanation_provider import (
     FakeExplanationProvider,
@@ -91,13 +92,7 @@ def get_match_brand(
     )
 
 
-def get_jev_client(settings: Settings = Depends(get_settings)) -> JevClient:
-    if settings.AI_PROVIDER.lower() == "jev" and settings.JEV_API_KEY:
-        return HttpJevClient(
-            base_url=settings.JEV_BASE_URL,
-            api_key=settings.JEV_API_KEY,
-            timeout_seconds=settings.JEV_TIMEOUT_SECONDS,
-        )
+def get_triage_client(settings: Settings = Depends(get_settings)) -> TriageClient:
     if settings.AI_PROVIDER.lower() == "gemini" and settings.GEMINI_API_KEY:
         return GeminiTriageClient(
             base_url=settings.GEMINI_BASE_URL,
@@ -105,7 +100,7 @@ def get_jev_client(settings: Settings = Depends(get_settings)) -> JevClient:
             model=settings.GEMINI_MODEL,
             timeout_seconds=settings.GEMINI_TIMEOUT_SECONDS,
         )
-    return FakeJevClient()
+    return FakeTriageClient()
 
 
 def get_explanation_provider(settings: Settings = Depends(get_settings)) -> ExplanationProvider:
@@ -127,11 +122,11 @@ async def health():
 @app.post("/v1/triage", response_model=TriageResult)
 async def triage(
     request: TriageRequest,
-    jev_client: JevClient = Depends(get_jev_client),
+    triage_client: TriageClient = Depends(get_triage_client),
 ):
     # PII is masked (LGPD) and the text wrapped in the anti-prompt-injection envelope
     # before reaching the model.
-    return await jev_client.classify(guard_for_model(request.text))
+    return await triage_client.classify(guard_for_model(request.text))
 
 
 @app.post("/v1/brand-match", response_model=BrandMatchResult)

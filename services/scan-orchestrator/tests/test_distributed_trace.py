@@ -15,8 +15,8 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import SpanKind
 
-from ai_gateway.api.main import app as gateway_app, get_jev_client
-from ai_gateway.infrastructure.jev_client import FakeJevClient
+from ai_gateway.api.main import app as gateway_app, get_triage_client
+from ai_gateway.infrastructure.fakes import FakeTriageClient
 from observability import (
     build_meter_provider,
     build_tracer_provider,
@@ -78,7 +78,7 @@ def traced_services():
         URL_INSPECTOR_URL="http://url-inspector:8000",
     )
     orchestrator_app.dependency_overrides[get_redis_client] = FakeRedisCacheClient
-    gateway_app.dependency_overrides[get_jev_client] = FakeJevClient
+    gateway_app.dependency_overrides[get_triage_client] = FakeTriageClient
     inspector_app.dependency_overrides[get_browser_driver] = FakeBrowserDriver
 
     yield exporter, [tracer for tracer, _ in providers.values()]
