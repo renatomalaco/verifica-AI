@@ -1,18 +1,24 @@
-import { canRunStudy, lastAccessDay } from '../domain/researchAccess'
+import type { MouseEvent } from 'react'
+import {
+  ACCOUNTS_PATH,
+  REPORT_PATH,
+  canManageAccounts,
+  canRunStudy,
+  lastAccessDay,
+  type ResearchSection,
+} from '../domain/researchAccess'
 import { useStudyRun, type StudyRun } from '../hooks/useStudyRun'
 import { m } from '../paraglide/messages.js'
-import type { ResearchRole, ResearchUser } from '../types'
+import type { ResearchUser } from '../types'
+import { ROLE_LABELS } from './researchLabels'
 
 interface Props {
   user: ResearchUser
+  section: ResearchSection
+  onNavigate: (path: string) => void
   onSignOut: () => void
   onStudyRan: () => void
   onSignedOut: () => void
-}
-
-const ROLE_LABELS: Record<ResearchRole, () => string> = {
-  admin: m.research_role_admin,
-  researcher: m.research_role_researcher,
 }
 
 const RUN_STATUS: Partial<Record<StudyRun, () => string>> = {
@@ -22,7 +28,14 @@ const RUN_STATUS: Partial<Record<StudyRun, () => string>> = {
 }
 
 // Side navigation of the research area: it exists only for a signed-in account.
-export function ResearchNav({ user, onSignOut, onStudyRan, onSignedOut }: Props) {
+export function ResearchNav({ user, section, onNavigate, onSignOut, onStudyRan, onSignedOut }: Props) {
+  // Real links (they open in a new tab too), but a plain click switches the screen without reloading.
+  const follow = (path: string) => (event: MouseEvent) => {
+    event.preventDefault()
+    onNavigate(path)
+  }
+  const current = (target: ResearchSection) => (section === target ? 'page' : undefined)
+
   return (
     <nav className="research-nav card stack" aria-label={m.research_nav_label()}>
       <div className="stack">
@@ -35,10 +48,17 @@ export function ResearchNav({ user, onSignOut, onStudyRan, onSignedOut }: Props)
 
       <ul className="research-nav__list">
         <li>
-          <a href="/pesquisa" aria-current="page">
+          <a href={REPORT_PATH} aria-current={current('report')} onClick={follow(REPORT_PATH)}>
             {m.research_nav_report()}
           </a>
         </li>
+        {canManageAccounts(user.role) && (
+          <li>
+            <a href={ACCOUNTS_PATH} aria-current={current('accounts')} onClick={follow(ACCOUNTS_PATH)}>
+              {m.research_nav_accounts()}
+            </a>
+          </li>
+        )}
       </ul>
 
       {canRunStudy(user.role) && <RunStudy onStudyRan={onStudyRan} onSignedOut={onSignedOut} />}

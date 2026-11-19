@@ -36,7 +36,7 @@ export class InviteError extends Error {
   }
 }
 
-const postJson = (body: unknown): RequestInit => ({
+export const postJson = (body: unknown): RequestInit => ({
   method: 'POST',
   credentials: 'same-origin',
   headers: { 'Content-Type': 'application/json' },

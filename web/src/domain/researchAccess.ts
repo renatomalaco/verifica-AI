@@ -1,14 +1,32 @@
 // Rules of the research area sign-in (R5a). No React, testable in isolation.
-import type { ResearchRole } from '../types'
+import type { ResearchAccount, ResearchRole } from '../types'
 
 // Same minimum as scan_orchestrator.domain.research_access; the backend has the final word.
 export const MIN_PASSWORD_LENGTH = 12
 const DEFAULT_RETRY_SECONDS = 900
 
 export type PasswordProblem = 'too_short' | 'mismatch'
+export type ResearchSection = 'report' | 'accounts'
+
+export const ACCOUNTS_PATH = '/pesquisa/contas'
+export const REPORT_PATH = '/pesquisa'
 
 export function canRunStudy(role: ResearchRole): boolean {
   return role === 'admin'
+}
+
+export function canManageAccounts(role: ResearchRole): boolean {
+  return role === 'admin'
+}
+
+// A researcher who opens the accounts address just sees the report.
+export function researchSection(pathname: string, role: ResearchRole): ResearchSection {
+  return pathname.startsWith(ACCOUNTS_PATH) && canManageAccounts(role) ? 'accounts' : 'report'
+}
+
+// The backend refuses self-blocking too; hiding the button just avoids a dead end.
+export function canBlock(account: ResearchAccount, currentEmail: string): boolean {
+  return account.status !== 'disabled' && account.email !== currentEmail
 }
 
 export function passwordProblem(password: string, confirmation: string): PasswordProblem | null {
