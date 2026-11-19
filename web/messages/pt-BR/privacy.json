@@ -34,7 +34,7 @@
   "privacy_device_cleared": "Pronto. Os dados deste aparelho foram apagados.",
   "privacy_device_clear": "Apagar dados deste aparelho",
   "privacy_voice_title": "Ao ouvir em voz alta",
-  "privacy_voice_text": "O botão “Ouvir” usa as vozes do seu aparelho, escolhendo a que soa mais natural. Algumas dessas vozes (como as “Online” do Edge e as do Google no Chrome) funcionam pela internet: o texto lido vai para a Microsoft ou para o Google virar áudio.",
+  "privacy_voice_text": "O botão “Ouvir” toca gravações dos textos do Verifica AI, feitas uma única vez com uma voz do Google (Gemini) antes de o site ir ao ar: ao ouvir, nada é enviado ao Google, porque o áudio vem do próprio site. Se uma gravação faltar ou não carregar, o botão usa as vozes do seu aparelho, escolhendo a que soa mais natural. Algumas dessas vozes (como as “Online” do Edge e as do Google no Chrome) funcionam pela internet: o texto lido vai para a Microsoft ou para o Google virar áudio.",
   "privacy_voice_scope": "Só são lidos em voz alta os textos do próprio Verifica AI: o resultado, o que fazer, as lições e o tutorial. A mensagem, o link ou o print que você colou nunca são lidos nem enviados para esse serviço de voz.",
   "privacy_research_title": "Quem faz a pesquisa",
   "privacy_research_intro": "Quem usa o Verifica AI continua anônimo. Só as pessoas convidadas para a área de pesquisa do TCC (o autor e a banca) têm conta. Delas fica guardado:",

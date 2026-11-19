@@ -57,6 +57,8 @@ class ResearchAccountRepository(Protocol):
 
     async def find_by_invite(self, invite_hash: str) -> Account | None: ...
 
+    async def list_accounts(self) -> list[Account]: ...
+
     async def save_invite(
         self,
         email: str,
@@ -102,6 +104,9 @@ class InMemoryResearchAccountRepository:
 
     async def find_by_invite(self, invite_hash: str) -> Account | None:
         return next((a for a in self._accounts.values() if a.invite_hash == invite_hash), None)
+
+    async def list_accounts(self) -> list[Account]:
+        return list(self._accounts.values())
 
     async def save_invite(self, email, role, expires_at, invite_hash, invite_expires_at) -> Account:
         existing = await self.find_by_email(email)
@@ -208,6 +213,11 @@ class SqlResearchAccountRepository:
             select(contas_pesquisa_table).where(contas_pesquisa_table.c.invite_hash == invite_hash)
         )
         return _account(row) if row else None
+
+    async def list_accounts(self) -> list[Account]:
+        async with self._session_factory() as session:
+            rows = (await session.execute(select(contas_pesquisa_table))).mappings().all()
+        return [_account(row) for row in rows]
 
     async def save_invite(self, email, role, expires_at, invite_hash, invite_expires_at) -> Account:
         renewed = {

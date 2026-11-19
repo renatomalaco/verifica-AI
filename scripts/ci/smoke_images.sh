@@ -3,10 +3,12 @@
 # shared workspace venv, where a dependency missing from one service's pyproject is still
 # installed by another; only the image shows it (redis in the orchestrator, pytesseract and pyzbar
 # in the image-extractor, whose OCR swallowed the ImportError and failed silently).
-# Needs the same variables as `docker compose -f infra/docker-compose.prod.yml build`.
+# Needs the same variables as `docker compose -f infra/docker-compose.prod.yml build`: the CI
+# passes them in the environment. On the VM they only exist through prod-compose.sh, so run:
+#   SMOKE_COMPOSE="bash infra/prod-compose.sh" bash scripts/ci/smoke_images.sh
 set -euo pipefail
 
-compose=(docker compose -f infra/docker-compose.prod.yml)
+read -ra compose <<< "${SMOKE_COMPOSE:-docker compose -f infra/docker-compose.prod.yml}"
 
 check() {
   local service="$1" code="$2"

@@ -8,7 +8,9 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com"
     GEMINI_MODEL: str = "gemini-2.5-flash"
-    GEMINI_TIMEOUT_SECONDS: float = 8.0
+    # A cold connection from the VM took ~7 s before Gemini even started answering. The
+    # orchestrator waits AI_GATEWAY_TIMEOUT_SECONDS (20 s), so keep this below it.
+    GEMINI_TIMEOUT_SECONDS: float = 15.0
     # Single source of truth for logo embeddings: embedder, catalog and pgvector column (R4)
     # must agree.
     EMBEDDING_DIM: int = 768

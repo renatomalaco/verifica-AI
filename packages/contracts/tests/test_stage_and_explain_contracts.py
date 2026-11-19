@@ -82,6 +82,7 @@ def test_verdict_message_values_match_frontend_dictionary():
         "scam_generic",
         "caution",
         "safe",
+        "safe_own_address",
         "inconclusive",
     ]
 

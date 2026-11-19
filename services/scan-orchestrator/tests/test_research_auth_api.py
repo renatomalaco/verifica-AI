@@ -235,3 +235,108 @@ def test_allowed_origins_come_comma_separated_from_the_environment(monkeypatch):
         "https://verifica.ai",
         "https://www.verifica.ai",
     ]
+
+
+# --- Admin screen: list accounts, create invite links and block access. ---
+
+ACCOUNTS = "/api/v1/auth/accounts"
+INVITES = "/api/v1/auth/invites"
+DISABLE = "/api/v1/auth/accounts/disable"
+
+
+async def sign_in_as_admin(client) -> None:
+    await create_account("admin@exemplo.com", ResearchRole.ADMIN)
+    await login(client, email="admin@exemplo.com")
+
+
+async def test_the_admin_lists_every_account_with_its_status(client):
+    await sign_in_as_admin(client)
+    await client.post(INVITES, json={"email": "banca@exemplo.com"})
+
+    response = await client.get(ACCOUNTS)
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {"email": "admin@exemplo.com", "role": "admin", "expires_at": None, "status": "active"},
+        {
+            "email": "banca@exemplo.com",
+            "role": "researcher",
+            "expires_at": None,
+            "status": "invited",
+        },
+    ]
+
+
+async def test_an_invite_returns_a_one_time_link_that_sets_the_password(client):
+    await sign_in_as_admin(client)
+
+    response = await client.post(
+        INVITES, json={"email": "Banca@Exemplo.com", "expires_on": "2026-12-20"}
+    )
+
+    assert response.status_code == 201
+    url = response.json()["url"]
+    assert url.startswith("http://localhost:5173/pesquisa/convite#token=")
+    token = url.split("#token=")[1]
+    accepted = await client.post(
+        "/api/v1/auth/invites/accept", json={"token": token, "password": PASSWORD}
+    )
+    assert accepted.status_code == 204
+    accounts = (await client.get(ACCOUNTS)).json()
+    banca = next(a for a in accounts if a["email"] == "banca@exemplo.com")
+    # Midnight after the last day, in Brasília.
+    assert datetime.fromisoformat(banca["expires_at"]) == datetime(
+        2026, 12, 21, 3, 0, tzinfo=timezone.utc
+    )
+
+
+async def test_the_admin_blocks_another_account(client):
+    await create_account("banca@exemplo.com", ResearchRole.RESEARCHER)
+    await sign_in_as_admin(client)
+
+    blocked = await client.post(DISABLE, json={"email": "banca@exemplo.com"})
+    unknown = await client.post(DISABLE, json={"email": "ninguem@exemplo.com"})
+
+    assert blocked.status_code == 204
+    assert unknown.status_code == 404 and unknown.json() == {"detail": "account_not_found"}
+    assert (await login(client, email="banca@exemplo.com")).status_code == 401
+
+
+async def test_the_admin_cannot_block_their_own_account(client):
+    await sign_in_as_admin(client)
+
+    response = await client.post(DISABLE, json={"email": "admin@exemplo.com"})
+
+    assert response.status_code == 409 and response.json() == {"detail": "cannot_disable_self"}
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("get", ACCOUNTS, None),
+        ("post", INVITES, {"email": "outra@exemplo.com"}),
+        ("post", DISABLE, {"email": "admin@exemplo.com"}),
+    ],
+)
+async def test_a_researcher_cannot_manage_accounts(client, method, path, body):
+    await create_account("banca@exemplo.com", ResearchRole.RESEARCHER)
+    await login(client)
+
+    kwargs = {"json": body} if body else {}
+    response = await getattr(client, method)(path, **kwargs)
+
+    assert response.status_code == 403 and response.json() == {"detail": "admin_only"}
+
+
+async def test_without_signing_in_the_accounts_stay_hidden(client):
+    assert (await client.get(ACCOUNTS)).status_code == 401
+
+
+async def test_an_invite_from_another_origin_is_refused(client):
+    await sign_in_as_admin(client)
+
+    response = await client.post(
+        INVITES, json={"email": "outra@exemplo.com"}, headers={"Origin": "https://evil.test"}
+    )
+
+    assert response.status_code == 403

@@ -3,14 +3,15 @@
 import hashlib
 import secrets
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime, time, timedelta, timezone
 from enum import Enum
 from uuid import UUID
 
-from contracts import ResearchRole
+from contracts import ResearchAccountStatus, ResearchRole
 from scan_orchestrator.domain.quota import QuotaStore
 
 MIN_PASSWORD_LENGTH = 12
+BRASILIA = timezone(timedelta(hours=-3))
 
 
 class WeakPasswordError(ValueError):
@@ -38,6 +39,15 @@ class Account:
         if self.password_hash is None or self.disabled_at is not None:
             return False
         return self.expires_at is None or now < self.expires_at
+
+    def status(self, now: datetime) -> ResearchAccountStatus:
+        if self.disabled_at is not None:
+            return ResearchAccountStatus.DISABLED
+        if self.password_hash is None:
+            return ResearchAccountStatus.INVITED
+        if self.expires_at is not None and now >= self.expires_at:
+            return ResearchAccountStatus.EXPIRED
+        return ResearchAccountStatus.ACTIVE
 
 
 @dataclass(frozen=True)
@@ -85,6 +95,22 @@ def normalize_email(email: str) -> str:
 
 def can_run_study(role: ResearchRole) -> bool:
     return role is ResearchRole.ADMIN
+
+
+def can_manage_accounts(role: ResearchRole) -> bool:
+    return role is ResearchRole.ADMIN
+
+
+def access_ends_at(last_day: date) -> datetime:
+    """People pick the last day they may enter; access ends at the following midnight
+    in Brasília."""
+    midnight = datetime.combine(last_day + timedelta(days=1), time(0), tzinfo=BRASILIA)
+    return midnight.astimezone(timezone.utc)
+
+
+def invite_link(base_url: str, raw_invite: str) -> str:
+    # After "#": the token never reaches server logs or Referer headers.
+    return f"{base_url}/pesquisa/convite#token={raw_invite}"
 
 
 def new_secret() -> str:

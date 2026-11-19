@@ -5,16 +5,26 @@ Error bodies carry codes; the front end words them."""
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 
-from contracts import AcceptInviteRequest, LoginRequest, ResearchUser
+from contracts import (
+    AcceptInviteRequest,
+    CreateInviteRequest,
+    DisableAccountRequest,
+    InviteLink,
+    LoginRequest,
+    ResearchAccount,
+    ResearchUser,
+)
 from scan_orchestrator.api.dependencies import get_research_auth, get_settings
 from scan_orchestrator.api.research_guard import (
     ACCESS_COOKIE,
     REFRESH_COOKIE,
     current_principal,
+    require_account_manager,
     require_same_origin,
 )
 from scan_orchestrator.application.research_auth import (
     REFRESH_TTL,
+    CannotDisableSelfError,
     InvalidCredentialsError,
     InviteInvalidError,
     ResearchAuth,
@@ -26,6 +36,8 @@ from scan_orchestrator.domain.research_access import (
     Principal,
     TooManyAttemptsError,
     WeakPasswordError,
+    access_ends_at,
+    invite_link,
 )
 from scan_orchestrator.infrastructure.access_tokens import ACCESS_TOKEN_TTL
 from scan_orchestrator.settings import Settings
@@ -139,4 +151,39 @@ async def accept_invite(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="password_too_short"
         )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/accounts", response_model=list[ResearchAccount])
+async def list_accounts(
+    _: Principal = Depends(require_account_manager),
+    auth: ResearchAuth = Depends(get_research_auth),
+) -> list[ResearchAccount]:
+    return await auth.list_accounts()
+
+
+@router.post("/invites", response_model=InviteLink, status_code=status.HTTP_201_CREATED)
+async def create_invite(
+    body: CreateInviteRequest,
+    _: Principal = Depends(require_account_manager),
+    settings: Settings = Depends(get_settings),
+    auth: ResearchAuth = Depends(get_research_auth),
+) -> InviteLink:
+    expires_at = access_ends_at(body.expires_on) if body.expires_on else None
+    token = await auth.invite(body.email, body.role, expires_at=expires_at)
+    return InviteLink(url=invite_link(settings.PUBLIC_BASE_URL, token))
+
+
+@router.post("/accounts/disable", status_code=status.HTTP_204_NO_CONTENT)
+async def disable_account(
+    body: DisableAccountRequest,
+    principal: Principal = Depends(require_account_manager),
+    auth: ResearchAuth = Depends(get_research_auth),
+) -> Response:
+    try:
+        blocked = await auth.disable_for(principal.account_id, body.email)
+    except CannotDisableSelfError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="cannot_disable_self")
+    if not blocked:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="account_not_found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)

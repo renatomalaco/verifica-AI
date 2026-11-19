@@ -9,7 +9,7 @@ python -m scan_orchestrator.research_cli disable --email banca@exemplo.com
 import argparse
 import asyncio
 import sys
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date
 
 from contracts import ResearchRole
 from scan_orchestrator.api.dependencies import (
@@ -18,10 +18,9 @@ from scan_orchestrator.api.dependencies import (
     get_research_auth,
 )
 from scan_orchestrator.application.research_auth import ResearchAuth
+from scan_orchestrator.domain.research_access import access_ends_at, invite_link
 from scan_orchestrator.infrastructure.access_tokens import generate_key_pair
 from scan_orchestrator.settings import Settings
-
-BRASILIA = timezone(timedelta(hours=-3))
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -43,23 +42,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _end_of_day(day: date) -> datetime:
-    return datetime.combine(day + timedelta(days=1), time(0), tzinfo=BRASILIA).astimezone(
-        timezone.utc
-    )
-
-
 async def run(args: argparse.Namespace, auth: ResearchAuth | None, base_url: str) -> str:
     if args.command == "keygen":
         private, public = generate_key_pair()
         return f"AUTH_JWT_PRIVATE_KEY={private}\nAUTH_JWT_PUBLIC_KEY={public}"
     if args.command == "invite":
-        expires_at = _end_of_day(args.expires_on) if args.expires_on else None
+        expires_at = access_ends_at(args.expires_on) if args.expires_on else None
         token = await auth.invite(args.email, ResearchRole(args.role), expires_at=expires_at)
-        # After "#": the token never reaches server logs or Referer headers.
-        return (
-            f"Invite link (valid for 48 h, single use):\n{base_url}/pesquisa/convite#token={token}"
-        )
+        return f"Invite link (valid for 48 h, single use):\n{invite_link(base_url, token)}"
     blocked = await auth.disable(args.email)
     return f"{args.email}: blocked" if blocked else f"{args.email}: not found"
 

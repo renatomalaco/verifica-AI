@@ -48,6 +48,8 @@
   "verdict_caution_step_2": "Confirme as informações pelos canais oficiais.",
   "verdict_safe_summary": "O Verifica AI não encontrou sinais de golpe aqui.",
   "verdict_safe_step_1": "Mesmo assim, nunca envie senhas ou códigos que chegam por SMS.",
+  "verdict_safe_own_address_summary": "Este é o endereço oficial do próprio Verifica AI.",
+  "verdict_safe_own_address_step_1": "Pode abrir com tranquilidade. O Verifica AI nunca pede senha, código, Pix ou dados de cartão.",
   "verdict_inconclusive_summary": "Desta vez o Verifica AI não conseguiu concluir com certeza.",
   "verdict_inconclusive_step_1": "Por precaução, não clique em links e não passe dados.",
   "verdict_inconclusive_step_2": "Peça ajuda a alguém de confiança.",

@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "preview": "vite preview",
     "i18n": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --strategy baseLocale --emit-ts-declarations --silent",
-    "test:e2e": "npm run i18n && playwright test"
+    "test:e2e": "npm run i18n && playwright test",
+    "voice": "npm run i18n && node --env-file-if-exists=../.env scripts/render-voice.mjs"
   },
   "dependencies": {
     "@inlang/paraglide-js": "2.25.4",
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
+    "@breezystack/lamejs": "1.2.7",
     "@playwright/test": "1.64.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",

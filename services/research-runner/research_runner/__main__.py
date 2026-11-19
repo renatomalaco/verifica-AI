@@ -4,7 +4,12 @@ import sys
 from pathlib import Path
 
 from research_runner.application.ablation_study import StudyConfig, run_study
-from research_runner.domain.report_generator import generate_latex_table, generate_markdown_table
+from research_runner.domain.report_generator import (
+    generate_latex_table,
+    generate_latex_uncertainty_table,
+    generate_markdown_table,
+    generate_markdown_uncertainty_table,
+)
 from research_runner.infrastructure.dataset_file import load_samples
 from research_runner.infrastructure.llm_providers import providers_from_settings
 from research_runner.infrastructure.report_files import reports_dir, write_report
@@ -33,6 +38,10 @@ def main(argv: list[str] | None = None) -> int:
     print(generate_markdown_table(report["modes"]))
     print()
     print(generate_latex_table(report["modes"]))
+    print()
+    print(generate_markdown_uncertainty_table(report["modes"]))
+    print()
+    print(generate_latex_uncertainty_table(report["modes"]))
     for warning in report["meta"]["warnings"]:
         print(f"[WARNING] {warning}")
     print(f"[OK] report written to {out_dir / 'latest.json'}")

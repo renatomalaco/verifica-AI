@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { TUTORIAL_STEPS, tutorialSpeechText } from '../content/tutorial'
 import { m } from '../paraglide/messages.js'
 import { speakVerdict, stopSpeaking } from '../utils/speech'
 import { Header } from './Header'
@@ -6,16 +7,10 @@ import { SpeakerIcon } from './Icons'
 import { Lupa } from './Lupa'
 import { FocusedHeading, SkipButton } from './Welcome'
 
-const STEPS = [
-  { title: m.onboarding_tutorial_step_1_title, text: m.onboarding_tutorial_step_1_text },
-  { title: m.onboarding_tutorial_step_2_title, text: m.onboarding_tutorial_step_2_text },
-  { title: m.onboarding_tutorial_step_3_title, text: m.onboarding_tutorial_step_3_text },
-]
-
 export function Tutorial({ onFinish }: { onFinish: () => void }) {
   const [index, setIndex] = useState(0)
-  const step = STEPS[index]
-  const isLast = index === STEPS.length - 1
+  const step = TUTORIAL_STEPS[index]
+  const isLast = index === TUTORIAL_STEPS.length - 1
 
   useEffect(() => () => stopSpeaking(), [])
 
@@ -26,13 +21,13 @@ export function Tutorial({ onFinish }: { onFinish: () => void }) {
         <StepArt index={index} />
         <div className="stack">
           <p className="text-muted text-small text-strong">
-            {m.onboarding_tutorial_progress({ current: index + 1, total: STEPS.length })}
+            {m.onboarding_tutorial_progress({ current: index + 1, total: TUTORIAL_STEPS.length })}
           </p>
           <FocusedHeading>{step.title()}</FocusedHeading>
           <p className="text-muted">{step.text()}</p>
         </div>
         <div className="step-dots" aria-hidden="true">
-          {STEPS.map((_, i) => (
+          {TUTORIAL_STEPS.map((_, i) => (
             <span key={i} data-active={i === index} />
           ))}
         </div>
@@ -42,7 +37,7 @@ export function Tutorial({ onFinish }: { onFinish: () => void }) {
           type="button"
           className="btn btn-outline btn-icon btn-square"
           aria-label={m.onboarding_tutorial_listen()}
-          onClick={() => speakVerdict(`${step.title()}. ${step.text()}`)}
+          onClick={() => speakVerdict(tutorialSpeechText(step))}
         >
           <SpeakerIcon />
         </button>

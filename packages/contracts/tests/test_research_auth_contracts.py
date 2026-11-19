@@ -1,9 +1,17 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import pytest
 from pydantic import ValidationError
 
-from contracts import AcceptInviteRequest, LoginRequest, ResearchRole, ResearchUser
+from contracts import (
+    AcceptInviteRequest,
+    CreateInviteRequest,
+    DisableAccountRequest,
+    LoginRequest,
+    ResearchAccountStatus,
+    ResearchRole,
+    ResearchUser,
+)
 
 
 def test_research_role_values_match_frontend_contract():
@@ -37,3 +45,28 @@ def test_research_user_serializes_role_and_optional_expiry():
         "role": "researcher",
         "expires_at": "2026-12-20T00:00:00Z",
     }
+
+
+def test_account_status_values_match_frontend_contract():
+    # Consumed by web/src/types; the admin screen words each one.
+    assert [s.value for s in ResearchAccountStatus] == ["active", "invited", "expired", "disabled"]
+
+
+def test_create_invite_request_normalizes_the_email_and_defaults_to_researcher():
+    request = CreateInviteRequest(email=" Banca@Exemplo.com ")
+
+    assert request.email == "banca@exemplo.com"
+    assert request.role is ResearchRole.RESEARCHER
+    assert request.expires_on is None
+
+
+def test_create_invite_request_reads_the_last_day_as_a_date():
+    request = CreateInviteRequest.model_validate(
+        {"email": "a@b.c", "role": "admin", "expires_on": "2026-12-20"}
+    )
+
+    assert request.expires_on == date(2026, 12, 20)
+
+
+def test_disable_account_request_normalizes_the_email():
+    assert DisableAccountRequest(email=" Banca@Exemplo.com").email == "banca@exemplo.com"

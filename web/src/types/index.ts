@@ -29,6 +29,7 @@ export const VERDICT_MESSAGES = [
   'scam_generic',
   'caution',
   'safe',
+  'safe_own_address',
   'inconclusive',
 ] as const
 
@@ -110,4 +111,11 @@ export interface ResearchUser {
   email: string
   role: ResearchRole
   expires_at: string | null
+}
+
+// Mirrors contracts.ResearchAccountStatus / ResearchAccount (admin screen).
+export type ResearchAccountStatus = 'active' | 'invited' | 'expired' | 'disabled'
+
+export interface ResearchAccount extends ResearchUser {
+  status: ResearchAccountStatus
 }

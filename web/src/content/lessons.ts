@@ -4,6 +4,11 @@ import { m } from '../paraglide/messages.js'
 import { getLocale } from '../paraglide/runtime.js'
 import * as ptBR from './pt-BR/lessons'
 
+export interface LessonSource {
+  title: string
+  url: string
+}
+
 export interface Lesson {
   id: string
   title: string
@@ -16,15 +21,21 @@ export interface Lesson {
     isScam: boolean
     explanation: string
   }
+  sources: LessonSource[]
 }
 
-const CONTENT: Record<ReturnType<typeof getLocale>, { GOLDEN_RULES: string[]; LESSONS: Lesson[] }> = {
+const CONTENT: Record<
+  ReturnType<typeof getLocale>,
+  { GOLDEN_RULES: string[]; LESSONS: Lesson[]; SOURCES_ACCESSED_ON: string }
+> = {
   'pt-BR': ptBR,
 }
 
 // Functions, not constants, so the content follows the locale at call time.
 export const goldenRules = (): string[] => CONTENT[getLocale()].GOLDEN_RULES
 export const lessons = (): Lesson[] => CONTENT[getLocale()].LESSONS
+// Day the cited pages were read, written the way the locale writes dates.
+export const sourcesAccessedOn = (): string => CONTENT[getLocale()].SOURCES_ACCESSED_ON
 
 export function lessonSpeechText(lesson: Lesson): string {
   return [

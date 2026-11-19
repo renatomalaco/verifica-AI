@@ -6,6 +6,9 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 class Settings(BaseSettings):
     AI_GATEWAY_URL: str = "http://localhost:8001"
+    # Triage and "Me explica" wait on Gemini through the gateway, which gives Gemini up to
+    # GEMINI_TIMEOUT_SECONDS (15 s). Keep this above it, or every slow answer becomes INCONCLUSIVO.
+    AI_GATEWAY_TIMEOUT_SECONDS: float = 20.0
     URL_INSPECTOR_URL: str = "http://localhost:8002"
     IMAGE_EXTRACTOR_URL: str = "http://localhost:8003"
     REDIS_URL: str = "redis://localhost:6379/0"

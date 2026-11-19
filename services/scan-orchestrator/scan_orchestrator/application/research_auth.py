@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable
 from uuid import UUID, uuid4
 
-from contracts import ResearchRole
+from contracts import ResearchAccount, ResearchRole
 from scan_orchestrator.domain.research_access import (
     Account,
     LoginThrottle,
@@ -34,6 +34,10 @@ class InviteInvalidError(Exception):
 
 class SessionRejectedError(Exception):
     pass
+
+
+class CannotDisableSelfError(Exception):
+    """Blocking yourself would leave the research area with no one to send invites."""
 
 
 @dataclass(frozen=True)
@@ -123,6 +127,23 @@ class ResearchAuth:
         await self._repo.disable(account.id, now)
         await self._repo.revoke_account_sessions(account.id, now)
         return True
+
+    async def disable_for(self, actor_id: UUID, email: str) -> bool:
+        """Blocking from the admin screen: the same as disable, except on yourself."""
+        account = await self._repo.find_by_email(normalize_email(email))
+        if account is not None and account.id == actor_id:
+            raise CannotDisableSelfError()
+        return await self.disable(email)
+
+    async def list_accounts(self) -> list[ResearchAccount]:
+        now = self._clock()
+        accounts = sorted(await self._repo.list_accounts(), key=lambda account: account.email)
+        return [
+            ResearchAccount(
+                email=a.email, role=a.role, expires_at=a.expires_at, status=a.status(now)
+            )
+            for a in accounts
+        ]
 
     async def current_account(self, account_id: UUID) -> Account | None:
         account = await self._repo.get_account(account_id)

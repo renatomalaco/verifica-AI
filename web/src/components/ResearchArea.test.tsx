@@ -1,8 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ResearchArea } from './ResearchArea'
 import { m } from '../paraglide/messages.js'
-import type { ResearchUser } from '../types'
+import type { ResearchAccount, ResearchUser } from '../types'
 
 const RESEARCHER: ResearchUser = { email: 'banca@exemplo.com', role: 'researcher', expires_at: null }
 const ADMIN: ResearchUser = { email: 'autor@exemplo.com', role: 'admin', expires_at: null }
@@ -129,5 +129,105 @@ describe('ResearchArea', () => {
     render(<ResearchArea onBack={vi.fn()} />)
 
     expect(await screen.findByRole('heading', { name: m.research_login_title() })).toBeInTheDocument()
+  })
+})
+
+describe('ResearchArea accounts screen', () => {
+  const BANCA: ResearchAccount = { ...RESEARCHER, status: 'active' }
+  const ME: ResearchAccount = { ...ADMIN, status: 'active' }
+  const LINK = 'https://verifica.test/pesquisa/convite#token=abc'
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    window.history.replaceState(null, '', '/')
+  })
+
+  async function openAccounts(routes: Record<string, Route | Route[]>) {
+    const fetchMock = serve({ 'GET /api/v1/auth/me': { status: 200, body: ADMIN }, ...routes })
+    render(<ResearchArea onBack={vi.fn()} />)
+    fireEvent.click(await screen.findByRole('link', { name: m.research_nav_accounts() }))
+    return fetchMock
+  }
+
+  const blockButton = (email: string) => ({ name: m.research_accounts_block_label({ email }) })
+
+  it('shows the accounts link only to the admin', async () => {
+    serve({ 'GET /api/v1/auth/me': { status: 200, body: RESEARCHER } })
+    render(<ResearchArea onBack={vi.fn()} />)
+
+    await screen.findByRole('navigation', { name: m.research_nav_label() })
+    expect(screen.queryByRole('link', { name: m.research_nav_accounts() })).not.toBeInTheDocument()
+  })
+
+  it('lists every account with its status', async () => {
+    await openAccounts({ 'GET /api/v1/auth/accounts': { status: 200, body: [ME, { ...BANCA, status: 'invited' }] } })
+
+    expect(await screen.findByRole('heading', { name: m.research_accounts_title() })).toBeInTheDocument()
+    const row = (await screen.findByText('banca@exemplo.com')).closest('tr')!
+    expect(within(row).getByText(m.research_status_invited())).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/pesquisa/contas')
+  })
+
+  it('generates an invite link that can be copied', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const fetchMock = await openAccounts({
+      'GET /api/v1/auth/accounts': { status: 200, body: [ME] },
+      'POST /api/v1/auth/invites': { status: 201, body: { url: LINK } },
+    })
+
+    fireEvent.change(await screen.findByLabelText(m.research_accounts_email()), { target: { value: 'banca@exemplo.com' } })
+    fireEvent.change(screen.getByLabelText(m.research_accounts_last_day()), { target: { value: '2026-12-20' } })
+    fireEvent.click(screen.getByRole('button', { name: m.research_accounts_invite_submit() }))
+
+    expect(await screen.findByDisplayValue(LINK)).toBeInTheDocument()
+    const [, init] = fetchMock.mock.calls.find(([path]) => path === '/api/v1/auth/invites')!
+    expect(JSON.parse(init!.body as string)).toEqual({
+      email: 'banca@exemplo.com',
+      role: 'researcher',
+      expires_on: '2026-12-20',
+    })
+    fireEvent.click(screen.getByRole('button', { name: m.research_accounts_copy() }))
+    expect(await screen.findByText(m.research_accounts_copied())).toBeInTheDocument()
+    expect(writeText).toHaveBeenCalledWith(LINK)
+  })
+
+  it('blocks another account after confirming, but never offers to block your own', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const fetchMock = await openAccounts({
+      'GET /api/v1/auth/accounts': [
+        { status: 200, body: [ME, BANCA] },
+        { status: 200, body: [ME, { ...BANCA, status: 'disabled' }] },
+      ],
+      'POST /api/v1/auth/accounts/disable': { status: 204 },
+    })
+
+    fireEvent.click(await screen.findByRole('button', blockButton('banca@exemplo.com')))
+
+    const row = (await screen.findByText(m.research_status_disabled())).closest('tr')!
+    expect(within(row).getByText('banca@exemplo.com')).toBeInTheDocument()
+    expect(screen.queryByRole('button', blockButton(ADMIN.email))).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/auth/accounts/disable', expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('keeps the account when blocking is not confirmed', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const fetchMock = await openAccounts({ 'GET /api/v1/auth/accounts': { status: 200, body: [ME, BANCA] } })
+
+    fireEvent.click(await screen.findByRole('button', blockButton('banca@exemplo.com')))
+
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/v1/auth/accounts/disable', expect.anything())
+  })
+
+  it('words a failed invite', async () => {
+    await openAccounts({
+      'GET /api/v1/auth/accounts': { status: 200, body: [ME] },
+      'POST /api/v1/auth/invites': { status: 500 },
+    })
+
+    fireEvent.change(await screen.findByLabelText(m.research_accounts_email()), { target: { value: 'banca@exemplo.com' } })
+    fireEvent.click(screen.getByRole('button', { name: m.research_accounts_invite_submit() }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(m.research_accounts_invite_failed())
   })
 })

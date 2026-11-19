@@ -15,6 +15,7 @@ dependencies = [
     "pydantic>=2.8.0",
     "scikit-learn>=1.5.0",
     "numpy>=1.26.0",
+    "matplotlib>=3.10.0",  # PNG figures for the article: Word handles SVG badly
 ]
 
 [tool.uv.sources]

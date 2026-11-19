@@ -6,6 +6,9 @@ from research_runner.domain.metrics import (
     calculate_ece,
     calculate_percentiles,
     calculate_cost_per_1k,
+    false_alarm_rates,
+    misclassified,
+    wilson_interval,
 )
 
 
@@ -114,3 +117,71 @@ def test_reliability_bins_feed_the_diagram_and_the_ece():
         )
         < 1e-9
     )
+
+
+def test_wilson_interval_matches_the_textbook_value():
+    low, high = wilson_interval(8, 10)
+    assert low == pytest.approx(0.4902, abs=1e-4)
+    assert high == pytest.approx(0.9433, abs=1e-4)
+
+
+def test_wilson_interval_without_data_says_nothing_is_known():
+    assert wilson_interval(0, 0) == (0.0, 1.0)
+
+
+def test_wilson_interval_stays_inside_zero_and_one():
+    low, high = wilson_interval(0, 5)
+    assert low == 0.0 and 0.0 < high < 1.0
+    low, high = wilson_interval(5, 5)
+    assert 0.0 < low < 1.0 and high == pytest.approx(1.0)
+
+
+def test_metrics_carry_intervals_and_the_caution_and_inconclusive_rates():
+    predictions = [
+        SamplePrediction("1", "GOLPE", "GOLPE", 0.9, 1.0, 0.0, "s"),
+        SamplePrediction("2", "GOLPE", "CUIDADO", 0.6, 1.0, 0.0, "s"),
+        SamplePrediction("3", "GOLPE", "INCONCLUSIVO", 0.5, 1.0, 0.0, "s"),
+        SamplePrediction("4", "SEGURO", "SEGURO", 0.9, 1.0, 0.0, "s"),
+    ]
+
+    report = calculate_metrics(predictions)
+
+    assert report.caution_rate == pytest.approx(0.25)
+    assert report.inconclusive_rate == pytest.approx(0.25)
+    # Only GOLPE counts as a detection: recall is 1 of 3 scams.
+    assert report.recall_ci == wilson_interval(1, 3)
+    assert report.precision_ci == wilson_interval(1, 1)
+    assert report.accuracy_ci == wilson_interval(2, 4)
+
+
+def test_misclassified_lists_ids_and_labels_never_the_content():
+    predictions = [
+        SamplePrediction("ok", "GOLPE", "GOLPE", 0.9, 1.0, 0.0, "stage_2"),
+        SamplePrediction("miss", "GOLPE", "CUIDADO", 0.6, 1.0, 0.0, "stage_1"),
+    ]
+
+    assert misclassified(predictions) == [
+        {"id": "miss", "expected": "GOLPE", "predicted": "CUIDADO", "deciding_stage": "stage_1"}
+    ]
+
+
+def test_false_alarm_rates_count_golpe_and_cuidado_among_legit_lookalikes():
+    predictions = [
+        SamplePrediction("a", "SEGURO", "GOLPE", 0.8, 1.0, 0.0, "s"),
+        SamplePrediction("b", "SEGURO", "CUIDADO", 0.6, 1.0, 0.0, "s"),
+        SamplePrediction("c", "SEGURO", "SEGURO", 0.9, 1.0, 0.0, "s"),
+        SamplePrediction("d", "SEGURO", "SEGURO", 0.9, 1.0, 0.0, "s"),
+        SamplePrediction("other", "SEGURO", "GOLPE", 0.9, 1.0, 0.0, "s"),
+    ]
+
+    rates = false_alarm_rates(predictions, group={"a", "b", "c", "d"})
+
+    assert rates == {"samples": 4, "golpe_rate": 0.25, "cuidado_rate": 0.25}
+
+
+def test_false_alarm_rates_without_samples_report_no_rate():
+    assert false_alarm_rates([], group=set()) == {
+        "samples": 0,
+        "golpe_rate": None,
+        "cuidado_rate": None,
+    }

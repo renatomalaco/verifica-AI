@@ -145,6 +145,12 @@ a {
   outline-offset: 3px;
 }
 
+/* Screens move focus to their title so screen readers announce it; a heading
+   is not interactive, so it needs no visible ring (WCAG 2.4.7 covers controls). */
+h1[tabindex="-1"]:focus {
+  outline: none;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

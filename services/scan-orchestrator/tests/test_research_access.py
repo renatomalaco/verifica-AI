@@ -1,9 +1,9 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
 
-from contracts import ResearchRole
+from contracts import ResearchAccountStatus, ResearchRole
 from scan_orchestrator.domain.research_access import (
     Account,
     LoginLimits,
@@ -12,8 +12,11 @@ from scan_orchestrator.domain.research_access import (
     SessionState,
     TooManyAttemptsError,
     WeakPasswordError,
+    access_ends_at,
+    can_manage_accounts,
     can_run_study,
     hash_secret,
+    invite_link,
     new_secret,
     validate_password,
 )
@@ -122,3 +125,37 @@ async def test_the_throttle_never_stores_the_email_in_clear():
     await LoginThrottle(store, LIMITS).register_attempt("banca@exemplo.com", ip="10.0.0.1")
 
     assert not any("banca" in key for key in store.counters)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "status"),
+    [
+        ({}, ResearchAccountStatus.ACTIVE),
+        ({"password_hash": None}, ResearchAccountStatus.INVITED),
+        ({"expires_at": NOW - timedelta(seconds=1)}, ResearchAccountStatus.EXPIRED),
+        ({"disabled_at": NOW}, ResearchAccountStatus.DISABLED),
+        # Blocking wins: an old invite or an expiry must not hide that someone was cut off.
+        (
+            {"password_hash": None, "expires_at": NOW - timedelta(days=1), "disabled_at": NOW},
+            ResearchAccountStatus.DISABLED,
+        ),
+    ],
+)
+def test_the_admin_sees_one_status_per_account(overrides, status):
+    assert account(**overrides).status(NOW) is status
+
+
+def test_only_the_admin_manages_accounts():
+    assert can_manage_accounts(ResearchRole.ADMIN)
+    assert not can_manage_accounts(ResearchRole.RESEARCHER)
+
+
+def test_access_ends_at_midnight_after_the_last_day_in_brasilia():
+    assert access_ends_at(date(2026, 12, 20)) == datetime(2026, 12, 21, 3, 0, tzinfo=timezone.utc)
+
+
+def test_the_invite_link_carries_the_token_after_the_hash():
+    assert (
+        invite_link("https://verifica.test", "abc")
+        == "https://verifica.test/pesquisa/convite#token=abc"
+    )

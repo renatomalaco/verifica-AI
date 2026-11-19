@@ -4,6 +4,7 @@ import pytest
 
 from contracts import ResearchRole
 from scan_orchestrator.application.research_auth import (
+    CannotDisableSelfError,
     InvalidCredentialsError,
     InviteInvalidError,
     ResearchAuth,
@@ -233,3 +234,33 @@ async def test_invite_normalizes_the_email(auth):
     assert (
         await auth.login("banca@exemplo.com", PASSWORD, ip="10.0.0.1")
     ).account.email == "banca@exemplo.com"
+
+
+async def test_list_accounts_comes_sorted_by_email(auth):
+    await researcher(auth, "zelia@exemplo.com")
+    await auth.invite("ana@exemplo.com", ResearchRole.ADMIN)
+
+    assert [a.email for a in await auth.list_accounts()] == ["ana@exemplo.com", "zelia@exemplo.com"]
+
+
+async def test_an_admin_blocks_another_account(auth):
+    await researcher(auth)
+    admin = await auth.login(await admin_account(auth), PASSWORD, ip="1.1.1.1")
+
+    assert await auth.disable_for(admin.account.id, "banca@exemplo.com") is True
+    with pytest.raises(InvalidCredentialsError):
+        await auth.login("banca@exemplo.com", PASSWORD, ip="1.1.1.1")
+
+
+async def test_an_admin_cannot_block_their_own_account(auth):
+    # Blocking yourself would leave the area with no one to send invites.
+    admin = await auth.login(await admin_account(auth), PASSWORD, ip="1.1.1.1")
+
+    with pytest.raises(CannotDisableSelfError):
+        await auth.disable_for(admin.account.id, " Admin@Exemplo.com")
+
+
+async def admin_account(auth: ResearchAuth) -> str:
+    email = "admin@exemplo.com"
+    await auth.accept_invite(await auth.invite(email, ResearchRole.ADMIN), PASSWORD)
+    return email
