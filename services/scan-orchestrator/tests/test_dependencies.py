@@ -1,4 +1,9 @@
-from scan_orchestrator.api.dependencies import get_brand_matcher_client, get_scan_repository
+from scan_orchestrator.api.dependencies import (
+    get_brand_matcher_client,
+    get_explainer_client,
+    get_scan_repository,
+    get_triage_client,
+)
 from scan_orchestrator.infrastructure.brand_matcher_client import HttpBrandMatcherClient
 from scan_orchestrator.infrastructure.scan_repository import (
     InMemoryScanRepository,
@@ -26,3 +31,20 @@ def test_visual_rag_is_off_until_explicitly_enabled():
 def test_enabled_visual_rag_calls_the_ai_gateway():
     client = get_brand_matcher_client(Settings(_env_file=None, VISUAL_RAG_ENABLED=True))
     assert isinstance(client, HttpBrandMatcherClient)
+
+
+def test_ai_gateway_calls_outwait_the_gemini_timeout_of_the_gateway():
+    # The gateway gives Gemini up to 15 s (GEMINI_TIMEOUT_SECONDS). Giving up earlier here
+    # turned every Gemini triage into the INCONCLUSIVO fallback in production.
+    settings = Settings(_env_file=None)
+
+    assert settings.AI_GATEWAY_TIMEOUT_SECONDS == 20.0
+    assert get_triage_client(settings)._timeout_seconds == 20.0
+    assert get_explainer_client(settings)._timeout_seconds == 20.0
+
+
+def test_ai_gateway_timeout_is_configurable():
+    settings = Settings(_env_file=None, AI_GATEWAY_TIMEOUT_SECONDS=30.0)
+
+    assert get_triage_client(settings)._timeout_seconds == 30.0
+    assert get_explainer_client(settings)._timeout_seconds == 30.0

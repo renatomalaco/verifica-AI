@@ -80,7 +80,9 @@ def get_device_secret(settings: Settings = Depends(get_settings)) -> bytes:
 
 
 def get_triage_client(settings: Settings = Depends(get_settings)) -> TriageClient:
-    return HttpTriageClient(base_url=settings.AI_GATEWAY_URL)
+    return HttpTriageClient(
+        base_url=settings.AI_GATEWAY_URL, timeout_seconds=settings.AI_GATEWAY_TIMEOUT_SECONDS
+    )
 
 
 @lru_cache
@@ -130,7 +132,9 @@ def get_brand_matcher_client(
 
 
 def get_explainer_client(settings: Settings = Depends(get_settings)) -> ExplainerClientProtocol:
-    return HttpExplainerClient(base_url=settings.AI_GATEWAY_URL)
+    return HttpExplainerClient(
+        base_url=settings.AI_GATEWAY_URL, timeout_seconds=settings.AI_GATEWAY_TIMEOUT_SECONDS
+    )
 
 
 @lru_cache
