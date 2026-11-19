@@ -1,11 +1,17 @@
-import { pickVoice } from '../domain/voice'
+import recordings from '../content/recordings.json'
+import { pickVoice, recordingFile } from '../domain/voice'
+import { getLocale } from '../paraglide/runtime.js'
 
 // Chrome fills the voice list asynchronously; past this wait, the browser default voice reads.
 export const VOICES_TIMEOUT_MS = 1500
 const DEFAULT_LANG = 'pt-BR'
 
+// Fixed texts recorded once by scripts/render-voice.mjs: the same calm voice on every device.
+const RECORDED: ReadonlySet<string> = new Set(recordings.keys)
+
 // Bumped by every speak or stop, so a speech still waiting for voices knows it was superseded.
 let generation = 0
+let playing: HTMLAudioElement | null = null
 
 export function isSpeechSupported(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window
@@ -13,6 +19,8 @@ export function isSpeechSupported(): boolean {
 
 export function stopSpeaking(): void {
   generation += 1
+  playing?.pause()
+  playing = null
   if (isSpeechSupported()) {
     window.speechSynthesis.cancel()
   }
@@ -33,17 +41,47 @@ function deviceVoices(): Promise<SpeechSynthesisVoice[]> {
   })
 }
 
+interface SpeechEvents {
+  onStart?: () => void
+  onEnd?: () => void
+  onError?: () => void
+}
+
 export async function speakVerdict(
   text: string,
   onStart?: () => void,
   onEnd?: () => void,
   onError?: () => void
 ): Promise<void> {
-  if (!isSpeechSupported() || !text.trim()) {
-    return
-  }
+  if (!text.trim()) return
 
   stopSpeaking()
+  const events = { onStart, onEnd, onError }
+  const file = recordingFile(RECORDED, getLocale(), text)
+  if (file) return playRecording(import.meta.env.BASE_URL + file, text, events)
+  return speakWithDeviceVoice(text, events)
+}
+
+// A missing file, no network or a blocked autoplay: the device voice reads instead.
+function playRecording(url: string, text: string, events: SpeechEvents): Promise<void> {
+  const mine = generation
+  const fallBack = () => {
+    if (mine !== generation) return
+    stopSpeaking()
+    return speakWithDeviceVoice(text, events)
+  }
+
+  const audio = new Audio(url)
+  playing = audio
+  if (events.onStart) audio.onplaying = events.onStart
+  if (events.onEnd) audio.onended = events.onEnd
+  audio.onerror = fallBack
+  return audio.play().catch(fallBack)
+}
+
+async function speakWithDeviceVoice(text: string, { onStart, onEnd, onError }: SpeechEvents): Promise<void> {
+  if (!isSpeechSupported()) return
+
   const mine = generation
   const voice = pickVoice(await deviceVoices())
   if (mine !== generation) return

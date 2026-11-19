@@ -1,6 +1,6 @@
 // Verdict product rules: what to say and when. No React, testable in isolation.
 import { m } from '../paraglide/messages.js'
-import type { Channel, ScanResponse, ThreatLevel, VerdictMessage } from '../types'
+import { VERDICT_MESSAGES, type Channel, type ScanResponse, type ThreatLevel, type VerdictMessage } from '../types'
 
 type Text = () => string
 
@@ -77,9 +77,19 @@ export const verdictSteps = (code: VerdictMessage): string[] => MESSAGES[code].s
 // "Já caí nesse golpe" only makes sense when there was real risk.
 export const offersScamHelp = (level: ThreatLevel): boolean => level === 'GOLPE' || level === 'CUIDADO'
 
-export function spokenVerdictText({ threat_level, verdict_message }: ScanResponse): string {
+type SpokenVerdict = Pick<ScanResponse, 'threat_level' | 'verdict_message'>
+
+export function spokenVerdictText({ threat_level, verdict_message }: SpokenVerdict): string {
   const steps = verdictSteps(verdict_message).join(' ')
   return `${verdictTitle(threat_level)} ${verdictSummary(verdict_message)} ${todoTitle(threat_level)}: ${steps}`
+}
+
+// Every pairing, not just the usual ones: the backend may flag brand spoofing at any threat level.
+export function allSpokenVerdicts(): string[] {
+  const levels = Object.keys(TITLES) as ThreatLevel[]
+  return levels.flatMap((threat_level) =>
+    VERDICT_MESSAGES.map((verdict_message) => spokenVerdictText({ threat_level, verdict_message }))
+  )
 }
 
 export function familyAlertText({ threat_level, verdict_message }: ScanResponse): string {

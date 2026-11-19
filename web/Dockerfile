@@ -29,8 +29,8 @@ server {
         return 303 /;
     }
 
-    # Static asset caching
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+    # Static asset caching (voice/*.mp3 are named by a hash of their text, so they never change)
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|mp3)$ {
         root /usr/share/nginx/html;
         expires 1y;
         add_header Cache-Control "public, immutable";

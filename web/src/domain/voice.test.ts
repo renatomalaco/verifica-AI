@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pickVoice } from './voice'
+import { pickVoice, planRecordings, recordingFile, recordingKey } from './voice'
 
 const voice = (name: string, lang: string) => ({ name, lang })
 
@@ -39,5 +39,65 @@ describe('pickVoice', () => {
   it('leaves the choice to the browser when there is no Portuguese voice', () => {
     expect(pickVoice([voice('Samantha', 'en-US')])).toBeNull()
     expect(pickVoice([])).toBeNull()
+  })
+})
+
+describe('recordingKey', () => {
+  it('is stable for the same text and locale', () => {
+    expect(recordingKey('pt-BR', 'Isto é um golpe.')).toBe(recordingKey('pt-BR', 'Isto é um golpe.'))
+  })
+
+  it('changes when the text or the locale changes', () => {
+    const key = recordingKey('pt-BR', 'Isto é um golpe.')
+    expect(recordingKey('pt-BR', 'Isto é um golpe!')).not.toBe(key)
+    expect(recordingKey('pt-PT', 'Isto é um golpe.')).not.toBe(key)
+  })
+
+  it('is safe to use as a file name', () => {
+    expect(recordingKey('pt-BR', 'Cuidado: pode ser golpe.')).toMatch(/^[0-9a-f]+$/)
+  })
+})
+
+describe('recordingFile', () => {
+  const recorded = new Set([recordingKey('pt-BR', 'Isto é um golpe.')])
+
+  it('points to the recording of a recorded text', () => {
+    expect(recordingFile(recorded, 'pt-BR', 'Isto é um golpe.')).toBe(`voice/${recordingKey('pt-BR', 'Isto é um golpe.')}.mp3`)
+  })
+
+  it('has no recording for a text that was never recorded', () => {
+    expect(recordingFile(recorded, 'pt-BR', 'Texto novo.')).toBeNull()
+  })
+
+  it('has no recording for the same text in another locale', () => {
+    expect(recordingFile(recorded, 'pt-PT', 'Isto é um golpe.')).toBeNull()
+  })
+})
+
+describe('planRecordings', () => {
+  const recording = (text: string) => ({ key: recordingKey('pt-BR', text), locale: 'pt-BR', text })
+  const OLD = recording('Texto antigo.')
+  const KEPT = recording('Texto igual.')
+  const NEW = recording('Texto novo.')
+  const VOICE = { model: 'gemini-tts', voice: 'Sulafat' }
+  const previous = { ...VOICE, keys: [OLD.key, KEPT.key] }
+
+  it('records only the texts that are not recorded yet', () => {
+    const plan = planRecordings(previous, VOICE, [KEPT, NEW])
+    expect(plan.keep).toEqual([KEPT.key])
+    expect(plan.render).toEqual([NEW])
+  })
+
+  it('drops recordings of texts that are no longer spoken', () => {
+    expect(planRecordings(previous, VOICE, [NEW]).keep).toEqual([])
+  })
+
+  it('records everything again when the model or the voice changes', () => {
+    expect(planRecordings(previous, { ...VOICE, voice: 'Kore' }, [KEPT, NEW])).toEqual({ keep: [], render: [KEPT, NEW] })
+    expect(planRecordings(previous, { ...VOICE, model: 'other' }, [KEPT]).render).toEqual([KEPT])
+  })
+
+  it('records a text spoken in two places only once', () => {
+    expect(planRecordings(previous, VOICE, [NEW, NEW]).render).toEqual([NEW])
   })
 })
