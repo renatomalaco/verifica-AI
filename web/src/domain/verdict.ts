@@ -54,6 +54,10 @@ const MESSAGES: Record<VerdictMessage, { summary: Text; steps: Text[] }> = {
     summary: m.verdict_safe_summary,
     steps: [m.verdict_safe_step_1],
   },
+  safe_own_address: {
+    summary: m.verdict_safe_own_address_summary,
+    steps: [m.verdict_safe_own_address_step_1],
+  },
   inconclusive: {
     summary: m.verdict_inconclusive_summary,
     steps: [m.verdict_inconclusive_step_1, m.verdict_inconclusive_step_2],

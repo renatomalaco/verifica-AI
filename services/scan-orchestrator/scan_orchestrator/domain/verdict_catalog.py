@@ -20,6 +20,8 @@ def verdict_message_for(
     category: str | None = None,
 ) -> VerdictMessage:
     """Picks the message code; the wording lives in the front end's dictionary."""
+    if category == "own_address":
+        return VerdictMessage.SAFE_OWN_ADDRESS
     if category == "brand_spoofing":
         return VerdictMessage.SCAM_BRAND_SPOOFING
     if threat is ThreatLevel.SCAM and persuasion in _SCAM_BY_PERSUASION:

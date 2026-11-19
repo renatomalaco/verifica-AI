@@ -41,6 +41,7 @@ class VerdictMessage(StrEnum):
     SCAM_GENERIC = "scam_generic"
     CAUTION = "caution"
     SAFE = "safe"
+    SAFE_OWN_ADDRESS = "safe_own_address"  # the link is the Verifica AI site itself
     INCONCLUSIVE = "inconclusive"
 
 

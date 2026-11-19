@@ -1,10 +1,20 @@
+from contracts import VerdictMessage
 from scan_orchestrator.api.dependencies import (
     get_brand_matcher_client,
+    get_cascade,
     get_explainer_client,
     get_scan_repository,
     get_triage_client,
 )
+from scan_orchestrator.domain.cascade import StageContext
+from scan_orchestrator.domain.decision import ThresholdPolicy
 from scan_orchestrator.infrastructure.brand_matcher_client import HttpBrandMatcherClient
+from scan_orchestrator.infrastructure.fakes import (
+    FakeDomainEvidenceClient,
+    FakeInspectorClient,
+    FakeRedisCacheClient,
+    FakeTriageClient,
+)
 from scan_orchestrator.infrastructure.scan_repository import (
     InMemoryScanRepository,
     SqlScanRepository,
@@ -48,3 +58,19 @@ def test_ai_gateway_timeout_is_configurable():
 
     assert get_triage_client(settings)._timeout_seconds == 30.0
     assert get_explainer_client(settings)._timeout_seconds == 30.0
+
+
+async def test_the_cascade_knows_the_public_address_of_the_site():
+    cascade = get_cascade(
+        settings=Settings(_env_file=None, PUBLIC_BASE_URL="https://verifica-ai.duckdns.org"),
+        policy=ThresholdPolicy(scam=0.70, safe=0.30),
+        redis_client=FakeRedisCacheClient(),
+        evidence_client=FakeDomainEvidenceClient(),
+        inspector_client=FakeInspectorClient(),
+        triage_client=FakeTriageClient(),
+        brand_matcher=None,
+    )
+
+    response = await cascade.run(StageContext(raw_url="https://verifica-ai.duckdns.org/"))
+
+    assert response.verdict_message is VerdictMessage.SAFE_OWN_ADDRESS

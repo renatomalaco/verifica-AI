@@ -29,6 +29,7 @@ export const VERDICT_MESSAGES = [
   'scam_generic',
   'caution',
   'safe',
+  'safe_own_address',
   'inconclusive',
 ] as const
 

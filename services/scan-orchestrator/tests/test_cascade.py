@@ -1,5 +1,5 @@
 import pytest
-from contracts import ThreatLevel, InspectResult, TriageResult, Persuasion
+from contracts import ThreatLevel, InspectResult, TriageResult, Persuasion, VerdictMessage
 from scan_orchestrator.domain.decision import ThresholdPolicy
 from scan_orchestrator.domain.cascade import (
     StageContext,
@@ -64,6 +64,40 @@ async def test_stage0_blacklist_feed_short_circuit(cascade, fake_redis):
     assert res.threat_level == ThreatLevel.SCAM
     assert res.details.deciding_stage == "stage_0_blacklist_feed"
     assert res.details.scores["is_phishing"] == 1.0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "url", ["https://verifica-ai.duckdns.org", "verifica-ai.duckdns.org/pesquisa?x=1"]
+)
+async def test_stage0_recognizes_the_products_own_address(fake_redis, fake_reputation, policy, url):
+    # A young dynamic-DNS domain would otherwise look suspicious; this one is known for sure.
+    stage0 = Stage0CacheAndFeeds(fake_redis, own_host="verifica-ai.duckdns.org")
+    cascade = Cascade(stages=[stage0, Stage1ReputationAndSignals(fake_reputation)], policy=policy)
+
+    res = await cascade.run(StageContext(raw_url=url))
+
+    assert res.threat_level == ThreatLevel.SAFE
+    assert res.verdict_message is VerdictMessage.SAFE_OWN_ADDRESS
+    assert res.details.deciding_stage == "stage_0_own_address"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://verifica-ai.duckdns.org.golpe.com",
+        "https://falso-verifica-ai.duckdns.org",
+        "https://golpe.com/verifica-ai.duckdns.org",
+    ],
+)
+async def test_stage0_does_not_trust_lookalikes_of_the_own_address(fake_redis, url):
+    stage0 = Stage0CacheAndFeeds(fake_redis, own_host="verifica-ai.duckdns.org")
+    ctx = StageContext(raw_url=url)
+
+    await stage0.process(ctx)
+
+    assert not ctx.is_short_circuited
 
 
 @pytest.mark.asyncio

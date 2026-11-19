@@ -33,3 +33,8 @@ def test_persuasion_does_not_turn_a_non_scam_into_a_scam_message():
 def test_every_threat_level_has_a_message():
     for threat in ThreatLevel:
         assert isinstance(verdict_message_for(threat, None), VerdictMessage)
+
+
+def test_the_own_address_gets_a_message_that_names_the_product():
+    message = verdict_message_for(ThreatLevel.SAFE, None, category="own_address")
+    assert message is VerdictMessage.SAFE_OWN_ADDRESS

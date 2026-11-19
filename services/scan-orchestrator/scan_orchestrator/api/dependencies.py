@@ -6,6 +6,7 @@ from functools import lru_cache
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from contracts import extract_domain
 from scan_orchestrator.application.analyze_text import AnalyzeTextUseCase
 from scan_orchestrator.application.explain_scan import ExplainScanUseCase
 from scan_orchestrator.application.research_auth import ResearchAuth
@@ -157,6 +158,7 @@ def get_scan_rate_limit(
 
 
 def get_cascade(
+    settings: Settings = Depends(get_settings),
     policy: ThresholdPolicy = Depends(get_threshold_policy),
     redis_client: RedisCacheClientProtocol = Depends(get_redis_client),
     evidence_client: DomainEvidenceClient = Depends(get_domain_evidence_client),
@@ -165,7 +167,9 @@ def get_cascade(
     brand_matcher: BrandMatcherClientProtocol | None = Depends(get_brand_matcher_client),
 ) -> Cascade:
     stages = [
-        Stage0CacheAndFeeds(cache_client=redis_client),
+        Stage0CacheAndFeeds(
+            cache_client=redis_client, own_host=extract_domain(settings.PUBLIC_BASE_URL)
+        ),
         Stage1ReputationAndSignals(evidence_client=evidence_client),
         Stage2RemoteInspection(
             inspector_client=inspector_client,

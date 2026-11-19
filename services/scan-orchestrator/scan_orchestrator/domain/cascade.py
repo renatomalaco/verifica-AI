@@ -120,10 +120,16 @@ class Stage0CacheAndFeeds:
 
     name = StageName.STAGE_0_CACHE
 
-    def __init__(self, cache_client: RedisCacheClientProtocol) -> None:
+    def __init__(self, cache_client: RedisCacheClientProtocol, own_host: str = "") -> None:
         self._cache = cache_client
+        self._own_host = own_host
 
     async def process(self, ctx: StageContext) -> None:
+        # The product's own site is known for sure; exact host only, so lookalikes still go on.
+        if self._own_host and ctx.domain == self._own_host:
+            ctx.short_circuit(ThreatLevel.SAFE, "stage_0_own_address", "own_address")
+            ctx.scores["is_phishing"] = 0.0
+            return
         started = time.perf_counter()
         is_hit = await self._cache.is_blacklisted(ctx.normalized_url)
         ctx.latency_breakdown["stage_0"] = elapsed_ms(started)
