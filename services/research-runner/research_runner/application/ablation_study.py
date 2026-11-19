@@ -13,7 +13,7 @@ from research_runner.application.benchmark_service import run_mode
 from research_runner.domain.ablation_models import AblationMode, ModeEvaluation
 from research_runner.domain.adversarial_eval import evaluate_adversarial
 from research_runner.domain.dataset import Sample, Split, assign_splits
-from research_runner.domain.metrics import reliability_bins
+from research_runner.domain.metrics import false_alarm_rates, misclassified, reliability_bins
 from research_runner.infrastructure.evaluators import (
     PROVIDER_FAILURE,
     CascadeEvaluator,
@@ -38,6 +38,8 @@ LOCAL_TRIAGE = (
 REAL_TRIAGE = (
     "ai-gateway triage path (PII masking + untrusted-content envelope) calling {provider} {model}"
 )
+# Legitimate messages that look like scams: where the cascade must not scare people for nothing.
+FALSE_ALARM_CATEGORY = "legitimo_parece_golpe"
 # deciding_stage of a sample whose model call failed, per mode (the cascade answers INCONCLUSIVO).
 FAILURE_STAGES = {
     AblationMode.PURE_VLM.value: PROVIDER_FAILURE,
@@ -84,7 +86,8 @@ async def run_study(
     adversarial = evaluate_adversarial(
         test, scam_probability=classifier.scam_probability, sanitize=sanitize_text
     )
-    modes = [_mode_entry(e) for e in evaluations]
+    lookalikes = {s.id for s in test if s.category == FALSE_ALARM_CATEGORY}
+    modes = [_mode_entry(e, lookalikes) for e in evaluations]
 
     return {
         "meta": _meta(samples, splits, test, config, providers, modes),
@@ -107,7 +110,7 @@ async def _evaluate(
     )
 
 
-def _mode_entry(evaluation: ModeEvaluation) -> dict[str, Any]:
+def _mode_entry(evaluation: ModeEvaluation, lookalikes: set[str]) -> dict[str, Any]:
     entry: dict[str, Any] = {"mode": evaluation.mode.value, "status": evaluation.status}
     if evaluation.status != "executed":
         return {**entry, "note": evaluation.note}
@@ -116,6 +119,8 @@ def _mode_entry(evaluation: ModeEvaluation) -> dict[str, Any]:
         "metrics": asdict(evaluation.metrics),
         "stage_breakdown": evaluation.stage_breakdown,
         "reliability": [asdict(b) for b in reliability_bins(evaluation.predictions)],
+        "errors": misclassified(evaluation.predictions),
+        "false_alarm": false_alarm_rates(evaluation.predictions, lookalikes),
     }
 
 
@@ -136,6 +141,7 @@ def _meta(
             "train": sum(1 for s in samples if splits[s.id] is Split.TRAIN),
             "test": len(test),
             "test_by_channel_and_label": dict(Counter(f"{s.channel}/{s.label}" for s in test)),
+            "test_false_alarm_group": sum(1 for s in test if s.category == FALSE_ALARM_CATEGORY),
             "origin": dict(Counter(s.origin for s in samples)),
         },
         "triage": REAL_TRIAGE.format(**providers.triage.description)

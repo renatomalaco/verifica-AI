@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import List, Tuple
+import math
+from typing import Any, List, Tuple
 import numpy as np
 from research_runner.domain.ablation_models import (
     ConfusionMatrix,
@@ -91,6 +92,50 @@ def calculate_cost_per_1k(
     return float(cost_usd_1k), float(cost_brl_1k)
 
 
+Z_95 = 1.959964
+
+
+def wilson_interval(successes: int, total: int, z: float = Z_95) -> Tuple[float, float]:
+    """Wilson score interval: unlike p ± z·se it stays in [0, 1] and works with few samples."""
+    if total == 0:
+        return 0.0, 1.0
+    p = successes / total
+    denominator = 1 + z * z / total
+    center = (p + z * z / (2 * total)) / denominator
+    margin = z * math.sqrt(p * (1 - p) / total + z * z / (4 * total * total)) / denominator
+    return max(0.0, center - margin), min(1.0, center + margin)
+
+
+def _rate(predictions: List[SamplePrediction], level: str) -> float:
+    return sum(1 for p in predictions if p.predicted == level) / len(predictions)
+
+
+def misclassified(predictions: List[SamplePrediction]) -> List[dict[str, str]]:
+    """Wrong answers for the error analysis: ids and labels only, never the message."""
+    return [
+        {
+            "id": p.sample_id,
+            "expected": p.expected,
+            "predicted": p.predicted,
+            "deciding_stage": p.deciding_stage,
+        }
+        for p in predictions
+        if not p.is_correct
+    ]
+
+
+def false_alarm_rates(predictions: List[SamplePrediction], group: set[str]) -> dict[str, Any]:
+    """How often legitimate messages that look like scams were flagged."""
+    members = [p for p in predictions if p.sample_id in group]
+    if not members:
+        return {"samples": 0, "golpe_rate": None, "cuidado_rate": None}
+    return {
+        "samples": len(members),
+        "golpe_rate": _rate(members, "GOLPE"),
+        "cuidado_rate": _rate(members, "CUIDADO"),
+    }
+
+
 def calculate_metrics(
     predictions: List[SamplePrediction], usd_to_brl: float = 5.50
 ) -> MetricsReport:
@@ -147,4 +192,9 @@ def calculate_metrics(
         cost_per_1k_brl=cost_brl_1k,
         total_samples=total,
         correct_samples=correct,
+        accuracy_ci=wilson_interval(correct, total),
+        precision_ci=wilson_interval(cm.tp, cm.tp + cm.fp),
+        recall_ci=wilson_interval(cm.tp, cm.tp + cm.fn),
+        caution_rate=_rate(predictions, "CUIDADO"),
+        inconclusive_rate=_rate(predictions, "INCONCLUSIVO"),
     )

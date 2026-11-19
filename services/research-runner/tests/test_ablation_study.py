@@ -10,7 +10,12 @@ from research_runner.infrastructure.llm_providers import providers_from_settings
 
 
 def sample(
-    id: str, content: str, label: str, origin: str = "real", channel: str = "texto"
+    id: str,
+    content: str,
+    label: str,
+    origin: str = "real",
+    channel: str = "texto",
+    category: str | None = None,
 ) -> Sample:
     return Sample(
         id=id,
@@ -20,6 +25,7 @@ def sample(
         origin=origin,
         source="t",
         collected_on="2026-10-01",
+        category=category,
     )
 
 
@@ -74,6 +80,33 @@ async def test_report_carries_reliability_bins_and_adversarial_results():
         "detected_without_sanitization",
         "detected_with_sanitization",
     }
+
+
+async def test_report_lists_each_error_by_id_without_the_message():
+    report = await run_study(REAL, CONFIG)
+
+    contents = set(SCAMS + SAFE)
+    for mode in (m for m in report["modes"] if m["status"] == "executed"):
+        wrong = mode["metrics"]["total_samples"] - mode["metrics"]["correct_samples"]
+        assert len(mode["errors"]) == wrong
+        for error in mode["errors"]:
+            assert set(error) == {"id", "expected", "predicted", "deciding_stage"}
+            assert not contents & set(error.values())
+
+
+async def test_report_measures_false_alarms_on_legit_messages_that_look_like_scams():
+    lookalikes = [
+        sample(f"l{i}", f"promo relampago so hoje {i}", "SEGURO", category="legitimo_parece_golpe")
+        for i in range(8)
+    ]
+
+    report = await run_study(REAL + lookalikes, CONFIG)
+
+    in_test = report["meta"]["split"]["test_false_alarm_group"]
+    assert in_test > 0
+    for mode in (m for m in report["modes"] if m["status"] == "executed"):
+        assert mode["false_alarm"]["samples"] == in_test
+        assert 0.0 <= mode["false_alarm"]["golpe_rate"] <= 1.0
 
 
 async def test_without_real_samples_the_report_warns_instead_of_inventing_numbers():
@@ -151,7 +184,7 @@ def test_gate_refuses_to_pass_without_a_test_split(tmp_path):
     assert code == 2
 
 
-def test_gate_compares_the_cascade_f1_on_the_test_split(tmp_path):
+def test_gate_compares_the_cascade_f1_on_the_test_split(tmp_path, capsys):
     dataset = write_dataset(tmp_path, REAL)
     assert (
         main(["--dataset", str(dataset), "--output-dir", str(tmp_path), "--threshold-f1", "0.0"])
@@ -162,6 +195,8 @@ def test_gate_compares_the_cascade_f1_on_the_test_split(tmp_path):
         == 1
     )
     assert json.loads((tmp_path / "latest.json").read_text(encoding="utf-8"))["modes"]
+    # The article also gets the intervals, the CUIDADO/INCONCLUSIVO rates and the false alarms.
+    assert "Acurácia (IC 95%)" in capsys.readouterr().out
     assert (tmp_path / "reliability_cascade.svg").read_text(encoding="utf-8").startswith("<svg")
 
 

@@ -1,13 +1,23 @@
-"""Writes the study report (JSON) and one reliability diagram (SVG) per executed mode."""
+"""Writes the study report (JSON) and one reliability diagram per executed mode, as SVG for the
+web and PNG for the article (Word handles SVG badly)."""
 
+import io
 import json
 import os
 from pathlib import Path
 from typing import Any
 
+import matplotlib
+
+matplotlib.use("Agg")  # no display on the server
+import matplotlib.pyplot as plt  # noqa: E402
+
 DEFAULT_REPORTS_DIR = Path(__file__).resolve().parents[2] / "reports"
 SIZE = 320
 PAD = 40
+PNG_DPI = 200  # 800 px for a 4-inch figure: sharp at the article's column width
+BAR = "#1F5464"
+GUIDE = "#4E5E66"
 
 
 def reports_dir() -> Path:
@@ -21,9 +31,9 @@ def write_report(report: dict[str, Any], out_dir: Path) -> None:
     )
     for mode in report["modes"]:
         if mode["status"] == "executed":
-            (out_dir / f"reliability_{mode['mode']}.svg").write_text(
-                render_reliability_svg(mode), encoding="utf-8"
-            )
+            name = f"reliability_{mode['mode']}"
+            (out_dir / f"{name}.svg").write_text(render_reliability_svg(mode), encoding="utf-8")
+            (out_dir / f"{name}.png").write_bytes(render_reliability_png(mode))
 
 
 def read_report(out_dir: Path) -> dict[str, Any] | None:
@@ -62,3 +72,20 @@ def render_reliability_svg(mode: dict[str, Any]) -> str:
         f'{mode["mode"]} — ECE {mode["metrics"]["ece"]:.3f}</text>'
         "</svg>"
     )
+
+
+def render_reliability_png(mode: dict[str, Any]) -> bytes:
+    """The same diagram as the SVG, for the article. matplotlib ships a font with accents."""
+    figure, axes = plt.subplots(figsize=(4, 4), dpi=PNG_DPI)
+    axes.plot([0, 1], [0, 1], linestyle="--", color=GUIDE, linewidth=1)
+    for b in mode["reliability"]:
+        width = b["upper"] - b["lower"]
+        axes.bar(b["lower"], b["accuracy"], width=width * 0.95, align="edge", color=BAR)
+    axes.set(xlim=(0, 1), ylim=(0, 1), xlabel="Confiança", ylabel="Acurácia")
+    axes.set_title(f"{mode['mode']} — ECE {mode['metrics']['ece']:.3f}")
+    figure.tight_layout()
+    buffer = io.BytesIO()
+    # No software version in the metadata, so the same report always gives the same bytes.
+    figure.savefig(buffer, format="png", metadata={"Software": None})
+    plt.close(figure)
+    return buffer.getvalue()

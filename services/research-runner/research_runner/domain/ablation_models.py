@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 class AblationMode(str, Enum):
@@ -49,6 +49,13 @@ class MetricsReport:
     cost_per_1k_brl: float
     total_samples: int
     correct_samples: int
+    # Wilson 95% intervals; (0.0, 1.0) when the denominator is zero.
+    accuracy_ci: Tuple[float, float] = (0.0, 1.0)
+    precision_ci: Tuple[float, float] = (0.0, 1.0)
+    recall_ci: Tuple[float, float] = (0.0, 1.0)
+    # Only GOLPE counts as a detection, so these answers on a scam are misses; shown apart.
+    caution_rate: float = 0.0
+    inconclusive_rate: float = 0.0
 
 
 @dataclass
