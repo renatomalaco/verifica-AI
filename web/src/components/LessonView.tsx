@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { lessons, lessonSpeechText, type Lesson } from '../content/lessons'
+import { lessons, lessonSpeechText, sourcesAccessedOn, type Lesson, type LessonSource } from '../content/lessons'
 import { m } from '../paraglide/messages.js'
 import { useSpeech } from '../hooks/useSpeech'
 import { BackIcon, SpeakerIcon } from './Icons'
@@ -108,6 +108,28 @@ export function LessonView({ lesson, position, onBack, onAnswered, onNext, nextL
           {nextLabel}
         </button>
       )}
+
+      {lesson.sources.length > 0 && <LessonSources sources={lesson.sources} />}
     </article>
+  )
+}
+
+function LessonSources({ sources }: { sources: LessonSource[] }) {
+  return (
+    <footer className="lesson-sources text-small text-muted" aria-labelledby="fontes-titulo">
+      <h2 className="text-small text-strong" id="fontes-titulo">
+        {m.learn_sources_title()}
+      </h2>
+      <ul>
+        {sources.map((source) => (
+          <li key={source.url}>
+            <a href={source.url} target="_blank" rel="noreferrer">
+              {source.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+      <p>{m.learn_sources_accessed({ date: sourcesAccessedOn() })}</p>
+    </footer>
   )
 }

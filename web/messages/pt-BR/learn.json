@@ -24,5 +24,7 @@
   "learn_feedback_scam": "É golpe.",
   "learn_feedback_not_scam": "Provavelmente não é golpe.",
   "learn_speech_signs": "Sinais de alerta:",
-  "learn_speech_do_this": "O que fazer:"
+  "learn_speech_do_this": "O que fazer:",
+  "learn_sources_title": "Fonte",
+  "learn_sources_accessed": "Consultado em {date}."
 }

@@ -41,6 +41,15 @@ describe('Learn', () => {
     expect(screen.getByRole('status')).toHaveTextContent(`${m.learn_feedback_wrong()} ${m.learn_feedback_not_scam()}`)
   })
 
+  it('shows where the lesson comes from, with a link to the source', () => {
+    const lesson = lessons().find((l) => l.id === 'falso-advogado')!
+    render(<Learn onBack={() => {}} initialLessonId="falso-advogado" />)
+
+    const link = screen.getByRole('link', { name: new RegExp(lesson.sources[0].title) })
+    expect(link).toHaveAttribute('href', lesson.sources[0].url)
+    expect(screen.getByText(m.learn_sources_accessed({ date: '18/11/2026' }))).toBeInTheDocument()
+  })
+
   it('goes back from the lesson list', () => {
     const onBack = vi.fn()
     render(<Learn onBack={onBack} />)
