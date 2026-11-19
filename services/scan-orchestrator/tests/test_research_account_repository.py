@@ -137,3 +137,13 @@ async def test_revoking_an_account_ends_all_its_sessions(repo):
 
     assert (await repo.find_session(first.token_hash)).revoked_at == NOW
     assert (await repo.find_session(second.token_hash)).revoked_at == NOW
+
+
+async def test_list_accounts_returns_every_account(repo):
+    emails = {unique_email(), unique_email()}
+    for email in emails:
+        await invite(repo, email)
+
+    listed = {account.email for account in await repo.list_accounts()}
+
+    assert emails <= listed  # the shared test database may hold accounts of other tests

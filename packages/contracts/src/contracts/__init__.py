@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Literal
 from uuid import UUID
@@ -244,3 +244,34 @@ class ResearchUser(BaseModel):
     email: str
     role: ResearchRole
     expires_at: datetime | None = None
+
+
+class ResearchAccountStatus(StrEnum):
+    ACTIVE = "active"
+    INVITED = "invited"  # the password was never set
+    EXPIRED = "expired"
+    DISABLED = "disabled"
+
+
+class ResearchAccount(ResearchUser):
+    """One row of the admin screen."""
+
+    status: ResearchAccountStatus
+
+
+class CreateInviteRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    role: ResearchRole = ResearchRole.RESEARCHER
+    expires_on: date | None = None  # last day of access, in Brasília
+
+    _normalize_email = field_validator("email", mode="before")(_normalized_email)
+
+
+class InviteLink(BaseModel):
+    url: str
+
+
+class DisableAccountRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+
+    _normalize_email = field_validator("email", mode="before")(_normalized_email)
