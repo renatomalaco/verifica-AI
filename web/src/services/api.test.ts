@@ -121,6 +121,66 @@ describe('API Service', () => {
     expect((verdict as any)?.threat_level).toBe('SEGURO')
   })
 
+  // sse-starlette (the orchestrator) ends every line with \r\n; the SSE spec allows \r\n, \n and \r.
+  const VERDICT_JSON =
+    '{"id":"1","threat_level":"SEGURO","verdict_message":"safe_own_address","details":{"channel":"url","deciding_stage":"stage_0_own_address","scores":{}}}'
+
+  function streamOf(...chunks: string[]) {
+    const encoder = new TextEncoder()
+    const body = new ReadableStream({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(encoder.encode(chunk))
+        controller.close()
+      },
+    })
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, body })
+  }
+
+  async function collect() {
+    const stages: StageEvent[] = []
+    const verdicts: ScanResponse[] = []
+    const errors: Error[] = []
+    await scanStream({ content: 'https://verifica-ai.duckdns.org' }, (s) => stages.push(s), (v) => verdicts.push(v), (e) => errors.push(e))
+    return { stages, verdicts, errors }
+  }
+
+  it('scanStream reads events separated by \\r\\n, as the orchestrator sends them', async () => {
+    streamOf(
+      'event: stage\r\ndata: {"stage":"stage_0_cache","status":"done"}\r\n\r\n',
+      `event: verdict\r\ndata: ${VERDICT_JSON}\r\n\r\n`,
+    )
+
+    const { stages, verdicts, errors } = await collect()
+
+    expect(stages).toEqual([{ stage: 'stage_0_cache', status: 'done' }])
+    expect(verdicts.map((v) => v.verdict_message)).toEqual(['safe_own_address'])
+    expect(errors).toEqual([])
+  })
+
+  it('scanStream joins an event split across network chunks, even between \\r and \\n', async () => {
+    const event = `event: verdict\r\ndata: ${VERDICT_JSON}\r\n\r\n`
+    const cut = event.indexOf('\r\n\r\n') + 1
+
+    streamOf(event.slice(0, cut), event.slice(cut))
+
+    expect((await collect()).verdicts).toHaveLength(1)
+  })
+
+  it('scanStream reads a last event that arrives without the closing blank line', async () => {
+    streamOf(`event: verdict\ndata: ${VERDICT_JSON}`)
+
+    expect((await collect()).verdicts).toHaveLength(1)
+  })
+
+  it('scanStream reports an error when the stream ends without a verdict, instead of waiting forever', async () => {
+    streamOf('event: stage\r\ndata: {"stage":"stage_0_cache","status":"started"}\r\n\r\n')
+
+    const { verdicts, errors } = await collect()
+
+    expect(verdicts).toEqual([])
+    expect(errors).toHaveLength(1)
+  })
+
   it('explainScan asks for the explanation in the current locale', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,

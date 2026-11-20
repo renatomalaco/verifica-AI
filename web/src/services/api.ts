@@ -109,45 +109,22 @@ export async function scanStream(
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
+    const dispatch = (block: string): boolean => dispatchEvent(block, onStage, onVerdict)
     let buffer = ''
+    let gotVerdict = false
 
     while (true) {
       const { value, done } = await reader.read()
       if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const messages = buffer.split('\n\n')
-      buffer = messages.pop() || ''
-
-      for (const msg of messages) {
-        if (!msg.trim()) continue
-
-        let currentEvent = 'message'
-        let currentData = ''
-
-        const lines = msg.split('\n')
-        for (const line of lines) {
-          if (line.startsWith('event:')) {
-            currentEvent = line.replace('event:', '').trim()
-          } else if (line.startsWith('data:')) {
-            currentData = line.replace('data:', '').trim()
-          }
-        }
-
-        if (!currentData) continue
-
-        try {
-          const parsed = JSON.parse(currentData)
-          if (currentEvent === 'stage') {
-            onStage(parsed as StageEvent)
-          } else if (currentEvent === 'verdict') {
-            onVerdict(parsed as ScanResponse)
-          }
-        } catch {
-          // Ignore malformed keep-alive pulse data
-        }
-      }
+      const { events, rest } = takeEvents(buffer + decoder.decode(value, { stream: true }))
+      buffer = rest
+      for (const block of events) gotVerdict = dispatch(block) || gotVerdict
     }
+    // The last event may come without its closing blank line.
+    for (const block of takeEvents(buffer + '\n\n').events) gotVerdict = dispatch(block) || gotVerdict
+
+    // A stream that ends without a verdict must not leave the screen investigating forever.
+    if (!gotVerdict) onError(new Error('Scan stream ended without a verdict'))
   } catch (err: any) {
     if (err.name === 'AbortError') {
       return
@@ -168,4 +145,37 @@ export async function fetchResearchReport(signal?: AbortSignal): Promise<Researc
 export async function runStudy(): Promise<void> {
   const response = await researchFetch(`${API_BASE}/pesquisa/run`, { method: 'POST' })
   if (!response.ok) throw new Error(`Research run failed (${response.status})`)
+}
+
+// SSE accepts \r\n, \n and \r as line endings; sse-starlette (the orchestrator) sends \r\n.
+// A trailing \r is kept for the next chunk, since it may be the first half of a \r\n.
+function takeEvents(buffer: string): { events: string[]; rest: string } {
+  const pendingCr = buffer.endsWith('\r')
+  const text = (pendingCr ? buffer.slice(0, -1) : buffer).replace(/\r\n?/g, '\n')
+  const blocks = text.split('\n\n')
+  const rest = (blocks.pop() ?? '') + (pendingCr ? '\r' : '')
+  return { events: blocks.filter((block) => block.trim()), rest }
+}
+
+// Returns true when the block was the verdict.
+function dispatchEvent(
+  block: string,
+  onStage: (event: StageEvent) => void,
+  onVerdict: (verdict: ScanResponse) => void,
+): boolean {
+  let event = 'message'
+  const data: string[] = []
+  for (const line of block.split('\n')) {
+    if (line.startsWith('event:')) event = line.slice('event:'.length).trim()
+    if (line.startsWith('data:')) data.push(line.slice('data:'.length).replace(/^ /, ''))
+  }
+  if (!data.length) return false
+  try {
+    const parsed = JSON.parse(data.join('\n'))
+    if (event === 'stage') onStage(parsed as StageEvent)
+    if (event === 'verdict') onVerdict(parsed as ScanResponse)
+    return event === 'verdict'
+  } catch {
+    return false // keep-alive pings carry no JSON
+  }
 }

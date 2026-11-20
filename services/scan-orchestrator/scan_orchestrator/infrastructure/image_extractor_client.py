@@ -1,6 +1,7 @@
 from typing import Protocol
 import httpx
 from contracts import ExtractRequest, ExtractResult
+from scan_orchestrator.domain.cascade import ImageExtractionUnavailable
 
 
 class ImageExtractorClientProtocol(Protocol):
@@ -41,6 +42,12 @@ class HttpImageExtractorClient(ImageExtractorClientProtocol):
         self._client = client
 
     async def extract(self, image_b64: str) -> ExtractResult:
+        try:
+            return await self._extract(image_b64)
+        except httpx.HTTPError as exc:  # timeouts, refused connections and 4xx/5xx answers
+            raise ImageExtractionUnavailable(repr(exc)) from exc
+
+    async def _extract(self, image_b64: str) -> ExtractResult:
         payload = ExtractRequest(image_b64=image_b64)
         if self._client:
             resp = await self._client.post(

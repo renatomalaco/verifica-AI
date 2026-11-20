@@ -3,6 +3,7 @@ from scan_orchestrator.api.dependencies import (
     get_brand_matcher_client,
     get_cascade,
     get_explainer_client,
+    get_image_extractor_client,
     get_scan_repository,
     get_triage_client,
 )
@@ -74,3 +75,11 @@ async def test_the_cascade_knows_the_public_address_of_the_site():
     response = await cascade.run(StageContext(raw_url="https://verifica-ai.duckdns.org/"))
 
     assert response.verdict_message is VerdictMessage.SAFE_OWN_ADDRESS
+
+
+def test_image_reading_gets_enough_time_on_a_small_vm():
+    # Tesseract on the VM's single CPU took longer than the old 12 s on real screenshots.
+    settings = Settings(_env_file=None)
+
+    assert settings.IMAGE_EXTRACTOR_TIMEOUT_SECONDS == 40.0
+    assert get_image_extractor_client(settings)._timeout_seconds == 40.0

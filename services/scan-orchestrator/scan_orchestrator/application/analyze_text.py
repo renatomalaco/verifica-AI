@@ -27,6 +27,7 @@ from scan_orchestrator.domain.cascade import (
     BrandMatchUnavailable,
     BrandMatcherClientProtocol,
     Cascade,
+    ImageExtractionUnavailable,
     RedisCacheClientProtocol,
     StageContext,
     TriageClient,
@@ -177,8 +178,13 @@ class AnalyzeTextUseCase:
     async def _analyze_image(self, image_b64: str, report: StageClock) -> ScanResponse:
         report(StageName.IMAGE_EXTRACTION, "started")
         started = time.perf_counter()
-        extract = await self._image_extractor.extract(image_b64)
-        report(StageName.IMAGE_EXTRACTION, "done")
+        try:
+            extract = await self._image_extractor.extract(image_b64)
+        except ImageExtractionUnavailable as exc:
+            logger.warning("image extraction failed: %s", exc)
+            return _image_unreadable({"image_processing": elapsed_ms(started)})
+        finally:
+            report(StageName.IMAGE_EXTRACTION, "done")
 
         # Perceptual cache (pHash): an already analyzed screenshot returns in < 10ms.
         cached = (
@@ -421,6 +427,20 @@ def _embedded_scam_verdict(
             scores={"is_phishing": 1.0, "embedded_link_is_scam": 1.0},
             domain_signals=scam_url.details.domain_signals,
             links_not_inspected=False,
+            latency_breakdown=latency,
+        ),
+    )
+
+
+def _image_unreadable(latency: dict[str, float]) -> ScanResponse:
+    return _verdict(
+        ThreatLevel.INCONCLUSIVE,
+        None,
+        ScanDetails(
+            channel=Channel.IMAGE,
+            deciding_stage="image_extraction_unavailable",
+            category="inspection_unavailable",
+            scores={"is_phishing": 0.50},
             latency_breakdown=latency,
         ),
     )
