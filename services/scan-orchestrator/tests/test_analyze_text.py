@@ -12,6 +12,7 @@ from scan_orchestrator.domain.scan_input import ScanInput
 from scan_orchestrator.domain.decision import ThresholdPolicy
 from scan_orchestrator.infrastructure.scan_repository import InMemoryScanRepository
 from scan_orchestrator.application.analyze_text import AnalyzeTextUseCase
+from scan_orchestrator.domain.cascade import ImageExtractionUnavailable
 
 
 class FakeTriageClient:
@@ -439,3 +440,26 @@ async def test_screenshot_whose_visual_check_failed_is_never_safe():
 
     assert response.threat_level is ThreatLevel.INCONCLUSIVE
     assert response.details.deciding_stage == "image_visual_rag_unavailable"
+
+
+# --- Image: a reader that times out or fails gives INCONCLUSIVO, never a crash or SEGURO ---
+
+class UnavailableImageExtractor:
+    async def extract(self, image_b64: str):
+        raise ImageExtractionUnavailable("read timeout")
+
+
+async def test_an_image_that_could_not_be_read_is_inconclusive():
+    use_case = AnalyzeTextUseCase(
+        triage_client=FakeTriageClient(),
+        repository=InMemoryScanRepository(),
+        policy=ThresholdPolicy(scam=0.90, safe=0.10),
+        image_extractor=UnavailableImageExtractor(),
+    )
+
+    events = [item async for item in use_case.execute(ScanInput(image_b64="img"))]
+
+    verdict = events[-1]
+    assert verdict.threat_level is ThreatLevel.INCONCLUSIVE
+    assert verdict.details.deciding_stage == "image_extraction_unavailable"
+    assert verdict.details.channel is Channel.IMAGE

@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     AI_GATEWAY_TIMEOUT_SECONDS: float = 20.0
     URL_INSPECTOR_URL: str = "http://localhost:8002"
     IMAGE_EXTRACTOR_URL: str = "http://localhost:8003"
+    # Tesseract on the VM's single CPU took longer than 12 s on real phone screenshots.
+    IMAGE_EXTRACTOR_TIMEOUT_SECONDS: float = 40.0
     REDIS_URL: str = "redis://localhost:6379/0"
     THRESHOLD_SCAM: float = 0.90
     THRESHOLD_SAFE: float = 0.10

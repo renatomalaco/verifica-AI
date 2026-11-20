@@ -94,6 +94,10 @@ class BrandMatchUnavailable(RuntimeError):
     """Visual RAG could not compare the image: the page counts as not verified, never as clean."""
 
 
+class ImageExtractionUnavailable(RuntimeError):
+    """The screenshot could not be read (slow or failing reader): unknown, never clean."""
+
+
 class BrandMatcherClientProtocol(Protocol):
     async def match_brand(
         self, image_b64: str, current_domain: str | None, image_source: ImageSource

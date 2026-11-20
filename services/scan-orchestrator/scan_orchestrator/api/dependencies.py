@@ -121,7 +121,10 @@ def get_inspector_client(settings: Settings = Depends(get_settings)) -> Inspecto
 def get_image_extractor_client(
     settings: Settings = Depends(get_settings),
 ) -> ImageExtractorClientProtocol:
-    return HttpImageExtractorClient(base_url=settings.IMAGE_EXTRACTOR_URL)
+    return HttpImageExtractorClient(
+        base_url=settings.IMAGE_EXTRACTOR_URL,
+        timeout_seconds=settings.IMAGE_EXTRACTOR_TIMEOUT_SECONDS,
+    )
 
 
 def get_brand_matcher_client(
