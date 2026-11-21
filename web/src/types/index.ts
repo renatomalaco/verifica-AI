@@ -31,6 +31,7 @@ export const VERDICT_MESSAGES = [
   'caution',
   'safe',
   'safe_own_address',
+  'safe_official_address',
   'inconclusive',
 ] as const
 

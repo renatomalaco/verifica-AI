@@ -84,6 +84,7 @@ def test_verdict_message_values_match_frontend_dictionary():
         "caution",
         "safe",
         "safe_own_address",
+        "safe_official_address",
         "inconclusive",
     ]
 

@@ -81,6 +81,13 @@ describe('verdict copy', () => {
     expect(verdictSummary('scam_phishing_link')).not.toMatch(/pagar|transferir|dinheiro/)
   })
 
+  it('calls an official address official without promising the page is safe', () => {
+    // The registry proves who owns the address, not what someone sends on it.
+    expect(verdictSummary('safe_official_address')).toMatch(/oficial/)
+    expect(verdictSummary('safe_official_address')).not.toMatch(/segur/)
+    expect(verdictSteps('safe_official_address').join(' ')).toMatch(/senha/)
+  })
+
   it('tells how many explanations are left today, with plural', () => {
     expect(remainingExplanationsText(2)).toBe('Você ainda pode pedir 2 explicações hoje.')
     expect(remainingExplanationsText(1)).toBe('Você ainda pode pedir 1 explicação hoje.')

@@ -43,6 +43,7 @@ class VerdictMessage(StrEnum):
     CAUTION = "caution"
     SAFE = "safe"
     SAFE_OWN_ADDRESS = "safe_own_address"  # the link is the Verifica AI site itself
+    SAFE_OFFICIAL_ADDRESS = "safe_official_address"  # registry-proven domain of a known company
     INCONCLUSIVE = "inconclusive"
 
 

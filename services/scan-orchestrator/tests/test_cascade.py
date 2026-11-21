@@ -101,6 +101,48 @@ async def test_stage0_does_not_trust_lookalikes_of_the_own_address(fake_redis, u
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "url", ["https://www.mercadolivre.com.br/", "amazon.com.br/ofertas?x=1"]
+)
+async def test_an_official_address_is_named_without_opening_the_page(
+    cascade, fake_inspector, url
+):
+    # Big stores block headless browsers; the public registry already proves who owns them.
+    res = await cascade.run(StageContext(raw_url=url))
+
+    assert res.threat_level == ThreatLevel.SAFE
+    assert res.verdict_message is VerdictMessage.SAFE_OFFICIAL_ADDRESS
+    assert res.details.deciding_stage == "stage_1_official_address"
+    assert "official_registrant" in res.details.domain_signals
+    assert fake_inspector.calls == []
+
+
+@pytest.mark.asyncio
+async def test_a_blacklisted_link_on_an_official_address_is_still_a_scam(cascade, fake_redis):
+    url = "https://www.mercadolivre.com.br/pagina-invadida"
+    fake_redis.add_to_blacklist(url)
+
+    res = await cascade.run(StageContext(raw_url=url))
+
+    assert res.threat_level == ThreatLevel.SCAM
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://www.mercadolivre.com.br@golpe.com/login",
+        "https://mercadolivre.com.br.golpe.com",
+        "https://golpe.com/mercadolivre.com.br",
+    ],
+)
+async def test_an_official_name_elsewhere_in_the_link_is_not_official(cascade, url):
+    res = await cascade.run(StageContext(raw_url=url))
+
+    assert res.verdict_message is not VerdictMessage.SAFE_OFFICIAL_ADDRESS
+
+
+@pytest.mark.asyncio
 async def test_stage2_antibot_ethical_fallback_returns_inconclusive(cascade, fake_inspector):
     target_url = "https://site-protegido-cloudflare.com"
     fake_inspector.set_result(
