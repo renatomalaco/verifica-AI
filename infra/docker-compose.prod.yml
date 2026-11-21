@@ -106,11 +106,11 @@ services:
       - AI_PROVIDER=${AI_PROVIDER:?defina AI_PROVIDER no .env (gemini)}
       - EXPLAIN_PROVIDER=${EXPLAIN_PROVIDER:?defina EXPLAIN_PROVIDER no .env (gemini)}
       - GEMINI_API_KEY=${GEMINI_API_KEY:?defina GEMINI_API_KEY no .env}
-      - GEMINI_MODEL=${GEMINI_MODEL:?defina GEMINI_MODEL no .env (ex.: gemini-3.5-flash-lite)}
+      - GEMINI_MODEL=${GEMINI_MODEL:?defina GEMINI_MODEL no .env (ex. gemini-3.5-flash-lite)}
       # Optional reserve for the quick triage, tried once when GEMINI_MODEL fails.
       - GEMINI_FALLBACK_MODEL=${GEMINI_FALLBACK_MODEL:-}
       # Confirms doubtful triages and every would-be SEGURO.
-      - GEMINI_DEEP_MODEL=${GEMINI_DEEP_MODEL:?defina GEMINI_DEEP_MODEL no .env (ex.: gemini-3.8-flash)}
+      - GEMINI_DEEP_MODEL=${GEMINI_DEEP_MODEL:?defina GEMINI_DEEP_MODEL no .env (ex. gemini-3.8-flash)}
       # Gray-zone VLM of the Visual RAG; it only matters once VISUAL_RAG_ENABLED is true.
       - VLM_PROVIDER=${VLM_PROVIDER:-none}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
@@ -199,8 +199,8 @@ services:
       # report marks Mode 2 as not executed instead of guessing a cost.
       - AI_PROVIDER=${AI_PROVIDER:?defina AI_PROVIDER no .env (gemini)}
       - GEMINI_API_KEY=${GEMINI_API_KEY:?defina GEMINI_API_KEY no .env}
-      - GEMINI_MODEL=${GEMINI_MODEL:?defina GEMINI_MODEL no .env (ex.: gemini-3.5-flash-lite)}
-      - GEMINI_DEEP_MODEL=${GEMINI_DEEP_MODEL:?defina GEMINI_DEEP_MODEL no .env (ex.: gemini-3.8-flash)}
+      - GEMINI_MODEL=${GEMINI_MODEL:?defina GEMINI_MODEL no .env (ex. gemini-3.5-flash-lite)}
+      - GEMINI_DEEP_MODEL=${GEMINI_DEEP_MODEL:?defina GEMINI_DEEP_MODEL no .env (ex. gemini-3.8-flash)}
       - GEMINI_PRICE_INPUT_USD_PER_1M=${GEMINI_PRICE_INPUT_USD_PER_1M:-}
       - GEMINI_PRICE_OUTPUT_USD_PER_1M=${GEMINI_PRICE_OUTPUT_USD_PER_1M:-}
       - GEMINI_PRICE_DATE=${GEMINI_PRICE_DATE:-}
