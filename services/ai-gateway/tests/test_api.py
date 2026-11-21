@@ -4,6 +4,7 @@ from ai_gateway.api.main import (
     app,
     get_brand_catalog,
     get_brand_verifier,
+    get_deep_triage_client,
     get_triage_client,
     get_settings,
     get_visual_embedder,
@@ -11,6 +12,13 @@ from ai_gateway.api.main import (
 from ai_gateway.infrastructure.fakes import FakeBrandCatalog, FakeVisualEmbedder, one_hot
 from ai_gateway.settings import Settings
 from contracts import TriageResult, Persuasion
+from pydantic import ValidationError
+
+from ai_gateway.application.triage_with_reserve import TriageWithReserve
+
+GEMINI_TRIAGE = dict(
+    AI_PROVIDER="gemini", GEMINI_API_KEY="k", GEMINI_MODEL="lite", GEMINI_DEEP_MODEL="flash"
+)
 
 
 class SpyTriageClient:
@@ -57,6 +65,41 @@ async def test_triage_masks_pii_before_the_model():
         app.dependency_overrides.clear()
 
 
+class FailingTriageClient:
+    async def classify(self, envelope: str) -> TriageResult:
+        raise RuntimeError("Gemini request timed out (6.0s)")
+
+
+async def _post_triage(path: str, text: str = "Oi pai, troquei de número. Me faz um pix?"):
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        return await client.post(path, json={"text": text})
+
+
+@pytest.mark.parametrize(
+    "path,dependency", [("/v1/triage", get_triage_client), ("/v1/triage/deep", get_deep_triage_client)]
+)
+async def test_a_failing_model_answers_503_not_a_crash(path, dependency):
+    app.dependency_overrides[dependency] = FailingTriageClient
+    try:
+        resp = await _post_triage(path)
+    finally:
+        app.dependency_overrides.clear()
+
+    assert resp.status_code == 503
+
+
+async def test_deep_triage_uses_its_own_model_and_masks_pii():
+    spy = SpyTriageClient()
+    app.dependency_overrides[get_deep_triage_client] = lambda: spy
+    try:
+        resp = await _post_triage("/v1/triage/deep", "Pix para o CPF 123.456.789-00")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert resp.status_code == 200
+    assert "[CPF_MASCARADO]" in spy.received_envelope
+
+
 BB_LOGO = one_hot(0, 768)
 
 
@@ -74,6 +117,8 @@ def brand_overrides():
         {"Banco do Brasil": [BB_LOGO]}
     )
     app.dependency_overrides[get_brand_verifier] = lambda: None
+    # The author's .env may point at real providers; these tests never depend on it.
+    app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None)
     yield app.dependency_overrides
     app.dependency_overrides.clear()
 
@@ -125,7 +170,9 @@ def test_the_vlm_is_off_without_a_gemini_key():
         is None
     )
     assert (
-        get_brand_verifier(Settings(_env_file=None, VLM_PROVIDER="gemini", GEMINI_API_KEY="k"))
+        get_brand_verifier(
+            Settings(_env_file=None, VLM_PROVIDER="gemini", GEMINI_API_KEY="k", GEMINI_MODEL="m")
+        )
         is not None
     )
 
@@ -134,11 +181,54 @@ def test_triage_provider_follows_ai_provider():
     from ai_gateway.infrastructure.gemini_triage_client import GeminiTriageClient
     from ai_gateway.infrastructure.fakes import FakeTriageClient
 
-    gemini = Settings(_env_file=None, AI_PROVIDER="gemini", GEMINI_API_KEY="k")
+    gemini = Settings(_env_file=None, **GEMINI_TRIAGE)
     keyless = Settings(_env_file=None, AI_PROVIDER="gemini", GEMINI_API_KEY="")
     removed_jev = Settings(_env_file=None, AI_PROVIDER="jev", GEMINI_API_KEY="k")
 
     assert isinstance(get_triage_client(gemini), GeminiTriageClient)
     assert isinstance(get_triage_client(keyless), FakeTriageClient)
+    assert isinstance(get_deep_triage_client(keyless), FakeTriageClient)
     # The Jev provider was removed: an old .env never reaches a paid API by accident.
     assert isinstance(get_triage_client(removed_jev), FakeTriageClient)
+
+
+def test_each_triage_depth_calls_its_own_model_and_timeout():
+    settings = Settings(_env_file=None, **GEMINI_TRIAGE)
+
+    quick, deep = get_triage_client(settings), get_deep_triage_client(settings)
+
+    assert (quick._model, quick._timeout_seconds) == ("lite", settings.GEMINI_TRIAGE_TIMEOUT_SECONDS)
+    assert (deep._model, deep._timeout_seconds) == ("flash", settings.GEMINI_DEEP_TIMEOUT_SECONDS)
+
+
+def test_the_reserve_model_backs_the_quick_triage_only_when_configured():
+    with_reserve = Settings(_env_file=None, **GEMINI_TRIAGE, GEMINI_FALLBACK_MODEL="other-lite")
+
+    assert isinstance(get_triage_client(with_reserve), TriageWithReserve)
+
+
+def test_the_triage_budget_fits_the_orchestrator_wait():
+    # The orchestrator waits 20 s per call and may call quick then deep: both depths, with
+    # the reserve, must fit, or a slow model turns into INCONCLUSIVO again.
+    settings = Settings(_env_file=None)
+
+    quick_with_reserve = 2 * settings.GEMINI_TRIAGE_TIMEOUT_SECONDS
+    assert quick_with_reserve + settings.GEMINI_DEEP_TIMEOUT_SECONDS <= 20.0
+
+
+@pytest.mark.parametrize("provider", ["AI_PROVIDER", "EXPLAIN_PROVIDER", "VLM_PROVIDER"])
+def test_gemini_without_a_model_fails_at_startup(provider):
+    # A model name baked into the code outlives the model: Google retired gemini-2.5-flash
+    # (404) and every triage silently became INCONCLUSIVO.
+    with pytest.raises(ValidationError, match="GEMINI_MODEL"):
+        Settings(_env_file=None, GEMINI_API_KEY="k", **{provider: "gemini"})
+
+
+def test_gemini_triage_without_a_deep_model_fails_at_startup():
+    # Without it no answer could be confirmed, so nothing would ever be SEGURO.
+    with pytest.raises(ValidationError, match="GEMINI_DEEP_MODEL"):
+        Settings(_env_file=None, AI_PROVIDER="gemini", GEMINI_API_KEY="k", GEMINI_MODEL="lite")
+
+
+def test_without_a_gemini_key_no_model_is_needed():
+    assert Settings(_env_file=None, AI_PROVIDER="gemini", GEMINI_API_KEY="").GEMINI_MODEL == ""

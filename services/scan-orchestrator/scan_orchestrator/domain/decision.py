@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from contracts import ThreatLevel
+from contracts import ThreatLevel, TriageResult
 from scan_orchestrator.domain.risk_score import RiskScore
 
 
@@ -25,6 +25,24 @@ def decide(score: RiskScore, has_unverified_links: bool, policy: ThresholdPolicy
         return ThreatLevel.SAFE
 
     return ThreatLevel.CAUTION
+
+
+def needs_confirmation(quick: TriageResult, policy: ThresholdPolicy) -> bool:
+    """Only a clear scam stands on the quick model: a false GOLPE harms less than a false SEGURO,
+    so doubt and every would-be SEGURO go to the deep model."""
+    return quick.is_phishing < policy.scam
+
+
+def settle(
+    quick: TriageResult, deep: TriageResult | None, policy: ThresholdPolicy
+) -> TriageResult | None:
+    """The deep answer wins. Without it, an unconfirmed SEGURO is doubt (None, INCONCLUSIVO)
+    and an unconfirmed doubt keeps the quick answer (CUIDADO)."""
+    if deep is not None:
+        return deep
+    if quick.is_phishing <= policy.safe:
+        return None
+    return quick
 
 
 MIN_OCR_CONFIDENCE = 60.0

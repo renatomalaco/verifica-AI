@@ -3,6 +3,7 @@ import { m } from '../paraglide/messages.js'
 import {
   channelLabel,
   familyAlertText,
+  offersFamilyAlert,
   offersScamHelp,
   remainingExplanationsText,
   spokenVerdictText,
@@ -56,11 +57,28 @@ describe('verdict copy', () => {
     )
   })
 
-  it('builds the family alert in separate paragraphs', () => {
-    const paragraphs = familyAlertText(scam).split('\n\n')
-    expect(paragraphs[0]).toBe(m.verdict_family_alert_heading({ title: verdictTitle('GOLPE') }))
-    expect(paragraphs[1]).toBe(verdictSummary('scam_affective_coercion'))
-    expect(paragraphs[2].startsWith(todoTitle('GOLPE'))).toBe(true)
+  it('writes the family alert as the person asking for help, never with the suspicious content', () => {
+    const paragraphs = familyAlertText(scam, 'https://verifica-ai.duckdns.org').split('\n\n')
+
+    expect(paragraphs).toEqual([
+      m.verdict_family_alert_intro(),
+      m.verdict_family_alert_result({ title: verdictTitle('GOLPE'), summary: verdictSummary('scam_affective_coercion') }),
+      m.verdict_family_alert_ask(),
+      m.verdict_family_alert_link({ url: 'https://verifica-ai.duckdns.org' }),
+    ])
+  })
+
+  it('offers to warn the family only when there is something to worry about', () => {
+    expect(offersFamilyAlert('GOLPE')).toBe(true)
+    expect(offersFamilyAlert('CUIDADO')).toBe(true)
+    expect(offersFamilyAlert('INCONCLUSIVO')).toBe(true)
+    expect(offersFamilyAlert('SEGURO')).toBe(false)
+  })
+
+  it('does not talk about money when a scam only redirects to a fake site', () => {
+    expect(verdictSummary('scam_urgency')).toMatch(/link/)
+    expect(verdictSummary('scam_phishing_link')).toMatch(/link/)
+    expect(verdictSummary('scam_phishing_link')).not.toMatch(/pagar|transferir|dinheiro/)
   })
 
   it('tells how many explanations are left today, with plural', () => {

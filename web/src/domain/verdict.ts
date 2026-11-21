@@ -42,6 +42,10 @@ const MESSAGES: Record<VerdictMessage, { summary: Text; steps: Text[] }> = {
     summary: m.verdict_scam_brand_spoofing_summary,
     steps: [m.verdict_scam_brand_spoofing_step_1, m.verdict_scam_brand_spoofing_step_2],
   },
+  scam_phishing_link: {
+    summary: m.verdict_scam_phishing_link_summary,
+    steps: [m.verdict_scam_phishing_link_step_1, m.verdict_scam_phishing_link_step_2],
+  },
   scam_generic: {
     summary: m.verdict_scam_generic_summary,
     steps: [m.verdict_scam_generic_step_1, m.verdict_scam_generic_step_2],
@@ -92,14 +96,19 @@ export function allSpokenVerdicts(): string[] {
   )
 }
 
-export function familyAlertText({ threat_level, verdict_message }: ScanResponse): string {
-  const steps = verdictSteps(verdict_message).join(' ')
+// The person sends this in their own words (first person is theirs, not the product's).
+// The suspicious content never goes along: a forwarded scam link could trap the relative too.
+export function familyAlertText({ threat_level, verdict_message }: ScanResponse, siteUrl: string): string {
   return [
-    m.verdict_family_alert_heading({ title: verdictTitle(threat_level) }),
-    verdictSummary(verdict_message),
-    `${todoTitle(threat_level)}: ${steps}`,
+    m.verdict_family_alert_intro(),
+    m.verdict_family_alert_result({ title: verdictTitle(threat_level), summary: verdictSummary(verdict_message) }),
+    m.verdict_family_alert_ask(),
+    m.verdict_family_alert_link({ url: siteUrl }),
   ].join('\n\n')
 }
+
+// A safe verdict needs no one else; any doubt is worth a second pair of eyes.
+export const offersFamilyAlert = (level: ThreatLevel): boolean => level !== 'SEGURO'
 
 export function remainingExplanationsText(remaining: number): string {
   if (remaining <= 0) return m.verdict_remaining_last()

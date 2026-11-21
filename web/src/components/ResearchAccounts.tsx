@@ -55,7 +55,12 @@ export function ResearchAccounts({ currentEmail, onSignedOut }: Props) {
         <AccountTable list={list} currentEmail={currentEmail} onBlock={block} />
       </section>
 
-      <ResearchRolesPanel list={roles.list} onCreate={roles.create} onUpdate={roles.update} />
+      <ResearchRolesPanel
+        list={roles.list}
+        accounts={list.status === 'ready' ? list.accounts : []}
+        onCreate={roles.create}
+        onUpdate={roles.update}
+      />
     </section>
   )
 }

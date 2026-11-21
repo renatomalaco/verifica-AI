@@ -24,6 +24,8 @@ def verdict_message_for(
         return VerdictMessage.SAFE_OWN_ADDRESS
     if category == "brand_spoofing":
         return VerdictMessage.SCAM_BRAND_SPOOFING
+    if threat is ThreatLevel.SCAM and category == "embedded_phishing_link":
+        return VerdictMessage.SCAM_PHISHING_LINK
     if threat is ThreatLevel.SCAM and persuasion in _SCAM_BY_PERSUASION:
         return _SCAM_BY_PERSUASION[persuasion]
     return _BY_THREAT[threat]

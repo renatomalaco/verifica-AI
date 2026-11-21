@@ -1,3 +1,4 @@
+import logging
 from functools import lru_cache
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -23,6 +24,7 @@ from ai_gateway.infrastructure.pgvector_catalog import PgvectorBrandCatalog
 from ai_gateway.infrastructure.siglip_embedder import SiglipEmbedder
 from ai_gateway.infrastructure.gemini_brand_verifier import GeminiBrandVerifier
 from ai_gateway.domain.triage import TriageClient
+from ai_gateway.application.triage_with_reserve import TriageWithReserve
 from ai_gateway.infrastructure.gemini_triage_client import GeminiTriageClient
 from ai_gateway.infrastructure.fakes import FakeTriageClient
 from ai_gateway.domain.explanation import ExplanationProvider
@@ -30,6 +32,8 @@ from ai_gateway.infrastructure.explanation_provider import (
     FakeExplanationProvider,
     GeminiExplanationProvider,
 )
+
+logger = logging.getLogger("ai_gateway.api")
 
 app = FastAPI(title="ai-gateway", version="0.1.0")
 configure_telemetry("ai-gateway", app)
@@ -92,15 +96,35 @@ def get_match_brand(
     )
 
 
+def _triage_on_gemini(settings: Settings) -> bool:
+    return settings.AI_PROVIDER.lower() == "gemini" and bool(settings.GEMINI_API_KEY)
+
+
+def _gemini_triage(settings: Settings, model: str, timeout_seconds: float) -> GeminiTriageClient:
+    return GeminiTriageClient(
+        base_url=settings.GEMINI_BASE_URL,
+        api_key=settings.GEMINI_API_KEY,
+        model=model,
+        timeout_seconds=timeout_seconds,
+    )
+
+
 def get_triage_client(settings: Settings = Depends(get_settings)) -> TriageClient:
-    if settings.AI_PROVIDER.lower() == "gemini" and settings.GEMINI_API_KEY:
-        return GeminiTriageClient(
-            base_url=settings.GEMINI_BASE_URL,
-            api_key=settings.GEMINI_API_KEY,
-            model=settings.GEMINI_MODEL,
-            timeout_seconds=settings.GEMINI_TIMEOUT_SECONDS,
-        )
-    return FakeTriageClient()
+    if not _triage_on_gemini(settings):
+        return FakeTriageClient()
+    quick = _gemini_triage(settings, settings.GEMINI_MODEL, settings.GEMINI_TRIAGE_TIMEOUT_SECONDS)
+    if not settings.GEMINI_FALLBACK_MODEL:
+        return quick
+    reserve = _gemini_triage(
+        settings, settings.GEMINI_FALLBACK_MODEL, settings.GEMINI_TRIAGE_TIMEOUT_SECONDS
+    )
+    return TriageWithReserve(quick, reserve)
+
+
+def get_deep_triage_client(settings: Settings = Depends(get_settings)) -> TriageClient:
+    if not _triage_on_gemini(settings):
+        return FakeTriageClient()
+    return _gemini_triage(settings, settings.GEMINI_DEEP_MODEL, settings.GEMINI_DEEP_TIMEOUT_SECONDS)
 
 
 def get_explanation_provider(settings: Settings = Depends(get_settings)) -> ExplanationProvider:
@@ -124,9 +148,28 @@ async def triage(
     request: TriageRequest,
     triage_client: TriageClient = Depends(get_triage_client),
 ):
+    return await _classify(triage_client, request.text)
+
+
+@app.post("/v1/triage/deep", response_model=TriageResult)
+async def deep_triage(
+    request: TriageRequest,
+    triage_client: TriageClient = Depends(get_deep_triage_client),
+):
+    return await _classify(triage_client, request.text)
+
+
+async def _classify(triage_client: TriageClient, text: str) -> TriageResult:
     # PII is masked (LGPD) and the text wrapped in the anti-prompt-injection envelope
     # before reaching the model.
-    return await triage_client.classify(guard_for_model(request.text))
+    try:
+        return await triage_client.classify(guard_for_model(text))
+    except RuntimeError as exc:
+        # The reason only, never the text: the orchestrator turns the 503 into INCONCLUSIVO.
+        logger.warning("triage model unavailable: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Triage unavailable right now."
+        ) from exc
 
 
 @app.post("/v1/brand-match", response_model=BrandMatchResult)

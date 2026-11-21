@@ -1,5 +1,5 @@
 // Rules of the research area sign-in (R5a). No React, testable in isolation.
-import type { ResearchAccount, ResearchPermission, ResearchRole } from '../types'
+import { RESEARCH_PERMISSIONS, type ResearchAccount, type ResearchPermission, type ResearchRole } from '../types'
 
 // Same minimum as scan_orchestrator.domain.research_access; the backend has the final word.
 export const MIN_PASSWORD_LENGTH = 12
@@ -30,6 +30,20 @@ export function isLockedPermission(roleId: string, permission: ResearchPermissio
 // A researcher who opens the accounts address just sees the report.
 export function researchSection(pathname: string, role: ResearchRole): ResearchSection {
   return pathname.startsWith(ACCOUNTS_PATH) && canManageAccounts(role) ? 'accounts' : 'report'
+}
+
+export function togglePermission(permissions: ResearchPermission[], permission: ResearchPermission): ResearchPermission[] {
+  const next = permissions.includes(permission) ? permissions.filter((p) => p !== permission) : [...permissions, permission]
+  return RESEARCH_PERMISSIONS.filter((p) => next.includes(p))
+}
+
+// Blocked accounts no longer use their role, so they are not counted.
+export function peoplePerRole(accounts: ResearchAccount[]): Record<string, number> {
+  const counts: Record<string, number> = {}
+  for (const account of accounts.filter((a) => a.status !== 'disabled')) {
+    counts[account.role.id] = (counts[account.role.id] ?? 0) + 1
+  }
+  return counts
 }
 
 // The backend refuses self-blocking too; hiding the button just avoids a dead end.

@@ -57,6 +57,7 @@ from scan_orchestrator.infrastructure.scan_repository import (
     SqlScanRepository,
 )
 from scan_orchestrator.infrastructure.triage_client import HttpTriageClient
+from scan_orchestrator.application.confirm_triage import ConfirmingTriage
 from scan_orchestrator.settings import Settings
 
 _in_memory_repo = InMemoryScanRepository()
@@ -81,10 +82,14 @@ def get_device_secret(settings: Settings = Depends(get_settings)) -> bytes:
     return _ephemeral_device_secret
 
 
-def get_triage_client(settings: Settings = Depends(get_settings)) -> TriageClient:
-    return HttpTriageClient(
+def get_triage_client(
+    settings: Settings = Depends(get_settings),
+    policy: ThresholdPolicy = Depends(get_threshold_policy),
+) -> TriageClient:
+    gateway = HttpTriageClient(
         base_url=settings.AI_GATEWAY_URL, timeout_seconds=settings.AI_GATEWAY_TIMEOUT_SECONDS
     )
+    return ConfirmingTriage(gateway, policy)
 
 
 @lru_cache

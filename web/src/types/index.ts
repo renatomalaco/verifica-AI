@@ -26,6 +26,7 @@ export const VERDICT_MESSAGES = [
   'scam_financial_threat',
   'scam_urgency',
   'scam_brand_spoofing',
+  'scam_phishing_link',
   'scam_generic',
   'caution',
   'safe',

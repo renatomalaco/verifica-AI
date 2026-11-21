@@ -38,3 +38,11 @@ def test_every_threat_level_has_a_message():
 def test_the_own_address_gets_a_message_that_names_the_product():
     message = verdict_message_for(ThreatLevel.SAFE, None, category="own_address")
     assert message is VerdictMessage.SAFE_OWN_ADDRESS
+
+
+def test_a_scam_link_gets_a_message_about_the_link_not_about_money():
+    # A fake DETRAN link only redirects; saying "it pressures you to pay" would be wrong.
+    message = verdict_message_for(
+        ThreatLevel.SCAM, Persuasion.FINANCIAL_THREAT, category="embedded_phishing_link"
+    )
+    assert message is VerdictMessage.SCAM_PHISHING_LINK

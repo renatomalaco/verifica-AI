@@ -4,6 +4,8 @@ import {
   canManageAccounts,
   canRunStudy,
   isLockedPermission,
+  peoplePerRole,
+  togglePermission,
   inviteTokenFromHash,
   lastAccessDay,
   passwordProblem,
@@ -77,5 +79,23 @@ describe('research access rules', () => {
     expect(isLockedPermission('admin', 'manage_access')).toBe(true)
     expect(isLockedPermission('admin', 'run_study')).toBe(false)
     expect(isLockedPermission('cargo-1', 'manage_access')).toBe(false)
+  })
+
+  it('toggles a permission and keeps the permissions in the contract order', () => {
+    expect(togglePermission(['manage_access'], 'run_study')).toEqual(['run_study', 'manage_access'])
+    expect(togglePermission(['run_study', 'manage_access'], 'run_study')).toEqual(['manage_access'])
+  })
+
+  it('counts the people of each role, leaving blocked accounts out', () => {
+    const account = (role: ResearchRole, status: ResearchAccount['status']): ResearchAccount => ({
+      email: `${role.id}-${status}@exemplo.com`,
+      role,
+      expires_at: null,
+      status,
+    })
+
+    expect(
+      peoplePerRole([account(ADMIN, 'active'), account(RESEARCHER, 'invited'), account(RESEARCHER, 'disabled')]),
+    ).toEqual({ admin: 1, researcher: 1 })
   })
 })
