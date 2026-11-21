@@ -21,6 +21,10 @@ from scan_orchestrator.infrastructure.scan_repository import (
     SqlScanRepository,
 )
 from scan_orchestrator.settings import Settings
+from scan_orchestrator.application.confirm_triage import ConfirmingTriage
+from scan_orchestrator.infrastructure.triage_client import HttpTriageClient
+
+POLICY = ThresholdPolicy(scam=0.90, safe=0.10)
 
 
 def test_without_database_url_scans_stay_in_memory():
@@ -50,14 +54,25 @@ def test_ai_gateway_calls_outwait_the_gemini_timeout_of_the_gateway():
     settings = Settings(_env_file=None)
 
     assert settings.AI_GATEWAY_TIMEOUT_SECONDS == 20.0
-    assert get_triage_client(settings)._timeout_seconds == 20.0
+    assert _gateway_of(get_triage_client(settings, POLICY))._timeout_seconds == 20.0
     assert get_explainer_client(settings)._timeout_seconds == 20.0
 
 
 def test_ai_gateway_timeout_is_configurable():
     settings = Settings(_env_file=None, AI_GATEWAY_TIMEOUT_SECONDS=30.0)
 
-    assert get_triage_client(settings)._timeout_seconds == 30.0
+    assert _gateway_of(get_triage_client(settings, POLICY))._timeout_seconds == 30.0
+
+
+def test_every_triage_is_confirmed_by_the_deep_model_when_in_doubt():
+    triage = get_triage_client(Settings(_env_file=None), POLICY)
+
+    assert isinstance(triage, ConfirmingTriage)
+    assert isinstance(_gateway_of(triage), HttpTriageClient)
+
+
+def _gateway_of(triage: ConfirmingTriage) -> HttpTriageClient:
+    return triage._models
     assert get_explainer_client(settings)._timeout_seconds == 30.0
 
 

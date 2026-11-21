@@ -10,7 +10,9 @@ from scan_orchestrator.infrastructure.scan_repository import metadata
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Keep the app's loggers alive when migrations run in-process (tests): the default silences
+    # every logger that already exists, such as the triage failure log.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = metadata
 

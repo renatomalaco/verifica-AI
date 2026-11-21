@@ -15,7 +15,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import SpanKind
 
-from ai_gateway.api.main import app as gateway_app, get_triage_client
+from ai_gateway.api.main import app as gateway_app, get_deep_triage_client, get_triage_client
 from ai_gateway.infrastructure.fakes import FakeTriageClient
 from observability import (
     build_meter_provider,
@@ -79,6 +79,7 @@ def traced_services():
     )
     orchestrator_app.dependency_overrides[get_redis_client] = FakeRedisCacheClient
     gateway_app.dependency_overrides[get_triage_client] = FakeTriageClient
+    gateway_app.dependency_overrides[get_deep_triage_client] = FakeTriageClient
     inspector_app.dependency_overrides[get_browser_driver] = FakeBrowserDriver
 
     yield exporter, [tracer for tracer, _ in providers.values()]
@@ -136,7 +137,12 @@ async def test_downstream_server_spans_are_children_of_the_orchestrator_calls(tr
         if span.kind is SpanKind.SERVER
         and span.resource.attributes["service.name"] != "scan-orchestrator"
     ]
-    assert {span.name for span in downstream} == {"POST /v1/triage", "POST /inspect"}
+    # The fake gateway is not sure the page is a scam, so the deep model confirms it.
+    assert {span.name for span in downstream} == {
+        "POST /v1/triage",
+        "POST /v1/triage/deep",
+        "POST /inspect",
+    }
     assert all(span.parent.span_id in orchestrator_calls for span in downstream)
 
 
