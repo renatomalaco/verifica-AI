@@ -1311,6 +1311,8 @@ details.tech > summary::-webkit-details-marker {
 /* ---------- Research (ablation report) ---------- */
 
 .research-layout {
+  /* Centered in the free height when the content is short; a long report starts at the top. */
+  margin-block: auto;
   display: grid;
   /* minmax(0, …): the wide table scrolls inside its wrapper instead of stretching the page */
   grid-template-columns: minmax(0, 1fr);
@@ -1347,6 +1349,7 @@ details.tech > summary::-webkit-details-marker {
   width: 100%;
   max-width: 30rem;
   align-self: center;
+  margin-block: auto; /* vertically centered below the back button */
 }
 
 .research-table-wrap { overflow-x: auto; }
