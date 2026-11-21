@@ -638,6 +638,23 @@ textarea.field {
   top: -0.375rem;
 }
 
+/* Without motion the roaming stops at its start, over the text: wait in the corner instead */
+html[data-motion='reduced'] .evidence .lupa--searching {
+  left: auto;
+  right: 0.125rem;
+  top: -0.375rem;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-motion='system'] .evidence .lupa--searching {
+    left: auto;
+    right: 0.125rem;
+    top: -0.375rem;
+    animation: none;
+  }
+}
+
 /* ---------- Investigating ---------- */
 
 .stages {
