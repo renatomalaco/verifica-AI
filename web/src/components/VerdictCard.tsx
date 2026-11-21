@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { lessonForCategory } from '../content/lessons'
 import type { EvidenceData } from '../domain/investigation'
-import { familyAlertText, offersScamHelp, spokenVerdictText, todoTitle, verdictSteps, verdictSummary, verdictTitle } from '../domain/verdict'
+import { familyAlertText, offersFamilyAlert, offersScamHelp, spokenVerdictText, todoTitle, verdictSteps, verdictSummary, verdictTitle } from '../domain/verdict'
 import { useExplanation } from '../hooks/useExplanation'
 import { useSpeech } from '../hooks/useSpeech'
 import { usePreferences } from '../prefs/context'
@@ -84,7 +84,9 @@ export function VerdictCard({ response, evidence, onReset, onLearn, onPrivacy }:
         </button>
       )}
 
-      {!prefs.simpleMode && <FamilyAlertButton text={familyAlertText(response)} />}
+      {!prefs.simpleMode && offersFamilyAlert(response.threat_level) && (
+        <FamilyAlertButton text={familyAlertText(response, window.location.origin)} />
+      )}
       {!prefs.simpleMode && <TechDetails response={response} onPrivacy={onPrivacy} />}
     </section>
   )
