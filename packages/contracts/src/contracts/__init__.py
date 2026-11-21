@@ -38,6 +38,7 @@ class VerdictMessage(StrEnum):
     SCAM_FINANCIAL_THREAT = "scam_financial_threat"
     SCAM_URGENCY = "scam_urgency"
     SCAM_BRAND_SPOOFING = "scam_brand_spoofing"
+    SCAM_PHISHING_LINK = "scam_phishing_link"  # a link in the message leads to a scam site
     SCAM_GENERIC = "scam_generic"
     CAUTION = "caution"
     SAFE = "safe"
