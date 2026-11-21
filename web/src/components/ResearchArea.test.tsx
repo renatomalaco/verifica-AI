@@ -241,6 +241,7 @@ describe('ResearchArea accounts screen', () => {
 
 describe('ResearchArea roles', () => {
   const ORIENTADOR: ResearchRole = { id: 'cargo-1', name: 'Orientador', permissions: ['run_study'] }
+  const ME_ACCOUNT: ResearchAccount = { ...ADMIN, status: 'active' }
 
   afterEach(() => {
     vi.restoreAllMocks()
@@ -250,74 +251,91 @@ describe('ResearchArea roles', () => {
   async function openRoles(routes: Record<string, Route | Route[]> = {}) {
     const fetchMock = serve({
       'GET /api/v1/auth/me': { status: 200, body: ADMIN },
-      'GET /api/v1/auth/accounts': { status: 200, body: [] },
+      'GET /api/v1/auth/accounts': { status: 200, body: [ME_ACCOUNT] },
       'GET /api/v1/auth/roles': { status: 200, body: ROLES },
       ...routes,
     })
     render(<ResearchArea onBack={vi.fn()} />)
     fireEvent.click(await screen.findByRole('link', { name: m.research_nav_accounts() }))
-    await screen.findByRole('heading', { name: m.research_roles_title() })
+    await screen.findByRole('table', { name: m.research_roles_title() })
     return fetchMock
   }
 
-  const roleForm = (name: string) => screen.findByRole('form', { name: m.research_roles_edit_label({ name }) })
+  const permissionSwitch = (permission: () => string, role: string) =>
+    screen.findByRole('switch', { name: m.research_roles_switch_label({ permission: permission(), role }) })
   const body = (fetchMock: ReturnType<typeof serve>, key: string) => {
     const [, init] = fetchMock.mock.calls.find(([path, i]) => `${i?.method ?? 'GET'} ${path}` === key)!
     return JSON.parse(init!.body as string)
   }
 
-  it('creates a role with a name and the permissions ticked', async () => {
-    const fetchMock = await openRoles({
-      'POST /api/v1/auth/roles': { status: 201, body: ORIENTADOR },
-      'GET /api/v1/auth/roles': [
-        { status: 200, body: ROLES },
-        { status: 200, body: [...ROLES, ORIENTADOR] },
-      ],
-    })
-    const form = screen.getByRole('form', { name: m.research_roles_new_title() })
+  it('shows every role as a row with its people and one switch per permission', async () => {
+    await openRoles()
 
-    fireEvent.change(within(form).getByLabelText(m.research_roles_name()), { target: { value: 'Orientador' } })
-    fireEvent.click(within(form).getByLabelText(m.research_permission_run_study()))
-    fireEvent.click(within(form).getByRole('button', { name: m.research_roles_create() }))
-
-    expect(await roleForm('Orientador')).toBeInTheDocument()
-    expect(body(fetchMock, 'POST /api/v1/auth/roles')).toEqual({ name: 'Orientador', permissions: ['run_study'] })
+    const row = (await screen.findByRole('rowheader', { name: /Administrador/ })).closest('tr')!
+    expect(within(row).getByText('1')).toBeInTheDocument()
+    expect(await permissionSwitch(m.research_permission_run_study, 'Pesquisador')).toHaveAttribute('aria-checked', 'false')
   })
 
-  it('renames a role and changes its permissions', async () => {
+  it('saves a permission as soon as its switch is flipped', async () => {
     const fetchMock = await openRoles({
       'PUT /api/v1/auth/roles/researcher': {
         status: 200,
-        body: { id: 'researcher', name: 'Banca', permissions: ['run_study'] },
+        body: { id: 'researcher', name: 'Pesquisador', permissions: ['run_study'] },
       },
     })
-    const form = await roleForm('Pesquisador')
 
-    fireEvent.change(within(form).getByLabelText(m.research_roles_name()), { target: { value: 'Banca' } })
-    fireEvent.click(within(form).getByLabelText(m.research_permission_run_study()))
-    fireEvent.click(within(form).getByRole('button', { name: m.research_roles_save() }))
+    fireEvent.click(await permissionSwitch(m.research_permission_run_study, 'Pesquisador'))
 
-    expect(await within(form).findByText(m.research_roles_saved())).toBeInTheDocument()
-    expect(body(fetchMock, 'PUT /api/v1/auth/roles/researcher')).toEqual({ name: 'Banca', permissions: ['run_study'] })
+    expect(await screen.findByText(m.research_roles_saved())).toBeInTheDocument()
+    expect(body(fetchMock, 'PUT /api/v1/auth/roles/researcher')).toEqual({ name: 'Pesquisador', permissions: ['run_study'] })
   })
 
-  it('keeps access management ticked and locked on the admin role', async () => {
+  it('keeps access management on and locked for the admin role', async () => {
     await openRoles()
-    const form = await roleForm('Administrador')
 
-    const manage = within(form).getByLabelText(m.research_permission_manage_access())
-    expect(manage).toBeChecked()
+    const manage = await permissionSwitch(m.research_permission_manage_access, 'Administrador')
+    expect(manage).toHaveAttribute('aria-checked', 'true')
     expect(manage).toBeDisabled()
+  })
+
+  it('renames a role in its own row', async () => {
+    const fetchMock = await openRoles({
+      'PUT /api/v1/auth/roles/researcher': { status: 200, body: { id: 'researcher', name: 'Banca', permissions: [] } },
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: m.research_roles_rename_label({ name: 'Pesquisador' }) }))
+    fireEvent.change(screen.getByLabelText(m.research_roles_new_name_of({ name: 'Pesquisador' })), { target: { value: 'Banca' } })
+    fireEvent.click(screen.getByRole('button', { name: m.research_roles_save_name() }))
+
+    expect(await screen.findByText(m.research_roles_saved())).toBeInTheDocument()
+    expect(body(fetchMock, 'PUT /api/v1/auth/roles/researcher')).toEqual({ name: 'Banca', permissions: [] })
+  })
+
+  it('creates a role from the "new role" button, starting with no extra permission', async () => {
+    const fetchMock = await openRoles({
+      'POST /api/v1/auth/roles': { status: 201, body: { ...ORIENTADOR, permissions: [] } },
+      'GET /api/v1/auth/roles': [
+        { status: 200, body: ROLES },
+        { status: 200, body: [...ROLES, { ...ORIENTADOR, permissions: [] }] },
+      ],
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: m.research_roles_new() }))
+    fireEvent.change(screen.getByLabelText(m.research_roles_new_name()), { target: { value: 'Orientador' } })
+    fireEvent.click(screen.getByRole('button', { name: m.research_roles_create() }))
+
+    expect(await screen.findByRole('rowheader', { name: /Orientador/ })).toBeInTheDocument()
+    expect(body(fetchMock, 'POST /api/v1/auth/roles')).toEqual({ name: 'Orientador', permissions: [] })
   })
 
   it('words a role name that is already taken', async () => {
     await openRoles({ 'POST /api/v1/auth/roles': { status: 409, body: { detail: 'role_name_taken' } } })
-    const form = screen.getByRole('form', { name: m.research_roles_new_title() })
 
-    fireEvent.change(within(form).getByLabelText(m.research_roles_name()), { target: { value: 'pesquisador' } })
-    fireEvent.click(within(form).getByRole('button', { name: m.research_roles_create() }))
+    fireEvent.click(screen.getByRole('button', { name: m.research_roles_new() }))
+    fireEvent.change(screen.getByLabelText(m.research_roles_new_name()), { target: { value: 'pesquisador' } })
+    fireEvent.click(screen.getByRole('button', { name: m.research_roles_create() }))
 
-    expect(await within(form).findByRole('alert')).toHaveTextContent(m.research_roles_name_taken())
+    expect(await screen.findByRole('alert')).toHaveTextContent(m.research_roles_name_taken())
   })
 
   it('offers every role when inviting someone', async () => {
