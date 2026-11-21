@@ -1,5 +1,5 @@
 // Rules of the research area sign-in (R5a). No React, testable in isolation.
-import type { ResearchAccount, ResearchRole } from '../types'
+import type { ResearchAccount, ResearchPermission, ResearchRole } from '../types'
 
 // Same minimum as scan_orchestrator.domain.research_access; the backend has the final word.
 export const MIN_PASSWORD_LENGTH = 12
@@ -11,12 +11,20 @@ export type ResearchSection = 'report' | 'accounts'
 export const ACCOUNTS_PATH = '/pesquisa/contas'
 export const REPORT_PATH = '/pesquisa'
 
+// Id of the role that always keeps access management (contracts.ResearchRole.ADMIN).
+const ADMIN_ROLE_ID = 'admin'
+
 export function canRunStudy(role: ResearchRole): boolean {
-  return role === 'admin'
+  return role.permissions.includes('run_study')
 }
 
 export function canManageAccounts(role: ResearchRole): boolean {
-  return role === 'admin'
+  return role.permissions.includes('manage_access')
+}
+
+// Same rule as check_role_change in the backend: otherwise no one could fix access again.
+export function isLockedPermission(roleId: string, permission: ResearchPermission): boolean {
+  return roleId === ADMIN_ROLE_ID && permission === 'manage_access'
 }
 
 // A researcher who opens the accounts address just sees the report.

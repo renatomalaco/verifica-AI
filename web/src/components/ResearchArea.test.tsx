@@ -2,10 +2,13 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ResearchArea } from './ResearchArea'
 import { m } from '../paraglide/messages.js'
-import type { ResearchAccount, ResearchUser } from '../types'
+import type { ResearchAccount, ResearchRole, ResearchUser } from '../types'
 
-const RESEARCHER: ResearchUser = { email: 'banca@exemplo.com', role: 'researcher', expires_at: null }
-const ADMIN: ResearchUser = { email: 'autor@exemplo.com', role: 'admin', expires_at: null }
+const ADMIN_ROLE: ResearchRole = { id: 'admin', name: 'Administrador', permissions: ['run_study', 'manage_access'] }
+const RESEARCHER_ROLE: ResearchRole = { id: 'researcher', name: 'Pesquisador', permissions: [] }
+const ROLES = [ADMIN_ROLE, RESEARCHER_ROLE]
+const RESEARCHER: ResearchUser = { email: 'banca@exemplo.com', role: RESEARCHER_ROLE, expires_at: null }
+const ADMIN: ResearchUser = { email: 'autor@exemplo.com', role: ADMIN_ROLE, expires_at: null }
 
 type Route = { status: number; body?: unknown; headers?: Record<string, string> }
 
@@ -143,7 +146,11 @@ describe('ResearchArea accounts screen', () => {
   })
 
   async function openAccounts(routes: Record<string, Route | Route[]>) {
-    const fetchMock = serve({ 'GET /api/v1/auth/me': { status: 200, body: ADMIN }, ...routes })
+    const fetchMock = serve({
+      'GET /api/v1/auth/me': { status: 200, body: ADMIN },
+      'GET /api/v1/auth/roles': { status: 200, body: ROLES },
+      ...routes,
+    })
     render(<ResearchArea onBack={vi.fn()} />)
     fireEvent.click(await screen.findByRole('link', { name: m.research_nav_accounts() }))
     return fetchMock
@@ -229,5 +236,99 @@ describe('ResearchArea accounts screen', () => {
     fireEvent.click(screen.getByRole('button', { name: m.research_accounts_invite_submit() }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(m.research_accounts_invite_failed())
+  })
+})
+
+describe('ResearchArea roles', () => {
+  const ORIENTADOR: ResearchRole = { id: 'cargo-1', name: 'Orientador', permissions: ['run_study'] }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    window.history.replaceState(null, '', '/')
+  })
+
+  async function openRoles(routes: Record<string, Route | Route[]> = {}) {
+    const fetchMock = serve({
+      'GET /api/v1/auth/me': { status: 200, body: ADMIN },
+      'GET /api/v1/auth/accounts': { status: 200, body: [] },
+      'GET /api/v1/auth/roles': { status: 200, body: ROLES },
+      ...routes,
+    })
+    render(<ResearchArea onBack={vi.fn()} />)
+    fireEvent.click(await screen.findByRole('link', { name: m.research_nav_accounts() }))
+    await screen.findByRole('heading', { name: m.research_roles_title() })
+    return fetchMock
+  }
+
+  const roleForm = (name: string) => screen.findByRole('form', { name: m.research_roles_edit_label({ name }) })
+  const body = (fetchMock: ReturnType<typeof serve>, key: string) => {
+    const [, init] = fetchMock.mock.calls.find(([path, i]) => `${i?.method ?? 'GET'} ${path}` === key)!
+    return JSON.parse(init!.body as string)
+  }
+
+  it('creates a role with a name and the permissions ticked', async () => {
+    const fetchMock = await openRoles({
+      'POST /api/v1/auth/roles': { status: 201, body: ORIENTADOR },
+      'GET /api/v1/auth/roles': [
+        { status: 200, body: ROLES },
+        { status: 200, body: [...ROLES, ORIENTADOR] },
+      ],
+    })
+    const form = screen.getByRole('form', { name: m.research_roles_new_title() })
+
+    fireEvent.change(within(form).getByLabelText(m.research_roles_name()), { target: { value: 'Orientador' } })
+    fireEvent.click(within(form).getByLabelText(m.research_permission_run_study()))
+    fireEvent.click(within(form).getByRole('button', { name: m.research_roles_create() }))
+
+    expect(await roleForm('Orientador')).toBeInTheDocument()
+    expect(body(fetchMock, 'POST /api/v1/auth/roles')).toEqual({ name: 'Orientador', permissions: ['run_study'] })
+  })
+
+  it('renames a role and changes its permissions', async () => {
+    const fetchMock = await openRoles({
+      'PUT /api/v1/auth/roles/researcher': {
+        status: 200,
+        body: { id: 'researcher', name: 'Banca', permissions: ['run_study'] },
+      },
+    })
+    const form = await roleForm('Pesquisador')
+
+    fireEvent.change(within(form).getByLabelText(m.research_roles_name()), { target: { value: 'Banca' } })
+    fireEvent.click(within(form).getByLabelText(m.research_permission_run_study()))
+    fireEvent.click(within(form).getByRole('button', { name: m.research_roles_save() }))
+
+    expect(await within(form).findByText(m.research_roles_saved())).toBeInTheDocument()
+    expect(body(fetchMock, 'PUT /api/v1/auth/roles/researcher')).toEqual({ name: 'Banca', permissions: ['run_study'] })
+  })
+
+  it('keeps access management ticked and locked on the admin role', async () => {
+    await openRoles()
+    const form = await roleForm('Administrador')
+
+    const manage = within(form).getByLabelText(m.research_permission_manage_access())
+    expect(manage).toBeChecked()
+    expect(manage).toBeDisabled()
+  })
+
+  it('words a role name that is already taken', async () => {
+    await openRoles({ 'POST /api/v1/auth/roles': { status: 409, body: { detail: 'role_name_taken' } } })
+    const form = screen.getByRole('form', { name: m.research_roles_new_title() })
+
+    fireEvent.change(within(form).getByLabelText(m.research_roles_name()), { target: { value: 'pesquisador' } })
+    fireEvent.click(within(form).getByRole('button', { name: m.research_roles_create() }))
+
+    expect(await within(form).findByRole('alert')).toHaveTextContent(m.research_roles_name_taken())
+  })
+
+  it('offers every role when inviting someone', async () => {
+    await openRoles({ 'GET /api/v1/auth/roles': { status: 200, body: [...ROLES, ORIENTADOR] } })
+
+    const picker = await screen.findByLabelText(m.research_accounts_role())
+    await within(picker).findByRole('option', { name: 'Orientador' })
+    expect(within(picker).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Administrador',
+      'Pesquisador',
+      'Orientador',
+    ])
   })
 })

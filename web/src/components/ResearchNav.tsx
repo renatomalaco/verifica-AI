@@ -10,7 +10,6 @@ import {
 import { useStudyRun, type StudyRun } from '../hooks/useStudyRun'
 import { m } from '../paraglide/messages.js'
 import type { ResearchUser } from '../types'
-import { ROLE_LABELS } from './researchLabels'
 
 interface Props {
   user: ResearchUser
@@ -41,7 +40,7 @@ export function ResearchNav({ user, section, onNavigate, onSignOut, onStudyRan, 
       <div className="stack">
         <p className="text-small">{m.research_nav_signed_in_as({ email: user.email })}</p>
         <p className="text-small text-muted">
-          {ROLE_LABELS[user.role]()}
+          {user.role.name}
           {user.expires_at && ` · ${m.research_nav_expires({ date: lastAccessDay(user.expires_at).toLocaleDateString() })}`}
         </p>
       </div>

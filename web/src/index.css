@@ -1352,6 +1352,25 @@ details.tech > summary::-webkit-details-marker {
   margin-block: auto; /* vertically centered below the back button */
 }
 
+.permission-list {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.permission-option {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 1.0625rem;
+}
+
+.permission-option input {
+  width: 1.375rem;
+  height: 1.375rem;
+  accent-color: var(--color-accent);
+}
+
 .research-table-wrap { overflow-x: auto; }
 
 .research-table {

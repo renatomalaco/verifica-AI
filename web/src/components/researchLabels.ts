@@ -1,8 +1,8 @@
 import { m } from '../paraglide/messages.js'
-import type { ResearchRole } from '../types'
+import type { ResearchPermission } from '../types'
 
-// Shared by the side navigation and the accounts screen.
-export const ROLE_LABELS: Record<ResearchRole, () => string> = {
-  admin: m.research_role_admin,
-  researcher: m.research_role_researcher,
+// Role names are data the admins type; only the permissions have fixed wording.
+export const PERMISSION_LABELS: Record<ResearchPermission, () => string> = {
+  run_study: m.research_permission_run_study,
+  manage_access: m.research_permission_manage_access,
 }

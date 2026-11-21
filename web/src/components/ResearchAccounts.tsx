@@ -3,8 +3,9 @@ import { canBlock, lastAccessDay } from '../domain/researchAccess'
 import { useResearchAccounts, type AccountsList, type InviteState } from '../hooks/useResearchAccounts'
 import { m } from '../paraglide/messages.js'
 import type { AccountErrorKind, InviteRequest } from '../services/researchAccounts'
+import { useResearchRoles } from '../hooks/useResearchRoles'
 import type { ResearchAccount, ResearchAccountStatus, ResearchRole } from '../types'
-import { ROLE_LABELS } from './researchLabels'
+import { ResearchRolesPanel } from './ResearchRolesPanel'
 
 interface Props {
   currentEmail: string
@@ -27,6 +28,8 @@ const BLOCK_ERRORS: Record<AccountErrorKind, () => string> = {
 // Admin screen: the invite link is copied and sent by hand, so no e-mail service is needed.
 export function ResearchAccounts({ currentEmail, onSignedOut }: Props) {
   const { list, invite, blockError, sendInvite, block } = useResearchAccounts(onSignedOut)
+  const roles = useResearchRoles(onSignedOut)
+  const roleOptions = roles.list.status === 'ready' ? roles.list.roles : []
 
   return (
     <section className="app-main" aria-labelledby="contas-titulo">
@@ -38,7 +41,7 @@ export function ResearchAccounts({ currentEmail, onSignedOut }: Props) {
         <p className="text-muted">{m.research_accounts_intro()}</p>
       </header>
 
-      <InviteForm state={invite} onSubmit={sendInvite} />
+      <InviteForm state={invite} roles={roleOptions} onSubmit={sendInvite} />
 
       <section className="stack" aria-labelledby="contas-lista">
         <h2 className="title-m" id="contas-lista">
@@ -51,13 +54,24 @@ export function ResearchAccounts({ currentEmail, onSignedOut }: Props) {
         )}
         <AccountTable list={list} currentEmail={currentEmail} onBlock={block} />
       </section>
+
+      <ResearchRolesPanel list={roles.list} onCreate={roles.create} onUpdate={roles.update} />
     </section>
   )
 }
 
-function InviteForm({ state, onSubmit }: { state: InviteState; onSubmit: (request: InviteRequest) => void }) {
+interface InviteFormProps {
+  state: InviteState
+  roles: ResearchRole[]
+  onSubmit: (request: InviteRequest) => void
+}
+
+// The researcher role is the default: the least an invited person needs to read the study.
+const DEFAULT_ROLE_ID = 'researcher'
+
+function InviteForm({ state, roles, onSubmit }: InviteFormProps) {
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState<ResearchRole>('researcher')
+  const [role, setRole] = useState(DEFAULT_ROLE_ID)
   const [expiresOn, setExpiresOn] = useState('')
 
   const submit = (event: FormEvent) => {
@@ -79,9 +93,12 @@ function InviteForm({ state, onSubmit }: { state: InviteState; onSubmit: (reques
       <label htmlFor="convite-cargo" className="field-label">
         {m.research_accounts_role()}
       </label>
-      <select id="convite-cargo" className="field" value={role} onChange={(e) => setRole(e.target.value as ResearchRole)}>
-        <option value="researcher">{ROLE_LABELS.researcher()}</option>
-        <option value="admin">{ROLE_LABELS.admin()}</option>
+      <select id="convite-cargo" className="field" value={role} onChange={(e) => setRole(e.target.value)}>
+        {roles.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.name}
+          </option>
+        ))}
       </select>
 
       <label htmlFor="convite-ultimo-dia" className="field-label">
@@ -165,7 +182,7 @@ function AccountRow({ account, currentEmail, onBlock }: { account: ResearchAccou
   return (
     <tr>
       <th scope="row">{account.email}</th>
-      <td>{ROLE_LABELS[account.role]()}</td>
+      <td>{account.role.name}</td>
       <td>{STATUS_LABELS[account.status]()}</td>
       <td>{account.expires_at ? lastAccessDay(account.expires_at).toLocaleDateString() : m.research_accounts_no_end()}</td>
       <td>
