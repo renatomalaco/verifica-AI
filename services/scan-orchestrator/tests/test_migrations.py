@@ -65,3 +65,16 @@ def test_research_roles_start_with_admin_and_researcher_and_bind_every_account(
     assert "'admin', 'Administrador'" in sql and "'researcher', 'Pesquisador'" in sql
     assert "{run_study,manage_access}" in sql
     assert "FOREIGN KEY(role) REFERENCES cargos_pesquisa (id)" in sql
+
+
+def test_existing_roles_keep_seeing_the_study_and_the_admin_explains_without_limit(
+    monkeypatch, capsys
+):
+    # Before 0007 every role read the report; reading it is now a switch, on for all of them.
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://user:pass@db.invalid/verifica_db")
+
+    command.upgrade(_config(), "head", sql=True)
+
+    sql = capsys.readouterr().out
+    assert "array_prepend('view_study', permissoes)" in sql
+    assert "array_append(permissoes, 'unlimited_explain') WHERE id = 'admin'" in sql

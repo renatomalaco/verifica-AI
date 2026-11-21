@@ -190,10 +190,35 @@ describe('API Service', () => {
 
     await explainScan('scan-1')
 
-    const [url, init] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls
+    const [url, init] = calls[calls.length - 1]
     expect(url).toBe('/api/v1/scans/scan-1/explain')
     expect(init.headers).toEqual({ 'Content-Type': 'application/json' })
     expect(JSON.parse(init.body)).toEqual({ locale: 'pt-BR' })
+  })
+
+  it('explainScan renews a research session first, so an unlimited account is recognized', async () => {
+    const answers: Record<string, number> = { '/api/v1/auth/me': 401, '/api/v1/auth/refresh': 200 }
+    globalThis.fetch = vi.fn(async (url: string) => {
+      const status = answers[url] ?? 200
+      if (url === '/api/v1/auth/refresh') answers['/api/v1/auth/me'] = 200
+      return { ok: status < 400, status, json: async () => ({ lines: ['a'], remaining_today: null }) }
+    }) as unknown as typeof fetch
+
+    await explainScan('scan-1')
+
+    const urls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map(([url]) => url)
+    expect(urls).toContain('/api/v1/auth/refresh')
+    expect(urls.indexOf('/api/v1/auth/refresh')).toBeLessThan(urls.indexOf('/api/v1/scans/scan-1/explain'))
+  })
+
+  it('explainScan still works for a visitor without any session', async () => {
+    globalThis.fetch = vi.fn(async (url: string) => {
+      const status = url.startsWith('/api/v1/auth') ? 401 : 200
+      return { ok: status < 400, status, json: async () => ({ lines: ['a'], remaining_today: 2 }) }
+    }) as unknown as typeof fetch
+
+    await expect(explainScan('scan-1')).resolves.toEqual({ lines: ['a'], remaining_today: 2 })
   })
 
   it('fetchResearchReport returns null while no study has been run', async () => {

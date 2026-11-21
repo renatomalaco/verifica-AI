@@ -42,7 +42,8 @@ async def client(monkeypatch, tmp_path):
 
 
 ADMIN = Role("admin", "Administrador", frozenset(ResearchPermission))
-RESEARCHER = Role("researcher", "Pesquisador", frozenset())
+RESEARCHER = Role("researcher", "Pesquisador", frozenset({ResearchPermission.VIEW_STUDY}))
+FAMILY = Role("family", "Família", frozenset({ResearchPermission.UNLIMITED_EXPLAIN}))
 
 
 def sign_in(client: AsyncClient, role: Role) -> None:
@@ -59,6 +60,12 @@ async def test_a_researcher_reads_the_report_but_cannot_run_the_study(client):
 
     assert (await client.get("/pesquisa/report")).status_code == 404  # signed in; no study run yet
     assert (await client.post("/pesquisa/run")).status_code == 403
+
+
+async def test_a_role_without_the_study_switch_cannot_read_it(client):
+    sign_in(client, FAMILY)
+
+    assert (await client.get("/pesquisa/report")).status_code == 403
 
 
 async def test_the_admin_runs_the_study_and_then_reads_it(client):

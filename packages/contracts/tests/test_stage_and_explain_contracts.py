@@ -63,6 +63,12 @@ def test_explain_result_requires_at_least_one_line():
         ExplainResult(lines=[])
 
 
+def test_an_explanation_without_quota_has_no_remaining_count():
+    # Accounts with "Me explica" unlimited: there is no count to show.
+    resp = ExplainResponse(lines=["a"], remaining_today=None)
+    assert resp.model_dump() == {"lines": ["a"], "remaining_today": None}
+
+
 def test_explain_response_and_quota_exceeded_shapes():
     resp = ExplainResponse(lines=["a"], remaining_today=2)
     assert resp.model_dump() == {"lines": ["a"], "remaining_today": 2}

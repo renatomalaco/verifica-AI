@@ -25,7 +25,7 @@ export function useExplanation(scanId: string) {
     setExplanation({ status: 'loading' })
     try {
       const data = await explainScan(scanId, controller.signal)
-      setExplanation({ status: 'ready', lines: data.lines, remaining: data.remaining_today })
+      setExplanation({ status: 'ready', lines: data.lines, remaining: data.remaining_today ?? undefined })
     } catch (err) {
       if ((err as Error)?.name === 'AbortError') return
       const e = err instanceof ExplainError ? err : new ExplainError('failed')

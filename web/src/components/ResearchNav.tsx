@@ -4,6 +4,7 @@ import {
   REPORT_PATH,
   canManageAccounts,
   canRunStudy,
+  canViewStudy,
   lastAccessDay,
   type ResearchSection,
 } from '../domain/researchAccess'
@@ -46,11 +47,13 @@ export function ResearchNav({ user, section, onNavigate, onSignOut, onStudyRan, 
       </div>
 
       <ul className="research-nav__list">
-        <li>
-          <a href={REPORT_PATH} aria-current={current('report')} onClick={follow(REPORT_PATH)}>
-            {m.research_nav_report()}
-          </a>
-        </li>
+        {canViewStudy(user.role) && (
+          <li>
+            <a href={REPORT_PATH} aria-current={current('report')} onClick={follow(REPORT_PATH)}>
+              {m.research_nav_report()}
+            </a>
+          </li>
+        )}
         {canManageAccounts(user.role) && (
           <li>
             <a href={ACCOUNTS_PATH} aria-current={current('accounts')} onClick={follow(ACCOUNTS_PATH)}>

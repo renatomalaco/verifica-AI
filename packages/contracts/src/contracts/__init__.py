@@ -206,7 +206,7 @@ class ExplainResult(BaseModel):
 
 class ExplainResponse(BaseModel):
     lines: list[str]
-    remaining_today: int = Field(ge=0)
+    remaining_today: int | None = Field(default=None, ge=0)  # None: no quota for this account
 
 
 class QuotaExceeded(BaseModel):
@@ -224,15 +224,17 @@ class ScanRateLimited(BaseModel):
 
 class ResearchRole(StrEnum):
     """Ids of the two roles every installation starts with. Admins can add more roles
-    and change what each one may do; every signed-in account reads the report."""
+    and change what each one may do."""
 
     ADMIN = "admin"
     RESEARCHER = "researcher"
 
 
 class ResearchPermission(StrEnum):
+    VIEW_STUDY = "view_study"  # the research area itself; off for a family account
     RUN_STUDY = "run_study"  # heavy and, with Gemini, paid
     MANAGE_ACCESS = "manage_access"  # accounts, invites and roles
+    UNLIMITED_EXPLAIN = "unlimited_explain"  # "Me explica" without the daily quota
 
 
 class ResearchRoleInfo(BaseModel):

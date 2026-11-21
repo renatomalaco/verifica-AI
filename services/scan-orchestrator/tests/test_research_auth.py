@@ -79,7 +79,7 @@ async def test_an_accepted_invite_lets_the_researcher_sign_in(auth):
 
     principal = AccessTokenVerifier(PUBLIC_KEY).verify(signed_in.access_token)
     assert principal.role == ResearchRole.RESEARCHER
-    assert principal.permissions == frozenset()
+    assert principal.permissions == frozenset({ResearchPermission.VIEW_STUDY})
     assert principal.account_id == signed_in.account.id
     assert signed_in.refresh_token
 
@@ -288,5 +288,5 @@ async def test_accounts_are_listed_with_the_name_and_permissions_of_their_role(a
 
     [account] = await auth.list_accounts()
 
-    expected = {"id": "researcher", "name": "Pesquisador", "permissions": []}
+    expected = {"id": "researcher", "name": "Pesquisador", "permissions": ["view_study"]}
     assert account.role.model_dump() == expected

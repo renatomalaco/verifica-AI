@@ -1,5 +1,5 @@
 import base64
-from typing import AsyncIterator
+from typing import AsyncIterator, Awaitable
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
@@ -16,6 +16,7 @@ from contracts import (
     ExplainScanRequest,
     Locale,
     QuotaExceeded,
+    ResearchPermission,
     ScanRequest,
     ScanRateLimited,
     ScanResponse,
@@ -28,6 +29,7 @@ from scan_orchestrator.api.dependencies import (
     get_settings,
 )
 from scan_orchestrator.api.research_auth_routes import router as research_auth_router
+from scan_orchestrator.api.research_guard import optional_principal
 from scan_orchestrator.api.research_role_routes import router as research_role_router
 from scan_orchestrator.api.scan_rate_guard import (
     enforce_scan_rate_limit,
@@ -41,6 +43,7 @@ from scan_orchestrator.application.explain_scan import (
 )
 from scan_orchestrator.domain.device_token import issue_device_token, verify_device_token
 from scan_orchestrator.domain.quota import QuotaExceededError
+from scan_orchestrator.domain.research_access import Principal
 from scan_orchestrator.domain.scan_rate_limit import ScanRateLimitedError
 from scan_orchestrator.domain.scan_input import ScanInput
 from scan_orchestrator.settings import Settings
@@ -166,11 +169,9 @@ async def scan_stream(
 
 # --- "Me explica" with per-device quota (R5b) ---
 
-async def _explain_response(
-    use_case: ExplainScanUseCase, scan_id: UUID, device_id: str, ip: str, locale: Locale
-) -> JSONResponse:
+async def _explain_response(explaining: Awaitable[ExplainResponse]) -> JSONResponse:
     try:
-        result = await use_case.execute(scan_id, device_id=device_id, ip=ip, locale=locale)
+        result = await explaining
     except ScanNotFoundError:
         return JSONResponse({"detail": "Scan not found."}, status_code=status.HTTP_404_NOT_FOUND)
     except QuotaExceededError as exc:
@@ -210,15 +211,19 @@ async def explain_scan(
     settings: Settings = Depends(get_settings),
     secret: bytes = Depends(get_device_secret),
     use_case: ExplainScanUseCase = Depends(get_explain_use_case),
+    principal: Principal | None = Depends(optional_principal),
 ) -> JSONResponse:
+    locale = (body or ExplainScanRequest()).locale
+    if principal and principal.can(ResearchPermission.UNLIMITED_EXPLAIN):
+        return await _explain_response(use_case.execute_without_quota(scan_id, locale))
+
     device_id = verify_device_token(request.cookies.get(DEVICE_COOKIE), secret)
     new_token: str | None = None
     if device_id is None:
         device_id, new_token = issue_device_token(secret)
 
     ip = request.client.host if request.client else "unknown"
-    locale = (body or ExplainScanRequest()).locale
-    response = await _explain_response(use_case, scan_id, device_id, ip, locale)
+    response = await _explain_response(use_case.execute(scan_id, device_id, ip, locale))
 
     if new_token is not None:
         _set_device_cookie(response, new_token, secure=settings.DEVICE_COOKIE_SECURE)

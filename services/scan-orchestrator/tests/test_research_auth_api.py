@@ -22,8 +22,12 @@ from scan_orchestrator.settings import Settings
 PRIVATE_KEY, PUBLIC_KEY = generate_key_pair()
 ORIGIN = "https://verifica.test"
 PASSWORD = "senha-da-banca-2026"
-ADMIN_ROLE = {"id": "admin", "name": "Administrador", "permissions": ["run_study", "manage_access"]}
-RESEARCHER_ROLE = {"id": "researcher", "name": "Pesquisador", "permissions": []}
+ADMIN_ROLE = {
+    "id": "admin",
+    "name": "Administrador",
+    "permissions": ["view_study", "run_study", "manage_access", "unlimited_explain"],
+}
+RESEARCHER_ROLE = {"id": "researcher", "name": "Pesquisador", "permissions": ["view_study"]}
 
 
 def settings(**overrides) -> Settings:
