@@ -1,3 +1,6 @@
+from typing import Self
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -7,10 +10,19 @@ class Settings(BaseSettings):
     EXPLAIN_PROVIDER: str = "fake"  # 'fake' or 'gemini'
     GEMINI_API_KEY: str = ""
     GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com"
-    GEMINI_MODEL: str = "gemini-2.5-flash"
-    # A cold connection from the VM took ~7 s before Gemini even started answering. The
-    # orchestrator waits AI_GATEWAY_TIMEOUT_SECONDS (20 s), so keep this below it.
+    # No default: a model name in the code outlives the model (gemini-2.5-flash now answers 404).
+    # Quick model: triage, "Me explica" and the VLM.
+    GEMINI_MODEL: str = ""
+    # Optional reserve for the quick triage, tried once when GEMINI_MODEL fails.
+    GEMINI_FALLBACK_MODEL: str = ""
+    # Stronger model that confirms doubtful triages and every would-be SEGURO.
+    GEMINI_DEEP_MODEL: str = ""
+    # "Me explica" and the VLM. The orchestrator waits AI_GATEWAY_TIMEOUT_SECONDS (20 s).
     GEMINI_TIMEOUT_SECONDS: float = 15.0
+    # Triage may take quick (plus reserve) and then deep inside the orchestrator's 20 s.
+    # Flash-Lite answered in under 2 s; a healthy Flash in about 4 s.
+    GEMINI_TRIAGE_TIMEOUT_SECONDS: float = 6.0
+    GEMINI_DEEP_TIMEOUT_SECONDS: float = 8.0
     # Single source of truth for logo embeddings: embedder, catalog and pgvector column (R4)
     # must agree.
     EMBEDDING_DIM: int = 768
@@ -26,3 +38,16 @@ class Settings(BaseSettings):
     VLM_PROVIDER: str = "none"  # 'none' or 'gemini' (reuses the GEMINI_* settings)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @model_validator(mode="after")
+    def _gemini_needs_a_model(self) -> Self:
+        # Fail at startup: an empty model turns every Gemini call into INCONCLUSIVO.
+        providers = (self.AI_PROVIDER, self.EXPLAIN_PROVIDER, self.VLM_PROVIDER)
+        uses_gemini = any(p.lower() == "gemini" for p in providers) and self.GEMINI_API_KEY
+        if uses_gemini and not self.GEMINI_MODEL:
+            raise ValueError("GEMINI_MODEL is required when a provider is gemini")
+        # Without a deep model no triage could be confirmed, so nothing would ever be SEGURO.
+        triage_on_gemini = self.AI_PROVIDER.lower() == "gemini" and self.GEMINI_API_KEY
+        if triage_on_gemini and not self.GEMINI_DEEP_MODEL:
+            raise ValueError("GEMINI_DEEP_MODEL is required when AI_PROVIDER is gemini")
+        return self

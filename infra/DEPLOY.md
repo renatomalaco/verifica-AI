@@ -127,12 +127,22 @@ PUBLIC_DOMAIN=seu-dominio.com.br
 ACME_EMAIL=e-mail para o Let's Encrypt avisar sobre o certificado
 AI_PROVIDER=gemini
 EXPLAIN_PROVIDER=gemini
+GEMINI_MODEL=gemini-3.5-flash-lite
+GEMINI_DEEP_MODEL=gemini-3.8-flash
 # Opcionais
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_FALLBACK_MODEL=gemini-3.1-flash-lite
 GEMINI_PRICE_INPUT_USD_PER_1M=
 GEMINI_PRICE_OUTPUT_USD_PER_1M=
 GEMINI_PRICE_DATE=
 ```
+
+A triagem usa três modelos:
+
+- `GEMINI_MODEL`: o rápido (Flash-Lite). Responde primeiro e também faz o "Me explica".
+- `GEMINI_FALLBACK_MODEL`: a reserva do rápido, tentada uma vez quando ele falha (503 ou demora). Prefira outra versão do Lite: em 2026-11-21 o 3.8 Flash passou minutos respondendo 503 enquanto os Lite respondiam em menos de 2 s.
+- `GEMINI_DEEP_MODEL`: o mais forte. Confirma os casos em dúvida e todo resultado que seria SEGURO. Se ele falhar, a dúvida fica como CUIDADO e o SEGURO vira INCONCLUSIVO.
+
+`GEMINI_MODEL` e `GEMINI_DEEP_MODEL` são obrigatórios e não têm valor padrão no código: o Google aposenta modelos, e um nome antigo faz toda chamada responder 404 (por exemplo, o `gemini-2.5-flash`). Use nomes fixos, nunca os `-latest`, para o estudo saber qual modelo rodou. Quando um modelo sair do ar, troque aqui e rode de novo o `up -d` do passo 5.
 
 Sem os três preços, o estudo marca o Modo 2 como não executado, em vez de estimar um custo.
 
