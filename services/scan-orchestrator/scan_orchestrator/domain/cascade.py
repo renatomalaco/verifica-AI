@@ -21,6 +21,7 @@ from scan_orchestrator.domain.decision import ThresholdPolicy, decide
 from contracts.protected_brands import protected_domains
 from scan_orchestrator.domain.domain_risk import DomainAssessment, DomainEvidence, assess_domain
 from scan_orchestrator.domain.lookalike import find_imitated_domain
+from scan_orchestrator.domain.official_addresses import official_registrant
 from scan_orchestrator.domain.verdict_catalog import verdict_message_for
 
 
@@ -155,6 +156,15 @@ class Stage1ReputationAndSignals:
         self._protected = protected if protected is not None else protected_domains()
 
     async def process(self, ctx: StageContext) -> None:
+        # Runs after the blacklist (stage 0). Big stores block headless browsers, so a
+        # registry-proven owner is the answer instead of a page that would not open.
+        registrant = official_registrant(ctx.domain)
+        if registrant:
+            ctx.short_circuit(ThreatLevel.SAFE, "stage_1_official_address", "official_address")
+            ctx.scores["is_phishing"] = 0.0
+            ctx.domain_signals["official_registrant"] = registrant
+            return
+
         started = time.perf_counter()
         evidence = await self._evidence.lookup(ctx.domain)
         ctx.latency_breakdown["stage_1"] = elapsed_ms(started)

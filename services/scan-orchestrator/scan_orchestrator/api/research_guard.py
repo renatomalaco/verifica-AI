@@ -34,8 +34,16 @@ def current_principal(
 
 
 def require_research_reader(principal: Principal = Depends(current_principal)) -> Principal:
-    """Any research role reads the report."""
+    if not principal.can(ResearchPermission.VIEW_STUDY):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not_allowed")
     return principal
+
+
+def optional_principal(
+    request: Request, verifier: AccessTokenVerifier = Depends(get_access_verifier)
+) -> Principal | None:
+    """Public routes: a signed-in account may get more, an anonymous visitor still works."""
+    return verifier.verify(request.cookies.get(ACCESS_COOKIE))
 
 
 def require_study_runner(

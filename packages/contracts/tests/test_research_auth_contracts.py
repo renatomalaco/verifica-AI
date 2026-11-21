@@ -55,7 +55,12 @@ def test_research_user_serializes_its_role_with_permissions_and_optional_expiry(
 
 def test_permission_values_match_frontend_contract():
     # Consumed by web/src/types; the admin screen words each one.
-    assert [p.value for p in ResearchPermission] == ["run_study", "manage_access"]
+    assert [p.value for p in ResearchPermission] == [
+        "view_study",
+        "run_study",
+        "manage_access",
+        "unlimited_explain",
+    ]
 
 
 def test_save_role_request_trims_the_name_and_drops_repeated_permissions():

@@ -11,6 +11,7 @@ from contracts import (
     Channel,
     ExplainResult,
     Locale,
+    ResearchPermission,
     ScanDetails,
     ScanResponse,
     ThreatLevel,
@@ -23,6 +24,9 @@ from scan_orchestrator.api.dependencies import (
     get_settings,
 )
 from scan_orchestrator.api.main import DEVICE_COOKIE, app
+from scan_orchestrator.api.research_guard import ACCESS_COOKIE
+from scan_orchestrator.domain.research_access import Role
+from scan_orchestrator.infrastructure.access_tokens import AccessTokenIssuer, generate_key_pair
 from scan_orchestrator.infrastructure.explainer_client import (
     FailingExplainerClient,
     FakeExplainerClient,
@@ -31,6 +35,10 @@ from scan_orchestrator.infrastructure.explainer_client import (
 from scan_orchestrator.infrastructure.quota_store import InMemoryQuotaStore
 from scan_orchestrator.infrastructure.scan_repository import InMemoryScanRepository
 from scan_orchestrator.settings import Settings
+
+PRIVATE_KEY, PUBLIC_KEY = generate_key_pair()
+FAMILY = Role("family", "Família", frozenset({ResearchPermission.UNLIMITED_EXPLAIN}))
+RESEARCHER = Role("researcher", "Pesquisador", frozenset({ResearchPermission.VIEW_STUDY}))
 
 
 def persisted_scan() -> ScanResponse:
@@ -61,6 +69,7 @@ async def env():
         EXPLAIN_DAILY_LIMIT=2,
         EXPLAIN_MONTHLY_LIMIT=30,
         EXPLAIN_IP_LIMIT=100,
+        AUTH_JWT_PUBLIC_KEY=PUBLIC_KEY,
     )
     app.dependency_overrides[get_scan_repository] = lambda: repo
     app.dependency_overrides[get_explainer_client] = lambda: explainer
@@ -119,6 +128,39 @@ async def test_same_device_counts_down_and_gets_429_with_retry_at(env):
     body = third.json()
     assert set(body) == {"retry_at"}
     assert datetime.fromisoformat(body["retry_at"]).tzinfo is not None
+
+
+def sign_in(client: AsyncClient, role: Role, private_key: str = PRIVATE_KEY) -> None:
+    client.cookies.set(ACCESS_COOKIE, AccessTokenIssuer(private_key).issue(uuid4(), role))
+
+
+async def test_an_account_with_unlimited_explain_skips_the_quota(env):
+    client, scan, _, store = env
+    sign_in(client, FAMILY)
+
+    answers = [await client.post(f"/api/v1/scans/{scan.id}/explain") for _ in range(3)]
+
+    assert [a.status_code for a in answers] == [200, 200, 200]
+    assert answers[-1].json()["remaining_today"] is None
+
+
+async def test_an_account_without_the_switch_counts_like_everyone(env):
+    client, scan, _, _ = env
+    sign_in(client, RESEARCHER)
+
+    answers = [await client.post(f"/api/v1/scans/{scan.id}/explain") for _ in range(3)]
+
+    assert [a.status_code for a in answers] == [200, 200, 429]
+
+
+async def test_a_forged_unlimited_token_still_counts(env):
+    client, scan, _, _ = env
+    forged_key, _ = generate_key_pair()
+    sign_in(client, FAMILY, private_key=forged_key)
+
+    answers = [await client.post(f"/api/v1/scans/{scan.id}/explain") for _ in range(3)]
+
+    assert answers[-1].status_code == 429
 
 
 async def test_quota_never_blocks_the_verdict(env):

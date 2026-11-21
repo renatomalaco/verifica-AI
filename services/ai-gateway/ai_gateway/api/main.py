@@ -109,22 +109,28 @@ def _gemini_triage(settings: Settings, model: str, timeout_seconds: float) -> Ge
     )
 
 
+def _with_reserve(settings: Settings, primary: TriageClient) -> TriageClient:
+    # The reserve is a light model: on the free tier it stays up when bigger ones answer 503.
+    if not settings.GEMINI_FALLBACK_MODEL:
+        return primary
+    reserve = _gemini_triage(
+        settings, settings.GEMINI_FALLBACK_MODEL, settings.GEMINI_TRIAGE_TIMEOUT_SECONDS
+    )
+    return TriageWithReserve(primary, reserve)
+
+
 def get_triage_client(settings: Settings = Depends(get_settings)) -> TriageClient:
     if not _triage_on_gemini(settings):
         return FakeTriageClient()
     quick = _gemini_triage(settings, settings.GEMINI_MODEL, settings.GEMINI_TRIAGE_TIMEOUT_SECONDS)
-    if not settings.GEMINI_FALLBACK_MODEL:
-        return quick
-    reserve = _gemini_triage(
-        settings, settings.GEMINI_FALLBACK_MODEL, settings.GEMINI_TRIAGE_TIMEOUT_SECONDS
-    )
-    return TriageWithReserve(quick, reserve)
+    return _with_reserve(settings, quick)
 
 
 def get_deep_triage_client(settings: Settings = Depends(get_settings)) -> TriageClient:
     if not _triage_on_gemini(settings):
         return FakeTriageClient()
-    return _gemini_triage(settings, settings.GEMINI_DEEP_MODEL, settings.GEMINI_DEEP_TIMEOUT_SECONDS)
+    deep = _gemini_triage(settings, settings.GEMINI_DEEP_MODEL, settings.GEMINI_DEEP_TIMEOUT_SECONDS)
+    return _with_reserve(settings, deep)
 
 
 def get_explanation_provider(settings: Settings = Depends(get_settings)) -> ExplanationProvider:

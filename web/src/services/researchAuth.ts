@@ -67,6 +67,12 @@ export async function researchFetch(path: string, init: RequestInit = {}): Promi
   return retried
 }
 
+// Public pages: an account signed in on this browser gets a fresh 15-minute access before
+// a call that may use it; for a visitor without a session this simply finds no one.
+export async function renewSessionIfAny(): Promise<void> {
+  await fetchCurrentUser().catch(() => null)
+}
+
 export async function fetchCurrentUser(): Promise<ResearchUser | null> {
   try {
     const response = await researchFetch(`${AUTH}/me`)

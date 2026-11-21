@@ -31,6 +31,7 @@ export const VERDICT_MESSAGES = [
   'caution',
   'safe',
   'safe_own_address',
+  'safe_official_address',
   'inconclusive',
 ] as const
 
@@ -66,7 +67,7 @@ export type InputTab = 'text' | 'url' | 'image'
 // "Me explica" response (plan item R5b: POST /api/v1/scans/{id}/explain).
 export interface ExplainResponse {
   lines: string[]
-  remaining_today?: number
+  remaining_today?: number | null // null: the account has no quota
 }
 
 // Ablation study report served by the research-runner (GET /pesquisa/report).
@@ -106,8 +107,8 @@ export interface ResearchReport {
 }
 
 // Research area accounts (R5a). Mirrors contracts.ResearchPermission / ResearchRoleInfo /
-// ResearchUser. Every signed-in account reads the report; permissions add the rest.
-export const RESEARCH_PERMISSIONS = ['run_study', 'manage_access'] as const
+// ResearchUser. Each permission is a switch on the role, the study itself included.
+export const RESEARCH_PERMISSIONS = ['view_study', 'run_study', 'manage_access', 'unlimited_explain'] as const
 export type ResearchPermission = (typeof RESEARCH_PERMISSIONS)[number]
 
 export interface ResearchRole {

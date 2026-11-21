@@ -207,13 +207,29 @@ def test_the_reserve_model_backs_the_quick_triage_only_when_configured():
     assert isinstance(get_triage_client(with_reserve), TriageWithReserve)
 
 
-def test_the_triage_budget_fits_the_orchestrator_wait():
-    # The orchestrator waits 20 s per call and may call quick then deep: both depths, with
-    # the reserve, must fit, or a slow model turns into INCONCLUSIVO again.
+def test_the_reserve_model_also_backs_the_confirmation():
+    # On the free tier the bigger model often answers 503: a second opinion beats INCONCLUSIVO.
+    settings = Settings(_env_file=None, **GEMINI_TRIAGE, GEMINI_FALLBACK_MODEL="other-lite")
+
+    deep = get_deep_triage_client(settings)
+
+    assert isinstance(deep, TriageWithReserve)
+    assert (deep._primary._model, deep._reserve._model) == ("flash", "other-lite")
+
+
+def test_each_triage_call_fits_the_orchestrator_wait():
+    # The orchestrator waits 20 s per call (quick, then deep): each one, with its reserve and
+    # its 503 retries, must fit, or a slow model turns into INCONCLUSIVO again.
     settings = Settings(_env_file=None)
 
     quick_with_reserve = 2 * settings.GEMINI_TRIAGE_TIMEOUT_SECONDS
-    assert quick_with_reserve + settings.GEMINI_DEEP_TIMEOUT_SECONDS <= 20.0
+    deep_with_reserve = settings.GEMINI_DEEP_TIMEOUT_SECONDS + settings.GEMINI_TRIAGE_TIMEOUT_SECONDS
+    assert max(quick_with_reserve, deep_with_reserve) <= 20.0
+
+
+def test_the_deep_model_gets_time_for_a_bigger_model():
+    # gemini-3.5-flash answered in 2.6 to 9.2 s on the VM (2026-11-21).
+    assert Settings(_env_file=None).GEMINI_DEEP_TIMEOUT_SECONDS >= 10.0
 
 
 @pytest.mark.parametrize("provider", ["AI_PROVIDER", "EXPLAIN_PROVIDER", "VLM_PROVIDER"])

@@ -6,13 +6,21 @@ export const MIN_PASSWORD_LENGTH = 12
 const DEFAULT_RETRY_SECONDS = 900
 
 export type PasswordProblem = 'too_short' | 'mismatch'
-export type ResearchSection = 'report' | 'accounts'
+export type ResearchSection = 'report' | 'accounts' | 'account'
 
 export const ACCOUNTS_PATH = '/pesquisa/contas'
 export const REPORT_PATH = '/pesquisa'
 
 // Id of the role that always keeps access management (contracts.ResearchRole.ADMIN).
 const ADMIN_ROLE_ID = 'admin'
+
+export function canViewStudy(role: ResearchRole): boolean {
+  return role.permissions.includes('view_study')
+}
+
+export function explainsWithoutLimit(role: ResearchRole): boolean {
+  return role.permissions.includes('unlimited_explain')
+}
 
 export function canRunStudy(role: ResearchRole): boolean {
   return role.permissions.includes('run_study')
@@ -27,9 +35,12 @@ export function isLockedPermission(roleId: string, permission: ResearchPermissio
   return roleId === ADMIN_ROLE_ID && permission === 'manage_access'
 }
 
-// A researcher who opens the accounts address just sees the report.
+// A researcher who opens the accounts address just sees the report; a family account,
+// with neither the study nor accounts, gets a page about what its account allows.
 export function researchSection(pathname: string, role: ResearchRole): ResearchSection {
-  return pathname.startsWith(ACCOUNTS_PATH) && canManageAccounts(role) ? 'accounts' : 'report'
+  const wantsAccounts = pathname.startsWith(ACCOUNTS_PATH) || !canViewStudy(role)
+  if (wantsAccounts && canManageAccounts(role)) return 'accounts'
+  return canViewStudy(role) ? 'report' : 'account'
 }
 
 export function togglePermission(permissions: ResearchPermission[], permission: ResearchPermission): ResearchPermission[] {

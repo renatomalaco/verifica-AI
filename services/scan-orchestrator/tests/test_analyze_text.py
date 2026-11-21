@@ -270,10 +270,12 @@ class ScriptedCascade:
         return outcome
 
 
-async def _verdict_for(text: str, cascade: ScriptedCascade) -> ScanResponse:
+async def _verdict_for(
+    text: str, cascade: ScriptedCascade, triage: TriageResult | None = None
+) -> ScanResponse:
     use_case = AnalyzeTextUseCase(
         triage_client=FakeTriageClient(
-            result=TriageResult(is_phishing=0.02, persuasion=Persuasion.NONE)
+            result=triage or TriageResult(is_phishing=0.02, persuasion=Persuasion.NONE)
         ),
         repository=InMemoryScanRepository(),
         policy=ThresholdPolicy(scam=0.90, safe=0.10),
@@ -290,6 +292,20 @@ async def test_text_with_inspected_safe_link_can_be_safe():
     )
     assert response.threat_level is ThreatLevel.SAFE
     assert response.details.links_not_inspected is False
+
+
+async def test_an_official_link_does_not_clear_a_scam_message():
+    # The official-address answer is about the link only; the text still decides.
+    official = _url_verdict(ThreatLevel.SAFE).model_copy(
+        update={"verdict_message": VerdictMessage.SAFE_OFFICIAL_ADDRESS}
+    )
+    response = await _verdict_for(
+        "Seu pedido travou. Pague a taxa por Pix e confira em https://www.mercadolivre.com.br",
+        ScriptedCascade([official]),
+        triage=TriageResult(is_phishing=0.97, persuasion=Persuasion.URGENCY),
+    )
+    assert response.threat_level is ThreatLevel.SCAM
+    assert response.verdict_message is VerdictMessage.SCAM_URGENCY
 
 
 async def test_text_with_inconclusive_link_stays_at_caution():

@@ -34,9 +34,7 @@ class ExplainScanUseCase:
     async def execute(
         self, scan_id: UUID, device_id: str, ip: str, locale: Locale = DEFAULT_LOCALE
     ) -> ExplainResponse:
-        scan = await self._repository.get(scan_id)
-        if scan is None:
-            raise ScanNotFoundError(str(scan_id))
+        scan = await self._find(scan_id)
 
         try:
             grant = await self._quota.consume(device_id, ip)
@@ -46,12 +44,32 @@ class ExplainScanUseCase:
             raise ExplanationUnavailableError("Quota counter unavailable") from exc
 
         try:
+            lines = await self._explain(scan, locale)
+        except ExplanationUnavailableError:
+            await self._quota.refund(grant)
+            raise
+
+        return ExplainResponse(lines=lines, remaining_today=grant.remaining_today)
+
+    async def execute_without_quota(
+        self, scan_id: UUID, locale: Locale = DEFAULT_LOCALE
+    ) -> ExplainResponse:
+        """For accounts whose role turned on "Me explica" without limit."""
+        scan = await self._find(scan_id)
+        return ExplainResponse(lines=await self._explain(scan, locale))
+
+    async def _find(self, scan_id: UUID) -> ScanResponse:
+        scan = await self._repository.get(scan_id)
+        if scan is None:
+            raise ScanNotFoundError(str(scan_id))
+        return scan
+
+    async def _explain(self, scan: ScanResponse, locale: Locale) -> list[str]:
+        try:
             result = await self._explainer.explain(to_explain_request(scan, locale))
         except Exception as exc:
-            await self._quota.refund(grant)
             raise ExplanationUnavailableError("Explanation unavailable") from exc
-
-        return ExplainResponse(lines=result.lines, remaining_today=grant.remaining_today)
+        return result.lines
 
 
 def to_explain_request(scan: ScanResponse, locale: Locale = DEFAULT_LOCALE) -> ExplainRequest:

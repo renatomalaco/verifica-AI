@@ -19,10 +19,10 @@ class Settings(BaseSettings):
     GEMINI_DEEP_MODEL: str = ""
     # "Me explica" and the VLM. The orchestrator waits AI_GATEWAY_TIMEOUT_SECONDS (20 s).
     GEMINI_TIMEOUT_SECONDS: float = 15.0
-    # Triage may take quick (plus reserve) and then deep inside the orchestrator's 20 s.
-    # Flash-Lite answered in under 2 s; a healthy Flash in about 4 s.
+    # Each triage call, quick or deep, plus the reserve fits the orchestrator's 20 s per call.
+    # Flash-Lite answered in under 2 s; gemini-3.5-flash in 2.6 to 9.2 s on the VM.
     GEMINI_TRIAGE_TIMEOUT_SECONDS: float = 6.0
-    GEMINI_DEEP_TIMEOUT_SECONDS: float = 8.0
+    GEMINI_DEEP_TIMEOUT_SECONDS: float = 10.0
     # Single source of truth for logo embeddings: embedder, catalog and pgvector column (R4)
     # must agree.
     EMBEDDING_DIM: int = 768

@@ -4,8 +4,13 @@ import { ResearchArea } from './ResearchArea'
 import { m } from '../paraglide/messages.js'
 import type { ResearchAccount, ResearchRole, ResearchUser } from '../types'
 
-const ADMIN_ROLE: ResearchRole = { id: 'admin', name: 'Administrador', permissions: ['run_study', 'manage_access'] }
-const RESEARCHER_ROLE: ResearchRole = { id: 'researcher', name: 'Pesquisador', permissions: [] }
+const ADMIN_ROLE: ResearchRole = {
+  id: 'admin',
+  name: 'Administrador',
+  permissions: ['view_study', 'run_study', 'manage_access', 'unlimited_explain'],
+}
+const RESEARCHER_ROLE: ResearchRole = { id: 'researcher', name: 'Pesquisador', permissions: ['view_study'] }
+const FAMILY_ROLE: ResearchRole = { id: 'cargo-2', name: 'Família', permissions: ['unlimited_explain'] }
 const ROLES = [ADMIN_ROLE, RESEARCHER_ROLE]
 const RESEARCHER: ResearchUser = { email: 'banca@exemplo.com', role: RESEARCHER_ROLE, expires_at: null }
 const ADMIN: ResearchUser = { email: 'autor@exemplo.com', role: ADMIN_ROLE, expires_at: null }
@@ -158,6 +163,19 @@ describe('ResearchArea accounts screen', () => {
 
   const blockButton = (email: string) => ({ name: m.research_accounts_block_label({ email }) })
 
+  it('shows a family account its own page instead of the study', async () => {
+    const onBack = vi.fn()
+    const family: ResearchUser = { email: 'neta@exemplo.com', role: FAMILY_ROLE, expires_at: null }
+    serve({ 'GET /api/v1/auth/me': { status: 200, body: family } })
+    render(<ResearchArea onBack={onBack} />)
+
+    expect(await screen.findByText(m.research_account_unlimited_explain())).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: m.research_nav_report() })).not.toBeInTheDocument()
+    expect(screen.queryByText(m.research_missing_title())).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: m.research_account_back() }))
+    expect(onBack).toHaveBeenCalled()
+  })
+
   it('shows the accounts link only to the admin', async () => {
     serve({ 'GET /api/v1/auth/me': { status: 200, body: RESEARCHER } })
     render(<ResearchArea onBack={vi.fn()} />)
@@ -280,14 +298,14 @@ describe('ResearchArea roles', () => {
     const fetchMock = await openRoles({
       'PUT /api/v1/auth/roles/researcher': {
         status: 200,
-        body: { id: 'researcher', name: 'Pesquisador', permissions: ['run_study'] },
+        body: { id: 'researcher', name: 'Pesquisador', permissions: ['view_study', 'run_study'] },
       },
     })
 
     fireEvent.click(await permissionSwitch(m.research_permission_run_study, 'Pesquisador'))
 
     expect(await screen.findByText(m.research_roles_saved())).toBeInTheDocument()
-    expect(body(fetchMock, 'PUT /api/v1/auth/roles/researcher')).toEqual({ name: 'Pesquisador', permissions: ['run_study'] })
+    expect(body(fetchMock, 'PUT /api/v1/auth/roles/researcher')).toEqual({ name: 'Pesquisador', permissions: ['view_study', 'run_study'] })
   })
 
   it('keeps access management on and locked for the admin role', async () => {
@@ -300,7 +318,7 @@ describe('ResearchArea roles', () => {
 
   it('renames a role in its own row', async () => {
     const fetchMock = await openRoles({
-      'PUT /api/v1/auth/roles/researcher': { status: 200, body: { id: 'researcher', name: 'Banca', permissions: [] } },
+      'PUT /api/v1/auth/roles/researcher': { status: 200, body: { id: 'researcher', name: 'Banca', permissions: ['view_study'] } },
     })
 
     fireEvent.click(await screen.findByRole('button', { name: m.research_roles_rename_label({ name: 'Pesquisador' }) }))
@@ -308,7 +326,7 @@ describe('ResearchArea roles', () => {
     fireEvent.click(screen.getByRole('button', { name: m.research_roles_save_name() }))
 
     expect(await screen.findByText(m.research_roles_saved())).toBeInTheDocument()
-    expect(body(fetchMock, 'PUT /api/v1/auth/roles/researcher')).toEqual({ name: 'Banca', permissions: [] })
+    expect(body(fetchMock, 'PUT /api/v1/auth/roles/researcher')).toEqual({ name: 'Banca', permissions: ['view_study'] })
   })
 
   it('creates a role from the "new role" button, starting with no extra permission', async () => {

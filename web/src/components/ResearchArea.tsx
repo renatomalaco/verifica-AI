@@ -3,6 +3,7 @@ import { researchSection } from '../domain/researchAccess'
 import { useResearchSession } from '../hooks/useResearchSession'
 import { m } from '../paraglide/messages.js'
 import { ResearchAblationView } from './ResearchAblationView'
+import { ResearchAccountPage } from './ResearchAccountPage'
 import { ResearchAccounts } from './ResearchAccounts'
 import { ResearchLogin } from './ResearchLogin'
 import { ResearchNav } from './ResearchNav'
@@ -43,9 +44,9 @@ export function ResearchArea({ onBack }: Props) {
         onStudyRan={() => setReportVersion((v) => v + 1)}
         onSignedOut={sessionEnded}
       />
-      {section === 'accounts' ? (
-        <ResearchAccounts currentEmail={session.user.email} onSignedOut={sessionEnded} />
-      ) : (
+      {section === 'accounts' && <ResearchAccounts currentEmail={session.user.email} onSignedOut={sessionEnded} />}
+      {section === 'account' && <ResearchAccountPage role={session.user.role} onBack={onBack} />}
+      {section === 'report' && (
         // A new key remounts the view, which reloads the report after a run.
         <ResearchAblationView key={reportVersion} onBack={onBack} onSignedOut={sessionEnded} />
       )}

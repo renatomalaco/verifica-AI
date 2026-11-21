@@ -26,10 +26,14 @@ cargos_pesquisa_table = Table(
     Column("created_at", DateTime(timezone=True), nullable=False, default=_utcnow),
 )
 
-# Same two rows the migration 0006 seeds in Postgres; the names are data, editable by admins.
+# Same two rows the migrations 0006 and 0007 leave in Postgres; the names are editable data.
 BUILT_IN_ROLES = (
     Role(ResearchRole.ADMIN.value, "Administrador", frozenset(ResearchPermission)),
-    Role(ResearchRole.RESEARCHER.value, "Pesquisador", frozenset()),
+    Role(
+        ResearchRole.RESEARCHER.value,
+        "Pesquisador",
+        frozenset({ResearchPermission.VIEW_STUDY}),
+    ),
 )
 
 contas_pesquisa_table = Table(

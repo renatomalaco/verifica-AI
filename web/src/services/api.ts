@@ -1,6 +1,6 @@
 import { getLocale } from '../paraglide/runtime.js'
 import { ScanRateLimitedError } from '../domain/investigation'
-import { researchFetch } from './researchAuth'
+import { renewSessionIfAny, researchFetch } from './researchAuth'
 import type { ExplainResponse, ResearchReport, ScanRequest, ScanResponse, StageEvent } from '../types'
 
 const API_BASE = ''
@@ -22,6 +22,8 @@ export class ExplainError extends Error {
 // Detailed AI explanation, with a daily/monthly quota per device (R5b).
 // Until the orchestrator has the endpoint, 404/501 become "unavailable".
 export async function explainScan(scanId: string, signal?: AbortSignal): Promise<ExplainResponse> {
+  // A role with "Me explica" unlimited is recognized by its access cookie, so keep it fresh.
+  await renewSessionIfAny()
   let response: Response
   try {
     response = await fetch(`${API_BASE}/api/v1/scans/${encodeURIComponent(scanId)}/explain`, {

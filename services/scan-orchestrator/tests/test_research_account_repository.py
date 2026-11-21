@@ -176,10 +176,10 @@ async def test_saving_a_role_again_renames_it_and_changes_its_permissions(repo):
 
 
 async def test_the_in_memory_store_starts_with_the_two_built_in_roles():
-    # The migration seeds the same two rows in Postgres (0006_research_roles).
+    # The migrations leave the same two rows in Postgres (0006 and 0007).
     repo = InMemoryResearchAccountRepository()
 
     admin = await repo.get_role(ResearchRole.ADMIN)
     researcher = await repo.get_role(ResearchRole.RESEARCHER)
     assert admin.permissions == frozenset(ResearchPermission)
-    assert researcher.permissions == frozenset()
+    assert researcher.permissions == frozenset({ResearchPermission.VIEW_STUDY})

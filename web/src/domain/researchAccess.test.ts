@@ -3,6 +3,8 @@ import {
   canBlock,
   canManageAccounts,
   canRunStudy,
+  canViewStudy,
+  explainsWithoutLimit,
   isLockedPermission,
   peoplePerRole,
   togglePermission,
@@ -14,8 +16,13 @@ import {
 } from './researchAccess'
 import type { ResearchAccount, ResearchRole } from '../types'
 
-const ADMIN: ResearchRole = { id: 'admin', name: 'Administrador', permissions: ['run_study', 'manage_access'] }
-const RESEARCHER: ResearchRole = { id: 'researcher', name: 'Pesquisador', permissions: [] }
+const ADMIN: ResearchRole = {
+  id: 'admin',
+  name: 'Administrador',
+  permissions: ['view_study', 'run_study', 'manage_access', 'unlimited_explain'],
+}
+const RESEARCHER: ResearchRole = { id: 'researcher', name: 'Pesquisador', permissions: ['view_study'] }
+const FAMILY: ResearchRole = { id: 'cargo-2', name: 'Família', permissions: ['unlimited_explain'] }
 
 describe('research access rules', () => {
   it('lets only the admin run the study', () => {
@@ -60,6 +67,22 @@ describe('research access rules', () => {
     expect(researchSection('/pesquisa/contas', ADMIN)).toBe('accounts')
     expect(researchSection('/pesquisa/contas', RESEARCHER)).toBe('report')
     expect(researchSection('/pesquisa', ADMIN)).toBe('report')
+  })
+
+  it('opens the study only for roles with the study switch', () => {
+    expect(canViewStudy(RESEARCHER)).toBe(true)
+    expect(canViewStudy(FAMILY)).toBe(false)
+  })
+
+  it('skips the explanation quota only for roles with that switch', () => {
+    expect(explainsWithoutLimit(FAMILY)).toBe(true)
+    expect(explainsWithoutLimit(RESEARCHER)).toBe(false)
+  })
+
+  it('sends an account without the study to its own page, or to accounts if it manages them', () => {
+    expect(researchSection('/pesquisa', FAMILY)).toBe('account')
+    const manager: ResearchRole = { id: 'cargo-3', name: 'Secretaria', permissions: ['manage_access'] }
+    expect(researchSection('/pesquisa', manager)).toBe('accounts')
   })
 
   it('offers blocking for other accounts that are not blocked yet', () => {
