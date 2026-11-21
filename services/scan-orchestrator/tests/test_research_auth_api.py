@@ -22,6 +22,8 @@ from scan_orchestrator.settings import Settings
 PRIVATE_KEY, PUBLIC_KEY = generate_key_pair()
 ORIGIN = "https://verifica.test"
 PASSWORD = "senha-da-banca-2026"
+ADMIN_ROLE = {"id": "admin", "name": "Administrador", "permissions": ["run_study", "manage_access"]}
+RESEARCHER_ROLE = {"id": "researcher", "name": "Pesquisador", "permissions": []}
 
 
 def settings(**overrides) -> Settings:
@@ -85,7 +87,7 @@ async def test_login_returns_the_user_and_sets_hardened_cookies(client):
     res = await login(client, email="  Banca@Exemplo.com")
 
     assert res.status_code == 200
-    assert res.json() == {"email": "banca@exemplo.com", "role": "researcher", "expires_at": None}
+    assert res.json() == {"email": "banca@exemplo.com", "role": RESEARCHER_ROLE, "expires_at": None}
     cookies = {c.split("=", 1)[0]: c.lower() for c in res.headers.get_list("set-cookie")}
     for name in (ACCESS_COOKIE, REFRESH_COOKIE):
         assert "httponly" in cookies[name]
@@ -194,7 +196,7 @@ async def test_me_tells_who_is_signed_in(client):
     await create_account("admin@exemplo.com", ResearchRole.ADMIN)
     await login(client, email="admin@exemplo.com")
 
-    assert (await client.get("/api/v1/auth/me")).json()["role"] == "admin"
+    assert (await client.get("/api/v1/auth/me")).json()["role"] == ADMIN_ROLE
 
 
 async def test_accepting_an_invite_sets_the_password(client):
@@ -242,6 +244,7 @@ def test_allowed_origins_come_comma_separated_from_the_environment(monkeypatch):
 ACCOUNTS = "/api/v1/auth/accounts"
 INVITES = "/api/v1/auth/invites"
 DISABLE = "/api/v1/auth/accounts/disable"
+ROLES = "/api/v1/auth/roles"
 
 
 async def sign_in_as_admin(client) -> None:
@@ -257,10 +260,10 @@ async def test_the_admin_lists_every_account_with_its_status(client):
 
     assert response.status_code == 200
     assert response.json() == [
-        {"email": "admin@exemplo.com", "role": "admin", "expires_at": None, "status": "active"},
+        {"email": "admin@exemplo.com", "role": ADMIN_ROLE, "expires_at": None, "status": "active"},
         {
             "email": "banca@exemplo.com",
-            "role": "researcher",
+            "role": RESEARCHER_ROLE,
             "expires_at": None,
             "status": "invited",
         },
@@ -316,6 +319,9 @@ async def test_the_admin_cannot_block_their_own_account(client):
         ("get", ACCOUNTS, None),
         ("post", INVITES, {"email": "outra@exemplo.com"}),
         ("post", DISABLE, {"email": "admin@exemplo.com"}),
+        ("get", ROLES, None),
+        ("post", ROLES, {"name": "Orientador"}),
+        ("put", f"{ROLES}/researcher", {"name": "Pesquisador", "permissions": ["run_study"]}),
     ],
 )
 async def test_a_researcher_cannot_manage_accounts(client, method, path, body):
@@ -340,3 +346,65 @@ async def test_an_invite_from_another_origin_is_refused(client):
     )
 
     assert response.status_code == 403
+
+
+# --- Roles: admins name them and choose what each one may do. ---
+
+
+async def test_the_admin_creates_a_role_and_invites_someone_into_it(client):
+    await sign_in_as_admin(client)
+
+    created = await client.post(ROLES, json={"name": "Orientador", "permissions": ["run_study"]})
+    role = created.json()
+    invited = await client.post(
+        INVITES, json={"email": "orientador@exemplo.com", "role": role["id"]}
+    )
+
+    assert created.status_code == 201
+    assert (role["name"], role["permissions"]) == ("Orientador", ["run_study"])
+    assert invited.status_code == 201
+    listed = {a["email"]: a["role"] for a in (await client.get(ACCOUNTS)).json()}
+    assert listed["orientador@exemplo.com"] == role
+    assert role in (await client.get(ROLES)).json()
+
+
+async def test_the_admin_renames_a_role_and_changes_its_permissions(client):
+    await sign_in_as_admin(client)
+    role = (await client.post(ROLES, json={"name": "Banca"})).json()
+
+    updated = await client.put(
+        f"{ROLES}/{role['id']}", json={"name": "Banca final", "permissions": ["run_study"]}
+    )
+
+    assert updated.status_code == 200
+    assert updated.json() == {"id": role["id"], "name": "Banca final", "permissions": ["run_study"]}
+
+
+async def test_a_permission_change_reaches_the_account_at_its_next_renewal(client):
+    await create_account("banca@exemplo.com", ResearchRole.RESEARCHER)
+    await sign_in_as_admin(client)
+    await client.put(
+        f"{ROLES}/researcher", json={"name": "Pesquisador", "permissions": ["run_study"]}
+    )
+    await login(client, email="banca@exemplo.com")
+
+    me = (await client.get("/api/v1/auth/me")).json()
+
+    assert me["role"]["permissions"] == ["run_study"]
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "body", "status", "detail"),
+    [
+        ("post", ROLES, {"name": "pesquisador"}, 409, "role_name_taken"),
+        ("put", f"{ROLES}/admin", {"name": "Administrador"}, 409, "protected_role"),
+        ("put", f"{ROLES}/cargo-nao-existe", {"name": "Fantasma"}, 404, "role_not_found"),
+        ("post", INVITES, {"email": "x@a.com", "role": "cargo-x"}, 404, "role_not_found"),
+    ],
+)
+async def test_role_mistakes_come_back_as_codes(client, method, path, body, status, detail):
+    await sign_in_as_admin(client)
+
+    response = await getattr(client, method)(path, json=body)
+
+    assert response.status_code == status and response.json() == {"detail": detail}

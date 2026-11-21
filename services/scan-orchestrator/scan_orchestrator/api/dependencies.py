@@ -10,6 +10,7 @@ from contracts import extract_domain
 from scan_orchestrator.application.analyze_text import AnalyzeTextUseCase
 from scan_orchestrator.application.explain_scan import ExplainScanUseCase
 from scan_orchestrator.application.research_auth import ResearchAuth
+from scan_orchestrator.application.research_roles import ResearchRoles
 from scan_orchestrator.domain.cascade import (
     BrandMatcherClientProtocol,
     Cascade,
@@ -244,6 +245,12 @@ def get_research_account_repository(
     if not settings.DATABASE_URL:
         return _in_memory_accounts
     return SqlResearchAccountRepository(_session_factory(settings.DATABASE_URL))
+
+
+def get_research_roles(
+    repository: ResearchAccountRepository = Depends(get_research_account_repository),
+) -> ResearchRoles:
+    return ResearchRoles(repository)
 
 
 def get_login_store(settings: Settings = Depends(get_settings)) -> QuotaStore:

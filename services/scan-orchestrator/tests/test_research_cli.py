@@ -51,7 +51,7 @@ async def test_invite_prints_a_one_time_link_in_the_fragment(auth, repo):
     token = output.split("#token=")[1].split()[0]
     await auth.accept_invite(token, "senha-da-banca-2026")
     account = await repo.find_by_email("banca@exemplo.com")
-    assert account.role is ResearchRole.RESEARCHER
+    assert account.role == ResearchRole.RESEARCHER
     assert account.expires_at is None
 
 
@@ -73,7 +73,7 @@ async def test_invite_with_role_and_expiry_ends_after_that_day_in_brasilia(auth,
     )
 
     account = await repo.find_by_email("admin@exemplo.com")
-    assert account.role is ResearchRole.ADMIN
+    assert account.role == ResearchRole.ADMIN
     assert account.expires_at == datetime(
         2026, 12, 21, 3, 0, tzinfo=timezone.utc
     )  # midnight in Brasília
@@ -90,6 +90,12 @@ async def test_disable_reports_whether_the_account_existed(auth):
     )
 
 
-def test_an_unknown_role_is_rejected():
-    with pytest.raises(SystemExit):
-        parse_args(["invite", "--email", "x@exemplo.com", "--role", "root"])
+async def test_an_unknown_role_is_reported_and_nobody_is_invited(auth, repo):
+    output = await run(
+        parse_args(["invite", "--email", "x@exemplo.com", "--role", "root"]),
+        auth=auth,
+        base_url=BASE_URL,
+    )
+
+    assert output == "Role 'root' not found: create it on the accounts screen first."
+    assert await repo.find_by_email("x@exemplo.com") is None

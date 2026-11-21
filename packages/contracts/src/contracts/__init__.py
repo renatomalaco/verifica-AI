@@ -221,8 +221,37 @@ class ScanRateLimited(BaseModel):
 # --- Research area accounts (R5a). End users stay anonymous; only researchers sign in. ---
 
 class ResearchRole(StrEnum):
-    ADMIN = "admin"  # runs the study (heavy and, with Gemini, paid) and sends invites
-    RESEARCHER = "researcher"  # reads the report
+    """Ids of the two roles every installation starts with. Admins can add more roles
+    and change what each one may do; every signed-in account reads the report."""
+
+    ADMIN = "admin"
+    RESEARCHER = "researcher"
+
+
+class ResearchPermission(StrEnum):
+    RUN_STUDY = "run_study"  # heavy and, with Gemini, paid
+    MANAGE_ACCESS = "manage_access"  # accounts, invites and roles
+
+
+class ResearchRoleInfo(BaseModel):
+    id: str
+    name: str
+    permissions: list[ResearchPermission]
+
+
+class SaveRoleRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    permissions: list[ResearchPermission] = []
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def _trimmed(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("permissions")
+    @classmethod
+    def _unique(cls, value: list[ResearchPermission]) -> list[ResearchPermission]:
+        return list(dict.fromkeys(value))
 
 
 def _normalized_email(value: object) -> object:
@@ -243,7 +272,7 @@ class AcceptInviteRequest(BaseModel):
 
 class ResearchUser(BaseModel):
     email: str
-    role: ResearchRole
+    role: ResearchRoleInfo
     expires_at: datetime | None = None
 
 
@@ -262,7 +291,7 @@ class ResearchAccount(ResearchUser):
 
 class CreateInviteRequest(BaseModel):
     email: str = Field(min_length=3, max_length=254)
-    role: ResearchRole = ResearchRole.RESEARCHER
+    role: str = Field(default=ResearchRole.RESEARCHER.value, min_length=1, max_length=20)
     expires_on: date | None = None  # last day of access, in Brasília
 
     _normalize_email = field_validator("email", mode="before")(_normalized_email)

@@ -5,8 +5,13 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from contracts import ResearchRole
-from scan_orchestrator.domain.research_access import RefreshSession, hash_secret
+from contracts import ResearchPermission, ResearchRole
+from scan_orchestrator.domain.research_access import (
+    RefreshSession,
+    Role,
+    hash_secret,
+    new_role_id,
+)
 from scan_orchestrator.infrastructure.research_account_repository import (
     InMemoryResearchAccountRepository,
     SqlResearchAccountRepository,
@@ -52,7 +57,7 @@ async def test_an_invited_account_is_found_by_email_and_invite(repo):
     assert (await repo.find_by_email(email)) == account
     assert (await repo.find_by_invite(hash_secret("convite" + email))) == account
     assert account.password_hash is None
-    assert account.role is ResearchRole.RESEARCHER
+    assert account.role == ResearchRole.RESEARCHER
 
 
 async def test_inviting_the_same_email_again_updates_the_account(repo):
@@ -67,7 +72,7 @@ async def test_inviting_the_same_email_again_updates_the_account(repo):
     )
 
     assert again.id == first.id
-    assert again.role is ResearchRole.ADMIN
+    assert again.role == ResearchRole.ADMIN
     assert again.expires_at is None
     assert await repo.find_by_invite(hash_secret("primeiro" + email)) is None
 
@@ -147,3 +152,34 @@ async def test_list_accounts_returns_every_account(repo):
     listed = {account.email for account in await repo.list_accounts()}
 
     assert emails <= listed  # the shared test database may hold accounts of other tests
+
+
+async def test_a_saved_role_is_listed_and_found_by_id(repo):
+    name = f"Orientador {uuid4().hex[:6]}"
+    role = Role(new_role_id(), name, frozenset({ResearchPermission.RUN_STUDY}))
+
+    await repo.save_role(role)
+
+    assert await repo.get_role(role.id) == role
+    assert role in await repo.list_roles()
+    assert await repo.get_role("cargo-nao-existe") is None
+
+
+async def test_saving_a_role_again_renames_it_and_changes_its_permissions(repo):
+    role = Role(new_role_id(), f"Banca {uuid4().hex[:6]}", frozenset())
+    await repo.save_role(role)
+
+    renamed = Role(role.id, f"Banca final {uuid4().hex[:6]}", frozenset(ResearchPermission))
+    await repo.save_role(renamed)
+
+    assert await repo.get_role(role.id) == renamed
+
+
+async def test_the_in_memory_store_starts_with_the_two_built_in_roles():
+    # The migration seeds the same two rows in Postgres (0006_research_roles).
+    repo = InMemoryResearchAccountRepository()
+
+    admin = await repo.get_role(ResearchRole.ADMIN)
+    researcher = await repo.get_role(ResearchRole.RESEARCHER)
+    assert admin.permissions == frozenset(ResearchPermission)
+    assert researcher.permissions == frozenset()

@@ -28,6 +28,7 @@ from scan_orchestrator.api.dependencies import (
     get_settings,
 )
 from scan_orchestrator.api.research_auth_routes import router as research_auth_router
+from scan_orchestrator.api.research_role_routes import router as research_role_router
 from scan_orchestrator.api.scan_rate_guard import (
     enforce_scan_rate_limit,
     scan_rate_limited_response,
@@ -56,6 +57,7 @@ app.add_middleware(
 )
 
 app.include_router(research_auth_router)
+app.include_router(research_role_router)
 app.add_exception_handler(ScanRateLimitedError, scan_rate_limited_response)
 
 DEVICE_COOKIE = "va_device"

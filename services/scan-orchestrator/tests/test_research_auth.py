@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from contracts import ResearchRole
+from contracts import ResearchPermission, ResearchRole
 from scan_orchestrator.application.research_auth import (
     CannotDisableSelfError,
     InvalidCredentialsError,
@@ -10,6 +10,7 @@ from scan_orchestrator.application.research_auth import (
     ResearchAuth,
     SessionRejectedError,
 )
+from scan_orchestrator.application.research_roles import UnknownRoleError
 from scan_orchestrator.domain.research_access import (
     LoginLimits,
     LoginThrottle,
@@ -77,7 +78,8 @@ async def test_an_accepted_invite_lets_the_researcher_sign_in(auth):
     signed_in = await auth.login("banca@exemplo.com", PASSWORD, ip="10.0.0.1")
 
     principal = AccessTokenVerifier(PUBLIC_KEY).verify(signed_in.access_token)
-    assert principal.role is ResearchRole.RESEARCHER
+    assert principal.role == ResearchRole.RESEARCHER
+    assert principal.permissions == frozenset()
     assert principal.account_id == signed_in.account.id
     assert signed_in.refresh_token
 
@@ -264,3 +266,27 @@ async def admin_account(auth: ResearchAuth) -> str:
     email = "admin@exemplo.com"
     await auth.accept_invite(await auth.invite(email, ResearchRole.ADMIN), PASSWORD)
     return email
+
+
+async def test_an_invite_needs_an_existing_role(auth):
+    with pytest.raises(UnknownRoleError):
+        await auth.invite("banca@exemplo.com", "cargo-nao-existe")
+
+
+async def test_the_access_token_carries_the_permissions_of_the_role(auth):
+    email = await admin_account(auth)
+
+    signed_in = await auth.login(email, PASSWORD, ip="1.1.1.1")
+
+    principal = AccessTokenVerifier(PUBLIC_KEY).verify(signed_in.access_token)
+    assert principal.can(ResearchPermission.MANAGE_ACCESS)
+    assert signed_in.user.role.name == "Administrador"
+
+
+async def test_accounts_are_listed_with_the_name_and_permissions_of_their_role(auth):
+    await researcher(auth)
+
+    [account] = await auth.list_accounts()
+
+    expected = {"id": "researcher", "name": "Pesquisador", "permissions": []}
+    assert account.role.model_dump() == expected

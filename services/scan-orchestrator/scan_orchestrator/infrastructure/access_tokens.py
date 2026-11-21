@@ -13,8 +13,8 @@ import jwt
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
-from contracts import ResearchRole
-from scan_orchestrator.domain.research_access import Principal
+from contracts import ResearchPermission
+from scan_orchestrator.domain.research_access import Principal, Role
 
 ACCESS_TOKEN_TTL = timedelta(minutes=15)
 ALGORITHM = "EdDSA"
@@ -42,11 +42,14 @@ class AccessTokenIssuer:
         self._key = Ed25519PrivateKey.from_private_bytes(base64.b64decode(private_key_b64))
         self._clock = clock
 
-    def issue(self, account_id: UUID, role: ResearchRole) -> str:
+    def issue(self, account_id: UUID, role: Role) -> str:
+        """The permissions travel in the token, so the research-runner can check them alone.
+        A role change reaches a signed-in account at its next renewal, within 15 minutes."""
         now = self._clock()
         claims = {
             "sub": str(account_id),
-            "role": role.value,
+            "role": role.id,
+            "perms": [p.value for p in role.sorted_permissions()],
             "iss": ISSUER,
             "iat": now,
             "exp": now + ACCESS_TOKEN_TTL,
@@ -72,8 +75,12 @@ class AccessTokenVerifier:
                 self._key,
                 algorithms=[ALGORITHM],
                 issuer=ISSUER,
-                options={"require": ["sub", "exp", "role"]},
+                options={"require": ["sub", "exp", "role", "perms"]},
             )
-            return Principal(account_id=UUID(claims["sub"]), role=ResearchRole(claims["role"]))
+            return Principal(
+                account_id=UUID(claims["sub"]),
+                role=claims["role"],
+                permissions=frozenset(ResearchPermission(p) for p in claims["perms"]),
+            )
         except (jwt.InvalidTokenError, ValueError):
             return None
