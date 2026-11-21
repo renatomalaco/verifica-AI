@@ -4,7 +4,8 @@ from uuid import uuid4
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from contracts import ResearchRole
+from contracts import ResearchPermission
+from scan_orchestrator.domain.research_access import Role
 from research_runner.api import main
 from research_runner.api.main import app
 from scan_orchestrator.api.dependencies import get_settings
@@ -40,7 +41,11 @@ async def client(monkeypatch, tmp_path):
     app.dependency_overrides.pop(get_settings, None)
 
 
-def sign_in(client: AsyncClient, role: ResearchRole) -> None:
+ADMIN = Role("admin", "Administrador", frozenset(ResearchPermission))
+RESEARCHER = Role("researcher", "Pesquisador", frozenset())
+
+
+def sign_in(client: AsyncClient, role: Role) -> None:
     client.cookies.set(ACCESS_COOKIE, AccessTokenIssuer(PRIVATE_KEY).issue(uuid4(), role))
 
 
@@ -50,21 +55,21 @@ async def test_without_login_the_research_area_answers_401(client):
 
 
 async def test_a_researcher_reads_the_report_but_cannot_run_the_study(client):
-    sign_in(client, ResearchRole.RESEARCHER)
+    sign_in(client, RESEARCHER)
 
     assert (await client.get("/pesquisa/report")).status_code == 404  # signed in; no study run yet
     assert (await client.post("/pesquisa/run")).status_code == 403
 
 
 async def test_the_admin_runs_the_study_and_then_reads_it(client):
-    sign_in(client, ResearchRole.ADMIN)
+    sign_in(client, ADMIN)
 
     assert (await client.post("/pesquisa/run")).status_code == 200
     assert (await client.get("/pesquisa/report")).status_code == 200
 
 
 async def test_running_the_study_from_another_origin_is_refused(client):
-    sign_in(client, ResearchRole.ADMIN)
+    sign_in(client, ADMIN)
 
     res = await client.post("/pesquisa/run", headers={"Origin": "https://site-malicioso.test"})
 
@@ -74,7 +79,7 @@ async def test_running_the_study_from_another_origin_is_refused(client):
 async def test_a_token_from_another_issuer_is_refused(client):
     other_private, _ = generate_key_pair()
     client.cookies.set(
-        ACCESS_COOKIE, AccessTokenIssuer(other_private).issue(uuid4(), ResearchRole.ADMIN)
+        ACCESS_COOKIE, AccessTokenIssuer(other_private).issue(uuid4(), ADMIN)
     )
 
     assert (await client.get("/pesquisa/report")).status_code == 401
@@ -89,7 +94,7 @@ async def test_an_anonymous_call_never_starts_the_study(client):
 async def test_an_expired_admin_token_is_refused_on_both_routes(client):
     issued = datetime.now(timezone.utc) - timedelta(minutes=16)
     issuer = AccessTokenIssuer(PRIVATE_KEY, clock=lambda: issued)
-    client.cookies.set(ACCESS_COOKIE, issuer.issue(uuid4(), ResearchRole.ADMIN))
+    client.cookies.set(ACCESS_COOKIE, issuer.issue(uuid4(), ADMIN))
 
     assert (await client.get("/pesquisa/report")).status_code == 401
     assert (await client.post("/pesquisa/run")).status_code == 401
@@ -100,7 +105,7 @@ async def test_a_runner_deployed_without_the_public_key_lets_nobody_in(client):
     app.dependency_overrides[get_settings] = lambda: Settings(
         _env_file=None, AUTH_JWT_PUBLIC_KEY="", AUTH_ALLOWED_ORIGINS=[ORIGIN]
     )
-    sign_in(client, ResearchRole.ADMIN)
+    sign_in(client, ADMIN)
 
     assert (await client.get("/pesquisa/report")).status_code == 401
     assert (await client.post("/pesquisa/run")).status_code == 401

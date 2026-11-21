@@ -4,17 +4,33 @@ from typing import Protocol
 from uuid import UUID, uuid4
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, Table, Text, select, update
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.dialects.postgresql import insert
 
-from contracts import ResearchRole
-from scan_orchestrator.domain.research_access import Account, RefreshSession
+from contracts import ResearchPermission, ResearchRole
+from scan_orchestrator.domain.research_access import Account, RefreshSession, Role
 from scan_orchestrator.infrastructure.scan_repository import metadata
 
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
+
+cargos_pesquisa_table = Table(
+    "cargos_pesquisa",
+    metadata,
+    Column("id", String(20), primary_key=True),
+    Column("nome", String(60), nullable=False, unique=True),
+    Column("permissoes", ARRAY(String(30)), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, default=_utcnow),
+)
+
+# Same two rows the migration 0006 seeds in Postgres; the names are data, editable by admins.
+BUILT_IN_ROLES = (
+    Role(ResearchRole.ADMIN.value, "Administrador", frozenset(ResearchPermission)),
+    Role(ResearchRole.RESEARCHER.value, "Pesquisador", frozenset()),
+)
 
 contas_pesquisa_table = Table(
     "contas_pesquisa",
@@ -59,6 +75,14 @@ class ResearchAccountRepository(Protocol):
 
     async def list_accounts(self) -> list[Account]: ...
 
+    async def list_roles(self) -> list[Role]: ...
+
+    async def get_role(self, role_id: str) -> Role | None: ...
+
+    async def save_role(self, role: Role) -> None:
+        """Creates the role, or renames it and replaces its permissions."""
+        ...
+
     async def save_invite(
         self,
         email: str,
@@ -95,6 +119,16 @@ class InMemoryResearchAccountRepository:
     def __init__(self) -> None:
         self._accounts: dict[UUID, Account] = {}
         self._sessions: dict[UUID, RefreshSession] = {}
+        self._roles: dict[str, Role] = {role.id: role for role in BUILT_IN_ROLES}
+
+    async def list_roles(self) -> list[Role]:
+        return list(self._roles.values())
+
+    async def get_role(self, role_id: str) -> Role | None:
+        return self._roles.get(role_id)
+
+    async def save_role(self, role: Role) -> None:
+        self._roles[role.id] = role
 
     async def get_account(self, account_id: UUID) -> Account | None:
         return self._accounts.get(account_id)
@@ -169,6 +203,14 @@ def _account(row) -> Account:
     )
 
 
+def _role(row) -> Role:
+    return Role(
+        id=row["id"],
+        name=row["nome"],
+        permissions=frozenset(ResearchPermission(p) for p in row["permissoes"]),
+    )
+
+
 def _session(row) -> RefreshSession:
     return RefreshSession(
         id=row["id"],
@@ -218,6 +260,25 @@ class SqlResearchAccountRepository:
         async with self._session_factory() as session:
             rows = (await session.execute(select(contas_pesquisa_table))).mappings().all()
         return [_account(row) for row in rows]
+
+    async def list_roles(self) -> list[Role]:
+        async with self._session_factory() as session:
+            rows = (await session.execute(select(cargos_pesquisa_table))).mappings().all()
+        return [_role(row) for row in rows]
+
+    async def get_role(self, role_id: str) -> Role | None:
+        row = await self._one(
+            select(cargos_pesquisa_table).where(cargos_pesquisa_table.c.id == role_id)
+        )
+        return _role(row) if row else None
+
+    async def save_role(self, role: Role) -> None:
+        values = {"nome": role.name, "permissoes": [p.value for p in role.sorted_permissions()]}
+        await self._write(
+            insert(cargos_pesquisa_table)
+            .values(id=role.id, created_at=_utcnow(), **values)
+            .on_conflict_do_update(index_elements=["id"], set_=values)
+        )
 
     async def save_invite(self, email, role, expires_at, invite_hash, invite_expires_at) -> Account:
         renewed = {

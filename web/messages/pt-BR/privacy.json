@@ -38,7 +38,7 @@
   "privacy_voice_scope": "Só são lidos em voz alta os textos do próprio Verifica AI: o resultado, o que fazer, as lições e o tutorial. A mensagem, o link ou o print que você colou nunca são lidos nem enviados para esse serviço de voz.",
   "privacy_research_title": "Quem faz a pesquisa",
   "privacy_research_intro": "Quem usa o Verifica AI continua anônimo. Só as pessoas convidadas para a área de pesquisa do TCC (o autor e a banca) têm conta. Delas fica guardado:",
-  "privacy_research_email": "o e-mail, o papel (administrador ou pesquisador) e, se houver, a data em que o acesso termina;",
+  "privacy_research_email": "o e-mail, o cargo (o nome dele e o que ele permite fazer, como rodar o estudo) e, se houver, a data em que o acesso termina;",
   "privacy_research_password": "a senha, só embaralhada de um jeito que não permite recuperá-la (hash argon2);",
   "privacy_research_sessions": "a entrada cria dois cookies protegidos no navegador; no servidor fica só um código calculado a partir do cookie de renovação, válido por até 7 dias, para poder encerrar o acesso na hora;",
   "privacy_research_ip": "o endereço de internet de quem tenta entrar, por no máximo 15 minutos, só para barrar quem tenta adivinhar senhas.",

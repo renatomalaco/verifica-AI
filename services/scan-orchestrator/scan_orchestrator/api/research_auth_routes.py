@@ -31,8 +31,8 @@ from scan_orchestrator.application.research_auth import (
     SessionRejectedError,
     SignedIn,
 )
+from scan_orchestrator.application.research_roles import UnknownRoleError
 from scan_orchestrator.domain.research_access import (
-    Account,
     Principal,
     TooManyAttemptsError,
     WeakPasswordError,
@@ -47,12 +47,8 @@ REFRESH_PATH = "/api/v1/auth/refresh"
 router = APIRouter(prefix="/api/v1/auth", dependencies=[Depends(require_same_origin)])
 
 
-def _user(account: Account) -> ResearchUser:
-    return ResearchUser(email=account.email, role=account.role, expires_at=account.expires_at)
-
-
 def _signed_in_response(signed_in: SignedIn, settings: Settings) -> JSONResponse:
-    response = JSONResponse(_user(signed_in.account).model_dump(mode="json"))
+    response = JSONResponse(signed_in.user.model_dump(mode="json"))
     cookie = {"httponly": True, "secure": settings.AUTH_COOKIE_SECURE, "samesite": "strict"}
     response.set_cookie(
         ACCESS_COOKIE,
@@ -136,7 +132,7 @@ async def me(
     account = await auth.current_account(principal.account_id)
     if account is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="not_signed_in")
-    return _user(account)
+    return await auth.describe(account)
 
 
 @router.post("/invites/accept", status_code=status.HTTP_204_NO_CONTENT)
@@ -170,7 +166,10 @@ async def create_invite(
     auth: ResearchAuth = Depends(get_research_auth),
 ) -> InviteLink:
     expires_at = access_ends_at(body.expires_on) if body.expires_on else None
-    token = await auth.invite(body.email, body.role, expires_at=expires_at)
+    try:
+        token = await auth.invite(body.email, body.role, expires_at=expires_at)
+    except UnknownRoleError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="role_not_found")
     return InviteLink(url=invite_link(settings.PUBLIC_BASE_URL, token))
 
 

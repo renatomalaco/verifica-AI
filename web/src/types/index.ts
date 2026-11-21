@@ -104,8 +104,16 @@ export interface ResearchReport {
   latex_table: string
 }
 
-// Research area accounts (R5a). Mirrors contracts.ResearchRole / ResearchUser.
-export type ResearchRole = 'admin' | 'researcher'
+// Research area accounts (R5a). Mirrors contracts.ResearchPermission / ResearchRoleInfo /
+// ResearchUser. Every signed-in account reads the report; permissions add the rest.
+export const RESEARCH_PERMISSIONS = ['run_study', 'manage_access'] as const
+export type ResearchPermission = (typeof RESEARCH_PERMISSIONS)[number]
+
+export interface ResearchRole {
+  id: string
+  name: string
+  permissions: ResearchPermission[]
+}
 
 export interface ResearchUser {
   email: string

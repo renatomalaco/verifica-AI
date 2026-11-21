@@ -5,11 +5,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable
 from uuid import UUID, uuid4
 
-from contracts import ResearchAccount, ResearchRole
+from contracts import ResearchAccount, ResearchRoleInfo, ResearchUser
+from scan_orchestrator.application.research_roles import UnknownRoleError
 from scan_orchestrator.domain.research_access import (
     Account,
     LoginThrottle,
     RefreshSession,
+    Role,
     SessionState,
     hash_secret,
     new_secret,
@@ -45,6 +47,15 @@ class SignedIn:
     access_token: str
     refresh_token: str
     account: Account
+    user: ResearchUser
+
+
+def role_info(role: Role) -> ResearchRoleInfo:
+    return ResearchRoleInfo(id=role.id, name=role.name, permissions=role.sorted_permissions())
+
+
+def _user(account: Account, role: Role) -> ResearchUser:
+    return ResearchUser(email=account.email, role=role_info(role), expires_at=account.expires_at)
 
 
 class ResearchAuth:
@@ -62,10 +73,10 @@ class ResearchAuth:
         self._throttle = throttle
         self._clock = clock
 
-    async def invite(
-        self, email: str, role: ResearchRole, expires_at: datetime | None = None
-    ) -> str:
+    async def invite(self, email: str, role: str, expires_at: datetime | None = None) -> str:
         """Creates (or renews) the account and returns the one-time secret for the invite link."""
+        if await self._repo.get_role(role) is None:
+            raise UnknownRoleError(role)
         raw = new_secret()
         await self._repo.save_invite(
             email=normalize_email(email),
@@ -137,13 +148,21 @@ class ResearchAuth:
 
     async def list_accounts(self) -> list[ResearchAccount]:
         now = self._clock()
+        roles = {role.id: role for role in await self._repo.list_roles()}
         accounts = sorted(await self._repo.list_accounts(), key=lambda account: account.email)
         return [
             ResearchAccount(
-                email=a.email, role=a.role, expires_at=a.expires_at, status=a.status(now)
+                **_user(a, roles[a.role]).model_dump(), status=a.status(now)
             )
             for a in accounts
         ]
+
+    async def describe(self, account: Account) -> ResearchUser:
+        return _user(account, await self._role_of(account))
+
+    async def _role_of(self, account: Account) -> Role:
+        # The foreign key in Postgres guarantees every account points at an existing role.
+        return await self._repo.get_role(account.role)
 
     async def current_account(self, account_id: UUID) -> Account | None:
         account = await self._repo.get_account(account_id)
@@ -160,8 +179,10 @@ class ResearchAuth:
                 expires_at=self._clock() + REFRESH_TTL,
             )
         )
+        role = await self._role_of(account)
         return SignedIn(
-            access_token=self._issuer.issue(account.id, account.role),
+            access_token=self._issuer.issue(account.id, role),
             refresh_token=raw,
             account=account,
+            user=_user(account, role),
         )

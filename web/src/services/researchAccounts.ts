@@ -1,5 +1,5 @@
-// Admin screen of the research area: accounts, invite links and blocking.
-import type { ResearchAccount, ResearchRole } from '../types'
+// Admin screen of the research area: accounts, invite links, blocking and roles.
+import type { ResearchAccount, ResearchPermission, ResearchRole } from '../types'
 import { postJson, researchFetch } from './researchAuth'
 
 const AUTH = '/api/v1/auth'
@@ -18,7 +18,7 @@ export class AccountError extends Error {
 
 export interface InviteRequest {
   email: string
-  role: ResearchRole
+  role: string // ResearchRole.id
   expiresOn: string // YYYY-MM-DD from the date field; empty means no end
 }
 
@@ -45,4 +45,46 @@ export async function disableAccount(email: string): Promise<void> {
   if (response.ok) return
   const body = await response.json().catch(() => ({}))
   throw new AccountError(DISABLE_ERRORS[body?.detail] ?? 'failed')
+}
+
+export type RoleErrorKind = 'name_taken' | 'protected' | 'not_found' | 'failed'
+
+export class RoleError extends Error {
+  kind: RoleErrorKind
+
+  constructor(kind: RoleErrorKind) {
+    super(kind)
+    this.name = 'RoleError'
+    this.kind = kind
+  }
+}
+
+export interface RoleDraft {
+  name: string
+  permissions: ResearchPermission[]
+}
+
+const ROLE_ERRORS: Record<string, RoleErrorKind> = {
+  role_name_taken: 'name_taken',
+  protected_role: 'protected',
+  role_not_found: 'not_found',
+}
+
+export async function listRoles(): Promise<ResearchRole[]> {
+  const response = await researchFetch(`${AUTH}/roles`)
+  if (!response.ok) throw new RoleError('failed')
+  return response.json()
+}
+
+export const createRole = (draft: RoleDraft): Promise<ResearchRole> =>
+  saveRole(`${AUTH}/roles`, postJson(draft))
+
+export const updateRole = (id: string, draft: RoleDraft): Promise<ResearchRole> =>
+  saveRole(`${AUTH}/roles/${encodeURIComponent(id)}`, { ...postJson(draft), method: 'PUT' })
+
+async function saveRole(path: string, init: RequestInit): Promise<ResearchRole> {
+  const response = await researchFetch(path, init)
+  if (response.ok) return response.json()
+  const body = await response.json().catch(() => ({}))
+  throw new RoleError(ROLE_ERRORS[body?.detail] ?? 'failed')
 }

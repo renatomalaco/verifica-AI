@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 
-from contracts import ResearchAccountStatus, ResearchRole
+from contracts import ResearchAccountStatus, ResearchPermission, ResearchRole
 from scan_orchestrator.domain.research_access import (
     Account,
     LoginLimits,
@@ -13,8 +13,11 @@ from scan_orchestrator.domain.research_access import (
     TooManyAttemptsError,
     WeakPasswordError,
     access_ends_at,
-    can_manage_accounts,
-    can_run_study,
+    ProtectedRoleError,
+    Principal,
+    Role,
+    check_role_change,
+    new_role_id,
     hash_secret,
     invite_link,
     new_secret,
@@ -58,9 +61,24 @@ def test_passwords_need_at_least_twelve_characters():
     validate_password("doze-letras!")
 
 
-def test_only_the_admin_runs_the_study():
-    assert can_run_study(ResearchRole.ADMIN)
-    assert not can_run_study(ResearchRole.RESEARCHER)
+def test_a_principal_can_do_only_what_its_role_allows():
+    principal = Principal(uuid4(), "orientador", frozenset({ResearchPermission.RUN_STUDY}))
+
+    assert principal.can(ResearchPermission.RUN_STUDY)
+    assert not principal.can(ResearchPermission.MANAGE_ACCESS)
+
+
+def test_a_role_lists_its_permissions_in_a_stable_order():
+    role = Role(
+        "admin",
+        "Administrador",
+        frozenset({ResearchPermission.MANAGE_ACCESS, ResearchPermission.RUN_STUDY}),
+    )
+
+    assert role.sorted_permissions() == [
+        ResearchPermission.RUN_STUDY,
+        ResearchPermission.MANAGE_ACCESS,
+    ]
 
 
 def test_secrets_are_random_and_stored_only_as_hash():
@@ -145,9 +163,19 @@ def test_the_admin_sees_one_status_per_account(overrides, status):
     assert account(**overrides).status(NOW) is status
 
 
-def test_only_the_admin_manages_accounts():
-    assert can_manage_accounts(ResearchRole.ADMIN)
-    assert not can_manage_accounts(ResearchRole.RESEARCHER)
+def test_the_admin_role_always_keeps_access_management():
+    # Otherwise no one could ever invite, block or fix a role again.
+    with pytest.raises(ProtectedRoleError):
+        check_role_change(ResearchRole.ADMIN, frozenset({ResearchPermission.RUN_STUDY}))
+    check_role_change(ResearchRole.ADMIN, frozenset({ResearchPermission.MANAGE_ACCESS}))
+    check_role_change("orientador", frozenset())
+
+
+def test_new_role_ids_are_short_unique_and_fit_the_account_column():
+    ids = {new_role_id() for _ in range(50)}
+
+    assert len(ids) == 50
+    assert all(i.startswith("cargo-") and len(i) <= 20 for i in ids)
 
 
 def test_access_ends_at_midnight_after_the_last_day_in_brasilia():

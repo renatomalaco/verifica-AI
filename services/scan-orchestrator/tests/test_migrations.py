@@ -51,3 +51,17 @@ def test_research_accounts_store_only_hashes(monkeypatch, capsys):
     assert "CREATE TABLE sessoes_pesquisa" in sql
     assert "password_hash" in sql and "token_hash" in sql
     assert " password " not in sql and "refresh_token " not in sql
+
+
+def test_research_roles_start_with_admin_and_researcher_and_bind_every_account(
+    monkeypatch, capsys
+):
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://user:pass@db.invalid/verifica_db")
+
+    command.upgrade(_config(), "head", sql=True)
+
+    sql = capsys.readouterr().out
+    assert "CREATE TABLE cargos_pesquisa" in sql
+    assert "'admin', 'Administrador'" in sql and "'researcher', 'Pesquisador'" in sql
+    assert "{run_study,manage_access}" in sql
+    assert "FOREIGN KEY(role) REFERENCES cargos_pesquisa (id)" in sql

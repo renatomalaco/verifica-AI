@@ -7,7 +7,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from enum import Enum
 from uuid import UUID
 
-from contracts import ResearchAccountStatus, ResearchRole
+from contracts import ResearchAccountStatus, ResearchPermission, ResearchRole
 from scan_orchestrator.domain.quota import QuotaStore
 
 MIN_PASSWORD_LENGTH = 12
@@ -18,6 +18,10 @@ class WeakPasswordError(ValueError):
     pass
 
 
+class ProtectedRoleError(ValueError):
+    """The admin role must keep access management, or no one could ever fix access again."""
+
+
 class TooManyAttemptsError(Exception):
     def __init__(self, retry_after_seconds: int) -> None:
         super().__init__(f"Too many sign-in attempts; retry in {retry_after_seconds}s")
@@ -25,10 +29,22 @@ class TooManyAttemptsError(Exception):
 
 
 @dataclass(frozen=True)
+class Role:
+    """What a group of accounts may do. Every signed-in account reads the report."""
+
+    id: str
+    name: str
+    permissions: frozenset[ResearchPermission]
+
+    def sorted_permissions(self) -> list[ResearchPermission]:
+        return [p for p in ResearchPermission if p in self.permissions]
+
+
+@dataclass(frozen=True)
 class Account:
     id: UUID
     email: str
-    role: ResearchRole
+    role: str  # Role.id
     password_hash: str | None  # None until the invite is accepted
     expires_at: datetime | None = None
     disabled_at: datetime | None = None
@@ -55,7 +71,11 @@ class Principal:
     """Who a valid access token says the caller is."""
 
     account_id: UUID
-    role: ResearchRole
+    role: str
+    permissions: frozenset[ResearchPermission]
+
+    def can(self, permission: ResearchPermission) -> bool:
+        return permission in self.permissions
 
 
 class SessionState(Enum):
@@ -93,12 +113,14 @@ def normalize_email(email: str) -> str:
     return email.strip().lower()
 
 
-def can_run_study(role: ResearchRole) -> bool:
-    return role is ResearchRole.ADMIN
+def check_role_change(role_id: str, permissions: frozenset[ResearchPermission]) -> None:
+    if role_id == ResearchRole.ADMIN and ResearchPermission.MANAGE_ACCESS not in permissions:
+        raise ProtectedRoleError(role_id)
 
 
-def can_manage_accounts(role: ResearchRole) -> bool:
-    return role is ResearchRole.ADMIN
+def new_role_id() -> str:
+    """Ids never change, so renaming a role keeps every account attached to it."""
+    return f"cargo-{secrets.token_hex(4)}"
 
 
 def access_ends_at(last_day: date) -> datetime:

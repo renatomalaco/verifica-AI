@@ -5,11 +5,8 @@ The research-runner imports them too, with only the public key."""
 from fastapi import Depends, HTTPException, Request, status
 
 from scan_orchestrator.api.dependencies import get_access_verifier, get_settings
-from scan_orchestrator.domain.research_access import (
-    Principal,
-    can_manage_accounts,
-    can_run_study,
-)
+from contracts import ResearchPermission
+from scan_orchestrator.domain.research_access import Principal
 from scan_orchestrator.infrastructure.access_tokens import AccessTokenVerifier
 from scan_orchestrator.settings import Settings
 
@@ -44,12 +41,12 @@ def require_research_reader(principal: Principal = Depends(current_principal)) -
 def require_study_runner(
     principal: Principal = Depends(current_principal), _: None = Depends(require_same_origin)
 ) -> Principal:
-    if not can_run_study(principal.role):
+    if not principal.can(ResearchPermission.RUN_STUDY):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_only")
     return principal
 
 
 def require_account_manager(principal: Principal = Depends(current_principal)) -> Principal:
-    if not can_manage_accounts(principal.role):
+    if not principal.can(ResearchPermission.MANAGE_ACCESS):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_only")
     return principal
