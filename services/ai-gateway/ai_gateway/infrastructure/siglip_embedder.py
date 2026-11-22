@@ -63,7 +63,12 @@ def decode_image(image_b64: str) -> Image.Image:
         raise ValueError("the payload is not a decodable image") from exc
     if image.width * image.height > _MAX_PIXELS:
         raise ValueError("image above the pixel limit")
-    return image.convert("RGB")
+    if not image.has_transparency_data:
+        return image.convert("RGB")
+    # A plain RGB conversion paints transparent logos on black; real pages show them on white.
+    rgba = image.convert("RGBA")
+    white = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+    return Image.alpha_composite(white, rgba).convert("RGB")
 
 
 def unit_vector(values: list[float], dimension: int) -> list[float]:
