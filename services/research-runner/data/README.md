@@ -11,7 +11,7 @@
 | `origin` | yes | `real` (collected) or `synthetic` (written or generated). |
 | `source` | yes | Where it came from: `coleta-familia`, `alerta-febraban`, `noticia-g1`, `urlhaus`, `tranco`… |
 | `collected_on` | for real | `YYYY-MM-DD` when it was received or captured. |
-| `adversarial` | no | `true` for injection attempts (invisible characters, "ignore the rules…"). |
+| `adversarial` | no | `true` for injection attempts (invisible characters, "ignore the rules…"). The robustness check does not depend on it: it attacks every real text scam of the test split with fixed techniques (`domain/adversarial_eval.py`). |
 | `category` | no | `coercao_afetiva`, `ameaca_financeira`, `urgencia`… |
 
 ## Anonymization (LGPD)

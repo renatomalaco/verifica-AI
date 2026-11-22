@@ -11,8 +11,8 @@ def _content_lines(text: str) -> list[str]:
     return [line.strip() for line in text.splitlines() if line.strip() and not line.startswith("#")]
 
 
-def parse_openphish_content(text: str) -> list[str]:
-    """Extracts URLs from the OpenPhish feed (one per line, skipping lines commented with #)."""
+def parse_url_lines(text: str) -> list[str]:
+    """Extracts URLs from a feed with one per line (OpenPhish, CaUMa), skipping # comments."""
     return _content_lines(text)
 
 

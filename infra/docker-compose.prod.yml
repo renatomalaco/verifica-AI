@@ -1,5 +1,5 @@
 # Memory and CPU ceilings (mem_limit, cpus) are sized for an e2-standard-2 VM (2 vCPU, 8 GB):
-# about 7.3 GB in total, so a heavy page in the inspector's Chromium or the SigLIP model in the
+# about 7.6 GB in total, so a heavy page in the inspector's Chromium or the SigLIP model in the
 # ai-gateway cannot starve Postgres or the orchestrator. Tune them with `docker stats`.
 services:
   caddy:
@@ -128,12 +128,18 @@ services:
       dockerfile: services/url-inspector/Dockerfile
     container_name: verifica-ai-url-inspector
     restart: unless-stopped
+    # Each inspection starts its own Chromium. Without an init process the processes of an
+    # interrupted inspection are never reaped, pile up and finally take the Playwright driver down.
+    init: true
+    # Chromium crashes on large pages with Docker's default 64 MB of shared memory.
+    shm_size: "1gb"
     mem_limit: 1280m
     cpus: "1.5"
     environment:
       # No route to the internet of its own: every browser request goes through the egress proxy.
+      # No telemetry either: the collector lives on the internal network, which this container
+      # must not reach (the orchestrator already traces each inspection).
       - EGRESS_PROXY_URL=http://egress:3128
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     networks:
       - isolated-inspector
     depends_on:
@@ -264,7 +270,9 @@ services:
     image: grafana/grafana:13.2.6
     container_name: verifica-ai-grafana
     restart: unless-stopped
-    mem_limit: 192m
+    # At 192m Grafana kept evicting and re-reading its own files: 737 GB read from disk,
+    # leaving the whole VM waiting on I/O.
+    mem_limit: 512m
     cpus: "0.25"
     environment:
       GF_SECURITY_ADMIN_USER: admin

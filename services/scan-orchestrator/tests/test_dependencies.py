@@ -62,6 +62,7 @@ def test_ai_gateway_timeout_is_configurable():
     settings = Settings(_env_file=None, AI_GATEWAY_TIMEOUT_SECONDS=30.0)
 
     assert _gateway_of(get_triage_client(settings, POLICY))._timeout_seconds == 30.0
+    assert get_explainer_client(settings)._timeout_seconds == 30.0
 
 
 def test_every_triage_is_confirmed_by_the_deep_model_when_in_doubt():
@@ -73,7 +74,6 @@ def test_every_triage_is_confirmed_by_the_deep_model_when_in_doubt():
 
 def _gateway_of(triage: ConfirmingTriage) -> HttpTriageClient:
     return triage._models
-    assert get_explainer_client(settings)._timeout_seconds == 30.0
 
 
 async def test_the_cascade_knows_the_public_address_of_the_site():

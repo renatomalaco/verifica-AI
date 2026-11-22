@@ -182,7 +182,7 @@ Depois, Jaeger fica em `http://localhost:16686` e Grafana em `http://localhost:3
 - **Nova versão:** `git pull` e `bash infra/prod-compose.sh up -d --build`. Se a VM tiver dificuldade para baixar do Docker Hub, construa uma imagem por vez (`bash infra/prod-compose.sh build <serviço>`).
 - **Conferir as imagens:** `SMOKE_COMPOSE="bash infra/prod-compose.sh" bash scripts/ci/smoke_images.sh` importa, dentro de cada imagem, o que ela roda. Deve terminar com `All production images import what they run.`
 - **Logs:** `bash infra/prod-compose.sh logs -f scan-orchestrator`.
-- **Memória:** cada container tem um teto de RAM e de CPU (`mem_limit` e `cpus` no compose), somando cerca de 7,3 GB dos 8 GB da VM. Depois do primeiro uso real, confira com `docker stats --no-stream`. Se um serviço viver encostado no teto, aumente o dele e diminua o de outro.
+- **Memória:** cada container tem um teto de RAM e de CPU (`mem_limit` e `cpus` no compose), somando cerca de 7,6 GB dos 8 GB da VM. Depois do primeiro uso real, confira com `docker stats --no-stream`. Se um serviço viver encostado no teto, aumente o dele e diminua o de outro.
 - **Para não gastar os créditos à toa:** pare a VM no console quando não estiver usando. O IP estático continua reservado, e ele custa algo enquanto a VM estiver parada.
 
 ## Limite desta proteção

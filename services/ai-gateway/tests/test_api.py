@@ -76,7 +76,8 @@ async def _post_triage(path: str, text: str = "Oi pai, troquei de número. Me fa
 
 
 @pytest.mark.parametrize(
-    "path,dependency", [("/v1/triage", get_triage_client), ("/v1/triage/deep", get_deep_triage_client)]
+    "path,dependency",
+    [("/v1/triage", get_triage_client), ("/v1/triage/deep", get_deep_triage_client)],
 )
 async def test_a_failing_model_answers_503_not_a_crash(path, dependency):
     app.dependency_overrides[dependency] = FailingTriageClient
@@ -197,7 +198,10 @@ def test_each_triage_depth_calls_its_own_model_and_timeout():
 
     quick, deep = get_triage_client(settings), get_deep_triage_client(settings)
 
-    assert (quick._model, quick._timeout_seconds) == ("lite", settings.GEMINI_TRIAGE_TIMEOUT_SECONDS)
+    assert (quick._model, quick._timeout_seconds) == (
+        "lite",
+        settings.GEMINI_TRIAGE_TIMEOUT_SECONDS,
+    )
     assert (deep._model, deep._timeout_seconds) == ("flash", settings.GEMINI_DEEP_TIMEOUT_SECONDS)
 
 
@@ -223,7 +227,9 @@ def test_each_triage_call_fits_the_orchestrator_wait():
     settings = Settings(_env_file=None)
 
     quick_with_reserve = 2 * settings.GEMINI_TRIAGE_TIMEOUT_SECONDS
-    deep_with_reserve = settings.GEMINI_DEEP_TIMEOUT_SECONDS + settings.GEMINI_TRIAGE_TIMEOUT_SECONDS
+    deep_with_reserve = (
+        settings.GEMINI_DEEP_TIMEOUT_SECONDS + settings.GEMINI_TRIAGE_TIMEOUT_SECONDS
+    )
     assert max(quick_with_reserve, deep_with_reserve) <= 20.0
 
 

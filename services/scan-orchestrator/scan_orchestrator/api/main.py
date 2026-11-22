@@ -14,7 +14,6 @@ from observability import configure_telemetry
 from contracts import (
     ExplainResponse,
     ExplainScanRequest,
-    Locale,
     QuotaExceeded,
     ResearchPermission,
     ScanRequest,

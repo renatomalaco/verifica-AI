@@ -8,7 +8,7 @@ from observability import configure_telemetry
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from threat_intel_sync.domain.sync_manager import SyncManager
-from threat_intel_sync.infrastructure.http_feed_sources import OpenPhishSource, URLhausSource
+from threat_intel_sync.infrastructure.http_feed_sources import scam_feed_sources
 from threat_intel_sync.infrastructure.redis_storage import RedisStackStorage
 from threat_intel_sync.infrastructure.tranco_source import TrancoSource
 
@@ -63,7 +63,7 @@ async def main() -> None:
     configure_telemetry("threat-intel-sync")  # no FastAPI: only the feed downloads are traced
     settings = WorkerSettings()
     storage = RedisStackStorage(redis_url=settings.REDIS_URL)
-    manager = SyncManager(feed_sources=[OpenPhishSource(), URLhausSource()], storage=storage)
+    manager = SyncManager(feed_sources=scam_feed_sources(), storage=storage)
     tranco = TrancoSource(top=settings.TRANCO_TOP)
     try:
         await asyncio.gather(

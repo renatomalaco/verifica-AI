@@ -129,7 +129,9 @@ def get_triage_client(settings: Settings = Depends(get_settings)) -> TriageClien
 def get_deep_triage_client(settings: Settings = Depends(get_settings)) -> TriageClient:
     if not _triage_on_gemini(settings):
         return FakeTriageClient()
-    deep = _gemini_triage(settings, settings.GEMINI_DEEP_MODEL, settings.GEMINI_DEEP_TIMEOUT_SECONDS)
+    deep = _gemini_triage(
+        settings, settings.GEMINI_DEEP_MODEL, settings.GEMINI_DEEP_TIMEOUT_SECONDS
+    )
     return _with_reserve(settings, deep)
 
 

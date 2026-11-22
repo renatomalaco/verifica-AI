@@ -5,6 +5,7 @@ from httpx import ASGITransport, AsyncClient
 
 from research_runner.__main__ import main
 from research_runner.application.ablation_study import StudyConfig, run_study
+from research_runner.domain.adversarial_eval import TECHNIQUES
 from research_runner.domain.dataset import Sample
 from research_runner.infrastructure.llm_providers import providers_from_settings
 
@@ -79,7 +80,9 @@ async def test_report_carries_reliability_bins_and_adversarial_results():
         "total",
         "detected_without_sanitization",
         "detected_with_sanitization",
+        "by_technique",
     }
+    assert set(report["adversarial"]["by_technique"]) == set(TECHNIQUES)
 
 
 async def test_report_lists_each_error_by_id_without_the_message():

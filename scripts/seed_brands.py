@@ -36,7 +36,11 @@ async def main(root: Path) -> int:
     settings = Settings()
     engine = create_async_engine(database_url)
     try:
-        embedder = SiglipEmbedder(model_name=settings.SIGLIP_MODEL, dimension=settings.EMBEDDING_DIM)
+        embedder = SiglipEmbedder(
+            model_name=settings.SIGLIP_MODEL,
+            revision=settings.SIGLIP_REVISION,
+            dimension=settings.EMBEDDING_DIM,
+        )
         saved = await seed_references(root, embedder, PgvectorBrandCatalog(engine))
     finally:
         await engine.dispose()

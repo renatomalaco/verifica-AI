@@ -36,6 +36,24 @@ def test_decode_image_returns_rgb():
     assert image.size == (320, 200)
 
 
+@pytest.mark.parametrize("mode", ["RGBA", "LA", "P"])
+def test_decode_image_puts_a_transparent_logo_on_white(mode):
+    # Official logos ship as transparent PNGs; a plain RGB conversion paints the
+    # background black and the embedding stops resembling the logo on a real page.
+    logo = Image.new("RGBA", (40, 40), (0, 0, 0, 0))
+    logo.paste((0, 60, 200, 255), (10, 10, 30, 30))
+    logo = logo.convert(mode)
+    if mode == "P":
+        logo.info["transparency"] = logo.getpixel((0, 0))
+    buffer = io.BytesIO()
+    logo.save(buffer, format="PNG")
+
+    image = decode_image(base64.b64encode(buffer.getvalue()).decode())
+
+    assert image.mode == "RGB"
+    assert image.getpixel((0, 0)) == (255, 255, 255)
+
+
 def test_decode_image_rejects_what_is_not_an_image():
     with pytest.raises(ValueError):
         decode_image(base64.b64encode(b"not an image").decode())
