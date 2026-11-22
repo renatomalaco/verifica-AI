@@ -1,0 +1,33 @@
+# Local CI: Jenkins plus its own Docker daemon (dind). Jenkins shares the daemon's network, so the
+# loopback ports the integration stage publishes (infra/docker-compose.ci.yml) are reachable,
+# and the build never touches the containers of the developer's machine.
+#   VERIFICA_CI_POSTGRES_PASSWORD=<random> VERIFICA_CI_BRANCH=<branch> docker compose -f infra/jenkins/docker-compose.yml up -d --build
+services:
+  dind:
+    image: docker:27-dind
+    container_name: verifica-jenkins-dind
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""  # plain TCP, reachable only inside this network namespace
+    ports:
+      - "127.0.0.1:8080:8080"  # Jenkins UI (Jenkins runs in this container's network)
+    volumes:
+      - dind-data:/var/lib/docker
+
+  jenkins:
+    build: .
+    container_name: verifica-jenkins
+    network_mode: "service:dind"
+    depends_on:
+      - dind
+    environment:
+      DOCKER_HOST: tcp://127.0.0.1:2375
+      VERIFICA_CI_POSTGRES_PASSWORD: ${VERIFICA_CI_POSTGRES_PASSWORD:?generate a random value for the CI Postgres}
+      VERIFICA_CI_BRANCH: ${VERIFICA_CI_BRANCH:?branch to build, e.g. main}
+    volumes:
+      - jenkins-home:/var/jenkins_home
+      - ../..:/repo:ro
+
+volumes:
+  dind-data:
+  jenkins-home:

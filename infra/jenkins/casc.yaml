@@ -1,0 +1,37 @@
+# Jenkins configuration as code. Unsecured on purpose: the UI is published on 127.0.0.1 only.
+jenkins:
+  systemMessage: "Verifica AI: Jenkins local (127.0.0.1)"
+  numExecutors: 2
+  authorizationStrategy: unsecured
+
+unclassified:
+  location:
+    url: "http://localhost:8080/"
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - string:
+              scope: GLOBAL
+              id: verifica-postgres-password
+              description: "Throwaway password of the CI Postgres (integration stage)"
+              secret: "${VERIFICA_CI_POSTGRES_PASSWORD}"
+
+# Pipeline job over the bind-mounted repository: it builds the latest commit of the branch,
+# never uncommitted changes.
+jobs:
+  - script: >
+      pipelineJob('verifica-ai') {
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('file:///repo') }
+                branch('${VERIFICA_CI_BRANCH:-main}')
+              }
+            }
+            scriptPath('Jenkinsfile')
+          }
+        }
+      }
