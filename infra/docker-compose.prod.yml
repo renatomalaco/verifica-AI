@@ -128,12 +128,18 @@ services:
       dockerfile: services/url-inspector/Dockerfile
     container_name: verifica-ai-url-inspector
     restart: unless-stopped
+    # Each inspection starts its own Chromium. Without an init process the processes of an
+    # interrupted inspection are never reaped, pile up and finally take the Playwright driver down.
+    init: true
+    # Chromium crashes on large pages with Docker's default 64 MB of shared memory.
+    shm_size: "1gb"
     mem_limit: 1280m
     cpus: "1.5"
     environment:
       # No route to the internet of its own: every browser request goes through the egress proxy.
+      # No telemetry either: the collector lives on the internal network, which this container
+      # must not reach (the orchestrator already traces each inspection).
       - EGRESS_PROXY_URL=http://egress:3128
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     networks:
       - isolated-inspector
     depends_on:
