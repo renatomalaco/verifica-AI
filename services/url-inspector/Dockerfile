@@ -1,4 +1,9 @@
-FROM mcr.microsoft.com/playwright/python:v1.47.0-noble
+# One Playwright version for the base image (browsers and system libraries) and the Python
+# package: a newer package than the image left the driver hanging. It must match uv.lock
+# (tests/test_image_playwright_version.py checks it).
+ARG PLAYWRIGHT_VERSION=1.63.0
+FROM mcr.microsoft.com/playwright/python:v${PLAYWRIGHT_VERSION}-noble
+ARG PLAYWRIGHT_VERSION
 
 WORKDIR /app
 
@@ -11,8 +16,9 @@ COPY pyproject.toml README.md ./
 COPY packages/ ./packages/
 COPY services/url-inspector/ ./services/url-inspector/
 
-RUN uv pip install --system -e ./packages/contracts -e ./packages/observability -e ./services/url-inspector
-RUN playwright install chromium --with-deps
+# The browsers already come with the base image, for this same version.
+RUN uv pip install --system "playwright==${PLAYWRIGHT_VERSION}" \
+    -e ./packages/contracts -e ./packages/observability -e ./services/url-inspector
 
 EXPOSE 8002
 
