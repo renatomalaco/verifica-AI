@@ -7,6 +7,7 @@ from scan_orchestrator.domain.cascade import (
     Cascade,
     Stage0CacheAndFeeds,
     Stage1ReputationAndSignals,
+    Stage2RemoteInspection,
     StageContext,
 )
 from scan_orchestrator.domain.decision import ThresholdPolicy
@@ -18,6 +19,11 @@ from research_runner.application.benchmark_service import Outcome
 from research_runner.domain.classical_nlp import ClassicalPTBRClassifier
 from research_runner.domain.dataset import Sample, Split
 from research_runner.infrastructure.llm_providers import ModelCall
+from research_runner.infrastructure.url_snapshots import (
+    SnapshotDomainEvidenceClient,
+    SnapshotInspectorClient,
+    UrlSnapshotStore,
+)
 
 POLICY = ThresholdPolicy()
 PROVIDER_FAILURE = "provider_failure"
@@ -30,15 +36,27 @@ def train_classifier(samples: list[Sample], splits: dict[str, Split]) -> Classic
     return ClassicalPTBRClassifier().fit([s.content for s in train], [s.label for s in train])
 
 
-def build_url_cascade(feed_urls: list[str]) -> Cascade:
-    """Stages 0 and 1 only: page inspection stays off until the R2 egress proxy exists."""
+def build_url_cascade(
+    feed_urls: list[str],
+    snapshots: UrlSnapshotStore | None = None,
+    triage=None,
+) -> Cascade:
+    """Stages 0 and 1 offline, or stages 0-2 when frozen URL snapshots are provided."""
     feeds = FakeRedisCacheClient()  # in-memory store holding a dated feed snapshot
     for url in feed_urls:
         feeds.add_to_blacklist(url)
-    # Stage 1 runs its typosquatting rule offline; registry, certificate and Tranco lookups
-    # answer "unknown".
-    stage1 = Stage1ReputationAndSignals(evidence_client=FakeDomainEvidenceClient())
-    return Cascade(stages=[Stage0CacheAndFeeds(feeds), stage1], policy=POLICY)
+    evidence_client = (
+        SnapshotDomainEvidenceClient(snapshots) if snapshots else FakeDomainEvidenceClient()
+    )
+    stages = [Stage0CacheAndFeeds(feeds), Stage1ReputationAndSignals(evidence_client)]
+    if snapshots and triage is not None:
+        stages.append(
+            Stage2RemoteInspection(
+                inspector_client=SnapshotInspectorClient(snapshots),
+                triage_client=triage,
+            )
+        )
+    return Cascade(stages=stages, policy=POLICY)
 
 
 def _scam_probability(response: ScanResponse) -> float:
@@ -64,8 +82,10 @@ class HeuristicEvaluator:
         self._cascade = cascade
 
     @classmethod
-    def with_feed(cls, feed_urls: list[str]) -> "HeuristicEvaluator":
-        return cls(build_url_cascade(feed_urls))
+    def with_feed(
+        cls, feed_urls: list[str], snapshots: UrlSnapshotStore | None = None
+    ) -> "HeuristicEvaluator":
+        return cls(build_url_cascade(feed_urls, snapshots=snapshots))
 
     async def evaluate(self, sample: Sample) -> Outcome:
         urls = ScanInput(content=sample.content).extract_urls()
@@ -139,13 +159,16 @@ class CascadeEvaluator:
 
     @classmethod
     def build(
-        cls, triage: GatewayTriageClient | LocalTriageClient, feed_urls: list[str]
+        cls,
+        triage: GatewayTriageClient | LocalTriageClient,
+        feed_urls: list[str],
+        snapshots: UrlSnapshotStore | None = None,
     ) -> "CascadeEvaluator":
         use_case = AnalyzeTextUseCase(
             triage_client=triage,
             repository=InMemoryScanRepository(),
             policy=POLICY,
-            cascade=build_url_cascade(feed_urls),
+            cascade=build_url_cascade(feed_urls, snapshots=snapshots, triage=triage),
         )
         return cls(use_case, triage)
 
