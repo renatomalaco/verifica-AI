@@ -25,6 +25,7 @@ from research_runner.infrastructure.evaluators import (
     train_classifier,
 )
 from research_runner.infrastructure.llm_providers import StudyProviders
+from research_runner.infrastructure.url_snapshots import UrlSnapshotStore
 
 DISABLED_STAGES = [
     # RDAP, crt.sh and Tranco need the network; the benchmark runs offline
@@ -53,6 +54,9 @@ class StudyConfig:
     seed: int = 42
     feed_urls: tuple[str, ...] = ()
     feed_snapshot: str | None = None  # where and when the feed URLs were taken
+    url_snapshots: UrlSnapshotStore | None = None
+    url_snapshots_path: str | None = None
+    url_snapshots_sha256: str | None = None
 
 
 async def run_study(
@@ -71,12 +75,12 @@ async def run_study(
     )
 
     evaluators = {
-        AblationMode.HEURISTIC: HeuristicEvaluator.with_feed(feeds),
+        AblationMode.HEURISTIC: HeuristicEvaluator.with_feed(feeds, snapshots=config.url_snapshots),
         AblationMode.CLASSICAL_NLP: ClassicalNlpEvaluator(classifier),
         AblationMode.PURE_VLM: PureVlmEvaluator(providers.pure_vlm.call)
         if providers.pure_vlm
         else None,
-        AblationMode.CASCADE: CascadeEvaluator.build(triage, feeds),
+        AblationMode.CASCADE: CascadeEvaluator.build(triage, feeds, snapshots=config.url_snapshots),
     }
     calls_model = {AblationMode.PURE_VLM: True, AblationMode.CASCADE: providers.triage is not None}
     evaluations = [
@@ -152,9 +156,22 @@ def _meta(
             "triage": providers.triage.description if providers.triage else None,
             "pause_seconds": providers.pause_seconds,
         },
-        "disabled_stages": DISABLED_STAGES,
+        "disabled_stages": ["visual_rag"] if config.url_snapshots else DISABLED_STAGES,
         "feed": {"urls": len(config.feed_urls), "snapshot": config.feed_snapshot},
+        "url_snapshots": _snapshot_meta(config),
         "warnings": _warnings(test, config, providers) + _failure_warnings(modes),
+    }
+
+
+def _snapshot_meta(config: StudyConfig) -> dict[str, Any] | None:
+    if not config.url_snapshots:
+        return None
+    return {
+        "path": config.url_snapshots_path,
+        "sha256": config.url_snapshots_sha256,
+        "collected_at": config.url_snapshots.collected_at,
+        "domains": len(config.url_snapshots.domains),
+        "pages": len(config.url_snapshots.pages),
     }
 
 
