@@ -13,6 +13,7 @@ from research_runner.domain.report_generator import (
 from research_runner.infrastructure.dataset_file import load_samples
 from research_runner.infrastructure.llm_providers import providers_from_settings
 from research_runner.infrastructure.report_files import reports_dir, write_report
+from research_runner.infrastructure.url_snapshots import load_url_snapshots
 from research_runner.settings import ResearchSettings
 
 GATE_PASSED = 0
@@ -23,11 +24,17 @@ NO_TEST_DATA = 2
 def main(argv: list[str] | None = None) -> int:
     args = _parse(argv)
     feed_urls = _read_feed(args.feed_snapshot)
+    url_snapshots, url_snapshots_sha = (
+        load_url_snapshots(args.url_snapshots) if args.url_snapshots else (None, None)
+    )
     config = StudyConfig(
         test_ratio=args.test_ratio,
         seed=args.seed,
         feed_urls=tuple(feed_urls),
         feed_snapshot=args.feed_snapshot,
+        url_snapshots=url_snapshots,
+        url_snapshots_path=args.url_snapshots,
+        url_snapshots_sha256=url_snapshots_sha,
     )
     report = asyncio.run(
         run_study(load_samples(args.dataset), config, providers_from_settings(ResearchSettings()))
@@ -48,18 +55,18 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.threshold_f1 is None:
         return GATE_PASSED
-    return _gate(report, args.threshold_f1)
+    return _gate(report, args.threshold_f1, mode=args.gate_mode)
 
 
-def _gate(report: dict, threshold: float) -> int:
-    cascade = next(m for m in report["modes"] if m["mode"] == "cascade")
-    if cascade["status"] != "executed":
-        print(f"[FAIL] F1 gate: cascade not evaluated ({cascade.get('note')})")
+def _gate(report: dict, threshold: float, mode: str = "cascade") -> int:
+    entry = next(m for m in report["modes"] if m["mode"] == mode)
+    if entry["status"] != "executed":
+        print(f"[FAIL] F1 gate ({mode}): not evaluated ({entry.get('note')})")
         return NO_TEST_DATA
-    f1 = cascade["metrics"]["f1_score"]
+    f1 = entry["metrics"]["f1_score"]
     passed = f1 >= threshold
     print(
-        f"[{'OK' if passed else 'FAIL'}] F1 gate on the test split: {f1:.4f} "
+        f"[{'OK' if passed else 'FAIL'}] F1 gate ({mode}) on the test split: {f1:.4f} "
         f"(threshold {threshold:.4f})"
     )
     return GATE_PASSED if passed else GATE_FAILED
@@ -85,7 +92,13 @@ def _parse(argv: list[str] | None) -> argparse.Namespace:
         "--output-dir", default=None, help="Where latest.json and the SVG diagrams go."
     )
     parser.add_argument(
-        "--threshold-f1", type=float, default=None, help="Minimum cascade F1 on the test split."
+        "--threshold-f1", type=float, default=None, help="Minimum F1 on the test split."
+    )
+    parser.add_argument(
+        "--gate-mode",
+        default="cascade",
+        choices=("heuristic", "classical_nlp", "pure_vlm", "cascade"),
+        help="Mode checked by --threshold-f1 (default: cascade).",
     )
     parser.add_argument("--seed", type=int, default=42, help="Seed of the fixed train/test split.")
     parser.add_argument(
@@ -93,6 +106,11 @@ def _parse(argv: list[str] | None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--feed-snapshot", default=None, help="Text file with one scam URL per line (stage 0 feed)."
+    )
+    parser.add_argument(
+        "--url-snapshots",
+        default=None,
+        help="JSON file with frozen domain signals and page inspections for stages 1 and 2.",
     )
     return parser.parse_args(argv)
 

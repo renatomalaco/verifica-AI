@@ -203,6 +203,40 @@ def test_gate_compares_the_cascade_f1_on_the_test_split(tmp_path, capsys):
     assert (tmp_path / "reliability_cascade.svg").read_text(encoding="utf-8").startswith("<svg")
 
 
+def test_gate_can_check_the_reproducible_classical_nlp_mode(tmp_path):
+    dataset = write_dataset(tmp_path, REAL)
+    assert (
+        main(
+            [
+                "--dataset",
+                str(dataset),
+                "--output-dir",
+                str(tmp_path),
+                "--gate-mode",
+                "classical_nlp",
+                "--threshold-f1",
+                "0.0",
+            ]
+        )
+        == 0
+    )
+    assert (
+        main(
+            [
+                "--dataset",
+                str(dataset),
+                "--output-dir",
+                str(tmp_path),
+                "--gate-mode",
+                "classical_nlp",
+                "--threshold-f1",
+                "1.01",
+            ]
+        )
+        == 1
+    )
+
+
 @pytest.fixture
 def reports_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("RESEARCH_REPORTS_DIR", str(tmp_path))
